@@ -1,0 +1,191 @@
+# Annapurna Online Services
+
+Website, WhatsApp car-booking bot and admin dashboard, built with Next.js.
+
+| URL | What it is |
+|---|---|
+| `/` | Landing page |
+| `/login` | Dashboard sign-in by mobile number (linked from the site's footer, hidden from search engines) |
+| `/admin` | Overview: counts, enquiries needing attention, fleet status, upcoming trips |
+| `/admin/bookings` | All enquiries and bookings, with filters and actions |
+| `/admin/calendar` | Month calendar for each car |
+| `/admin/activity` | Activity log: who changed what, and when (admins and the super admin only) |
+| `/admin/users` | Users & roles (admins and the super admin only) |
+| `/admin/account` | My account: change your own password (everyone) |
+| `/api/whatsapp/webhook` | Callback URL for the WhatsApp Cloud API |
+
+## Run it locally
+
+Requires Node.js 20+.
+
+```bash
+npm install
+npm run super-admin -- create --name "Srimannarayana" --mobile 9949810683   # once per database; asks for a password
+npm run dev
+```
+
+- Website: http://localhost:3000
+- Dashboard: http://localhost:3000/login. Sign in with the super admin's mobile number and password, then add admins and viewers under **Users & roles**.
+
+Locally, `DATABASE_URL=pglite:./.data/pglite` uses a built-in database stored in the `.data` folder, so no account is needed. To try the dashboard with sample bookings:
+
+```bash
+npm run db:seed            # 12 sample bookings covering every case (clash, past date, failed message, ...)
+npm run db:seed -- --clear # removes them again
+```
+
+## Using Neon (online database)
+
+1. Create a free project at https://neon.tech and copy its connection string.
+2. Set `DATABASE_URL` to it, in `.env.local` or in your hosting settings.
+3. Create the tables: `npm run db:migrate`. This is safe to run again at any time.
+4. Create the super admin: `npm run super-admin -- create --name "…" --mobile …`. You only do this once.
+
+## Settings (`.env.local`)
+
+All keys are listed in [.env.example](.env.example). `.env.local` is in `.gitignore`, so never commit real values.
+
+| Key | Where to get it |
+|---|---|
+| `DATABASE_URL` | Neon connection string, or `pglite:./.data/pglite` locally |
+| `SESSION_SECRET` | Any random 32+ characters (already generated in `.env.local`) |
+| `WHATSAPP_TOKEN` | Meta → your App → WhatsApp → API Setup (temporary, lasts 24 h) or a System User token (permanent, see below) |
+| `WHATSAPP_PHONE_NUMBER_ID` | Same page, "Phone number ID". This is not the phone number itself. |
+| `WHATSAPP_APP_SECRET` | Meta → your App → App settings → Basic → App secret |
+| `WHATSAPP_VERIFY_TOKEN` | Any random string; Meta asks for the same value when you save the webhook (already generated) |
+| `WHATSAPP_DRY_RUN` | `1` prints outgoing WhatsApp messages in the terminal instead of sending them |
+
+## Connect WhatsApp
+
+### 1. Give your computer a public URL (local testing only)
+
+Meta can't reach `localhost`. While `npm run dev` is running, open a second terminal:
+
+```bash
+npx cloudflared tunnel --url http://localhost:3000
+```
+
+It prints a URL such as `https://random-words.trycloudflare.com`. The URL changes every time you run the command. After deployment, use your real site URL instead.
+
+### 2. Set the webhook in Meta
+
+Go to Meta for Developers → your App → WhatsApp → **Configuration**:
+
+- **Callback URL:** `https://<your-url>/api/whatsapp/webhook`
+- **Verify token:** the `WHATSAPP_VERIFY_TOKEN` value from `.env.local`
+- Click **Verify and save**, then under **Webhook fields** subscribe to **messages**.
+
+Send "Hi" to your business number from WhatsApp. The bot should reply with the menu.
+
+### 3. Create the two message templates
+
+The "booked" and "not available" messages may be sent more than 24 hours after the customer's last message, so WhatsApp requires approved templates for them. In **WhatsApp Manager → Message templates → Create template**, choose category **Utility** and language **English**. If you pick "English (US)" instead, set `WHATSAPP_TEMPLATE_LANG=en_US`.
+
+**Name:** `booking_confirmed`
+
+```
+Hello {{1}}, your car booking is confirmed! ✅
+
+Ref: {{2}}
+Car: {{3}} with driver
+Dates: {{4}}
+Passengers: {{5}}
+Pickup: {{6}}
+
+Our team will contact you before your trip. For help, call 99498 10683.
+```
+
+Sample values: `Ravi` · `AN-1001` · `Kia Carens` · `12 Oct – 13 Oct 2026 (2 days)` · `5 adults + 2 children` · `Bus stand, Main Road`
+
+**Name:** `booking_unavailable`
+
+```
+Hello {{1}}, sorry, the {{2}} is not available for {{3}} (Ref: {{4}}).
+
+Reply menu to choose other dates, or call 99498 10683 for help.
+```
+
+Sample values: `Ravi` · `Kia Carens` · `12 Oct – 13 Oct 2026 (2 days)` · `AN-1001`
+
+Until a template is approved, the dashboard falls back to a plain message. WhatsApp only delivers that within 24 hours of the customer's last message. If neither can be sent, the booking shows the error and a **Resend message** button.
+
+### 4. Permanent access token (before going live)
+
+The token on the API Setup page expires after 24 hours. To get a permanent one:
+
+1. Open Meta Business Settings → **Users → System users** and add an Admin system user.
+2. **Assign assets**: give it your App and your WhatsApp account (full control).
+3. **Generate token**: choose your App, set expiry to **Never**, and tick `whatsapp_business_messaging` and `whatsapp_business_management`.
+4. Put the token in `WHATSAPP_TOKEN`.
+
+## Users & roles
+
+| Role | Who | Can do |
+|---|---|---|
+| **Super admin** | The owner. There is exactly one, created with `npm run super-admin -- create`. | Everything. Only role that can add admins/viewers and reset their passwords. Can't be removed. |
+| **Admin** | Added by the super admin | Mark as booked, reject, cancel, resend messages. Can remove other users, but not the super admin or themselves. |
+| **Viewer** | Added by the super admin | Read-only: overview, bookings and calendar. Sees no buttons, and the server refuses any change. |
+
+- **Signing in:** everyone signs in at `/login` with their mobile number and password.
+- **Where users are stored:** everyone, including the super admin, is in the `users` table, with passwords stored as scrypt hashes.
+- **Database protection:** the database itself refuses to delete the super admin, change their role, or add a second super admin.
+- **Your own password:** anyone can change it under **My account** (click your name at the bottom of the sidebar).
+- **Removing a user or resetting a password:** the user is signed out immediately.
+- **Who changed what:** bookings and users record who last changed them and when (`updated_by`, `updated_at`), and the **Activity** page keeps the full history, including deletions and new WhatsApp enquiries (`activity_log` table).
+
+**If the super admin forgets their password**, run this on a computer that has the project and the database settings:
+
+```bash
+npm run super-admin -- reset-password --mobile 9949810683
+```
+
+It asks for the new password without showing it on screen.
+
+## How booking works
+
+1. The customer says Hi and taps **Book a Car**.
+2. They choose a car:
+   - **Kia Carens:** up to 6 adults, and up to 7 people in total with children.
+   - **Kia Seltos:** up to 4 people.
+3. They choose the number of adults, then children. A child is under 12. The children question is skipped when the car is already full.
+4. They choose a start date. Only free dates in the next 90 days are shown, starting tomorrow.
+5. They choose the number of days, 1 to 7. Only trip lengths where every day is free are offered.
+6. They type a pickup location, or share their location.
+7. They confirm. The enquiry is saved as **pending** with a reference number like `AN-1001`.
+
+In the dashboard:
+
+- **Mark as Booked:** the dates are blocked for that car, and the customer receives `booking_confirmed`.
+- **Reject:** the customer receives `booking_unavailable`.
+- **Cancel booking**, on a booked trip: frees the dates. No message is sent, so call the customer.
+
+Only booked trips block dates. If two enquiries ask for the same days, the second one is marked as a conflict once the first is booked. The database also refuses overlapping bookings for the same car, so a double booking can't happen.
+
+A half-finished WhatsApp conversation is forgotten after 30 minutes. The customer can type **menu** at any time to start again.
+
+Car limits, trip length, the booking window and the timeout are set in [lib/config.ts](lib/config.ts). The car limits are also enforced in [db/schema.sql](db/schema.sql).
+
+## Project structure
+
+```
+app/
+  page.tsx, landing.css          landing page
+  login/                         sign-in page + sign-in/out actions
+  admin/                         layout with sidebar, overview, bookings/, calendar/, users/, account/
+  admin.css                      dashboard styles
+  api/whatsapp/webhook/route.ts  Meta verification + incoming messages
+components/                      landing page markup/effects, dashboard pieces
+lib/
+  config.ts                      business details, cars, booking rules
+  bookings.ts                    availability + booking queries
+  auth.ts                        roles, permissions, sign-in, session cookie
+  users.ts                       dashboard users (admins, viewers)
+  db.ts                          database connection (Neon or local PGlite)
+  dates.ts                       date helpers (Indian time)
+  whatsapp/flow.ts               the bot conversation
+  whatsapp/client.ts             sending WhatsApp messages
+  whatsapp/notify.ts             booked / not-available messages
+  whatsapp/session.ts            conversation state
+db/schema.sql                    tables and rules
+scripts/                         migrate, seed, super-admin (create / reset password)
+```

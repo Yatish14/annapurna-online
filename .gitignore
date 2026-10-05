@@ -1,0 +1,13 @@
+# secrets
+.env
+.env*.local
+
+# dependencies & build output
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# local dev database (PGlite)
+.data/
