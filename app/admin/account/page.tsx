@@ -13,37 +13,37 @@ export default async function AccountPage({ searchParams }: { searchParams: Sear
   const params = await readParams(searchParams);
 
   return (
-    <main className="ad-page">
+    <main className="ap-page">
       <PageHeader title="My account" subtitle="Your sign-in details." />
       <Flash params={params} />
 
-      <div className="ad-grid-account">
-        <section className="ad-panel ad-profile">
-          <span className={`ad-avatar ad-avatar-lg ${me.role === "super_admin" ? "is-owner" : ""}`}>{initials(me.name)}</span>
+      <div className="ap-grid-account">
+        <section className="ap-panel ap-profile">
+          <span className={`ap-avatar ap-avatar-lg ${me.role === "super_admin" ? "is-owner" : ""}`}>{initials(me.name)}</span>
           <strong>{me.name}</strong>
-          <span className="ad-muted">{formatPhone(me.mobile)}</span>
-          <span className={`ad-role is-${me.role}`}>{ROLE_LABELS[me.role]}</span>
+          <span className="ap-muted">{formatPhone(me.mobile)}</span>
+          <span className={`ap-role is-${me.role}`}>{ROLE_LABELS[me.role]}</span>
         </section>
 
-        <section className="ad-panel">
-          <div className="ad-panel-head">
+        <section className="ap-panel">
+          <div className="ap-panel-head">
             <h2>Change password</h2>
           </div>
-          <form action={changeOwnPassword} className="ad-account-form">
-            <label className="ad-field">
+          <form action={changeOwnPassword} className="ap-account-form">
+            <label className="ap-field">
               <span>Current password</span>
               <input type="password" name="current" required autoComplete="current-password" />
             </label>
-            <label className="ad-field">
+            <label className="ap-field">
               <span>New password</span>
               <input type="password" name="password" required minLength={8} autoComplete="new-password" placeholder="At least 8 characters" />
             </label>
-            <label className="ad-field">
+            <label className="ap-field">
               <span>Type the new password again</span>
               <input type="password" name="confirm" required minLength={8} autoComplete="new-password" />
             </label>
-            <SubmitButton className="ad-btn ad-btn-gold">Update password</SubmitButton>
-            <p className="ad-hint">You'll stay signed in here; any other devices will be signed out.</p>
+            <SubmitButton className="ap-btn ap-btn-gold">Update password</SubmitButton>
+            <p className="ap-hint">You'll stay signed in here; any other devices will be signed out.</p>
           </form>
         </section>
       </div>

@@ -35,7 +35,7 @@ export default function Flash({ params }: { params: URLSearchParams }) {
   if (!flash) return null;
   const detail = (params.get("ref") ?? "").replace(/[^\p{L}\p{N} .'-]/gu, "").slice(0, 60);
   return (
-    <p className={`ad-alert ad-alert-${flash.tone}`} role="status">
+    <p className={`ap-alert ap-alert-${flash.tone}`} role="status">
       {flash.text(detail)}
     </p>
   );

@@ -8,6 +8,6 @@ import { useLinkStatus } from "next/link";
  */
 export default function LinkPending({ children }: { children?: React.ReactNode }) {
   const { pending } = useLinkStatus();
-  if (pending) return <span className="ad-link-spinner" aria-hidden="true" />;
+  if (pending) return <span className="ap-link-spinner" aria-hidden="true" />;
   return children ?? null;
 }

@@ -11,13 +11,13 @@ export default function PageHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="ad-pagehead">
+    <header className="ap-pagehead">
       <div>
-        {eyebrow && <span className="ad-eyebrow">{eyebrow}</span>}
+        {eyebrow && <span className="ap-eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
         {subtitle && <p>{subtitle}</p>}
       </div>
-      {children && <div className="ad-pagehead-side">{children}</div>}
+      {children && <div className="ap-pagehead-side">{children}</div>}
     </header>
   );
 }

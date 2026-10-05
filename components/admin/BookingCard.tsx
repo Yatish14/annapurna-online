@@ -73,14 +73,14 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
   const statusLabel = STATUS_TABS.find((t) => t.id === b.status)?.label ?? b.status;
 
   return (
-    <article className={`ad-card is-${b.status}`}>
-      <div className="ad-card-head">
-        <div className="ad-card-title">
-          <span className="ad-ref">{b.ref}</span>
-          <span className={`ad-badge is-${b.status}`}>{statusLabel}</span>
-          {b.is_sample && <span className="ad-badge is-sample">Test data</span>}
+    <article className={`ap-card is-${b.status}`}>
+      <div className="ap-card-head">
+        <div className="ap-card-title">
+          <span className="ap-ref">{b.ref}</span>
+          <span className={`ap-badge is-${b.status}`}>{statusLabel}</span>
+          {b.is_sample && <span className="ap-badge is-sample">Test data</span>}
         </div>
-        <div className="ad-customer">
+        <div className="ap-customer">
           <strong>{b.customer_name || "WhatsApp customer"}</strong>
           <a href={`https://wa.me/${b.phone.length === 10 ? `91${b.phone}` : b.phone}`} target="_blank" rel="noopener noreferrer">
             {formatPhone(b.phone)}
@@ -88,7 +88,7 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
         </div>
       </div>
 
-      <dl className="ad-facts">
+      <dl className="ap-facts">
         <div>
           <dt>Car</dt>
           <dd>{CARS[b.car].name}</dd>
@@ -100,10 +100,10 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
         <div>
           <dt>Dates</dt>
           <dd>
-            {fmtRange(b.start_date, b.end_date)} <span className="ad-muted">· {daysText(days)}</span>
+            {fmtRange(b.start_date, b.end_date)} <span className="ap-muted">· {daysText(days)}</span>
           </dd>
         </div>
-        <div className="ad-wide">
+        <div className="ap-wide">
           <dt>Pickup</dt>
           <dd>
             <PickupText text={b.pickup_location} />
@@ -116,23 +116,23 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
       </dl>
 
       {b.status === "pending" && conflict && (
-        <p className="ad-note ad-note-error">
+        <p className="ap-note ap-note-error">
           ⚠ Dates overlap confirmed booking {conflict}. Reject this enquiry or cancel the other booking first.
         </p>
       )}
-      {b.status === "pending" && datesPassed && <p className="ad-note ad-note-warn">The start date has already passed.</p>}
+      {b.status === "pending" && datesPassed && <p className="ap-note ap-note-warn">The start date has already passed.</p>}
       {(b.status === "confirmed" || b.status === "rejected") &&
         (b.is_sample ? (
-          <p className="ad-note ad-note-warn">Test data: no WhatsApp message is sent for sample bookings.</p>
+          <p className="ap-note ap-note-warn">Test data: no WhatsApp message is sent for sample bookings.</p>
         ) : b.notify_error ? (
-          <p className="ad-note ad-note-error">WhatsApp message failed: {b.notify_error}</p>
+          <p className="ap-note ap-note-error">WhatsApp message failed: {b.notify_error}</p>
         ) : b.notified ? (
-          <p className="ad-note ad-note-ok">✓ Customer notified on WhatsApp</p>
+          <p className="ap-note ap-note-ok">✓ Customer notified on WhatsApp</p>
         ) : null)}
 
-      <div className="ad-card-foot">
+      <div className="ap-card-foot">
         {b.updated_by && b.status !== "pending" ? (
-          <span className="ad-by">
+          <span className="ap-by">
             <Icon name="shield" size={14} /> {statusLabel} by <strong>{b.updated_by}</strong> · {b.updated_ist}
           </span>
         ) : (
@@ -140,14 +140,14 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
         )}
 
         {canManage && (
-          <div className="ad-actions">
+          <div className="ap-actions">
             {b.status === "pending" && (
               <>
                 <ActionForm
                   booking={b}
                   action="reject"
                   back={back}
-                  className="ad-btn ad-btn-ghost"
+                  className="ap-btn ap-btn-ghost"
                   confirm={`Reject ${b.ref}? The customer will be told the car isn't available.`}
                 >
                   Reject
@@ -156,7 +156,7 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
                   booking={b}
                   action="book"
                   back={back}
-                  className="ad-btn ad-btn-gold"
+                  className="ap-btn ap-btn-gold"
                   disabled={Boolean(conflict) || datesPassed}
                   title={conflict ? "Dates overlap a confirmed booking" : datesPassed ? "Start date has passed" : undefined}
                 >
@@ -165,7 +165,7 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
               </>
             )}
             {(b.status === "confirmed" || b.status === "rejected") && b.notify_error && !b.is_sample && (
-              <ActionForm booking={b} action="resend" back={back} className="ad-btn ad-btn-ghost">
+              <ActionForm booking={b} action="resend" back={back} className="ap-btn ap-btn-ghost">
                 Resend message
               </ActionForm>
             )}
@@ -174,7 +174,7 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
                 booking={b}
                 action="cancel"
                 back={back}
-                className="ad-btn ad-btn-danger"
+                className="ap-btn ap-btn-danger"
                 confirm={`Cancel booking ${b.ref}? Its dates become free again. The customer is NOT messaged, so please call them.`}
               >
                 Cancel booking

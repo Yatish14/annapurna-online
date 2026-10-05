@@ -29,11 +29,11 @@ export default function MonthCalendar({ car, monthStart, daysInMonth, today, ent
   const days = Array.from({ length: daysInMonth }, (_, i) => addDays(monthStart, i));
 
   return (
-    <div className="ad-cal">
+    <div className="ap-cal">
       <h3>{car.name}</h3>
-      <div className="ad-cal-grid">
+      <div className="ap-cal-grid">
         {WEEK.map((w) => (
-          <div key={w} className="ad-cal-head">{w}</div>
+          <div key={w} className="ap-cal-head">{w}</div>
         ))}
         {Array.from({ length: leadingBlanks }, (_, i) => (
           <div key={`b${i}`} />
@@ -42,7 +42,7 @@ export default function MonthCalendar({ car, monthStart, daysInMonth, today, ent
           const ref = booked.get(d);
           const enquiries = pending.get(d);
           const cls = [
-            "ad-cal-day",
+            "ap-cal-day",
             ref ? "is-booked" : enquiries ? "is-pending" : "",
             d < today ? "is-past" : "",
             d === today ? "is-today" : "",

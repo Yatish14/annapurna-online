@@ -43,32 +43,32 @@ export default function Sidebar({ user, pendingCount, showUsers, showActivity, i
 
   return (
     <>
-      <header className="ad-mobilebar">
-        <button type="button" className="ad-iconbtn" aria-label="Open menu" onClick={() => setOpen(true)}>
+      <header className="ap-mobilebar">
+        <button type="button" className="ap-iconbtn" aria-label="Open menu" onClick={() => setOpen(true)}>
           <Icon name="menu" size={22} />
         </button>
-        <div className="ad-mobilebar-brand">
+        <div className="ap-mobilebar-brand">
           <Lotus size={28} />
           <strong>Annapurna</strong>
         </div>
-        <span className="ad-avatar ad-avatar-sm">{user.initials}</span>
+        <span className="ap-avatar ap-avatar-sm">{user.initials}</span>
       </header>
 
-      <div className={`ad-scrim ${open ? "is-open" : ""}`} onClick={() => setOpen(false)} aria-hidden="true" />
+      <div className={`ap-scrim ${open ? "is-open" : ""}`} onClick={() => setOpen(false)} aria-hidden="true" />
 
       <aside
-        className={`ad-side ${open ? "is-open" : ""} ${collapsed ? "is-collapsed" : ""}`}
+        className={`ap-side ${open ? "is-open" : ""} ${collapsed ? "is-collapsed" : ""}`}
         aria-label="Dashboard navigation"
       >
-        <div className="ad-side-brand">
+        <div className="ap-side-brand">
           <Lotus size={38} />
-          <div className="ad-side-brandtext">
+          <div className="ap-side-brandtext">
             <strong>Annapurna</strong>
             <span>Admin console</span>
           </div>
           <button
             type="button"
-            className="ad-iconbtn ad-side-toggle"
+            className="ap-iconbtn ap-side-toggle"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -76,13 +76,13 @@ export default function Sidebar({ user, pendingCount, showUsers, showActivity, i
           >
             <Icon name="collapse" size={19} />
           </button>
-          <button type="button" className="ad-iconbtn ad-side-close" aria-label="Close menu" onClick={() => setOpen(false)}>
+          <button type="button" className="ap-iconbtn ap-side-close" aria-label="Close menu" onClick={() => setOpen(false)}>
             <Icon name="close" size={20} />
           </button>
         </div>
 
-        <nav className="ad-nav">
-          <span className="ad-nav-label">Menu</span>
+        <nav className="ap-nav">
+          <span className="ap-nav-label">Menu</span>
           {items.map((item) => (
             <Link
               key={item.href}
@@ -90,31 +90,31 @@ export default function Sidebar({ user, pendingCount, showUsers, showActivity, i
               className={isActive(item.href) ? "is-active" : ""}
               title={collapsed ? item.label : undefined}
             >
-              <span className="ad-nav-icon">
+              <span className="ap-nav-icon">
                 <Icon name={item.icon} />
-                {item.badge ? <span className="ad-nav-dot" aria-hidden="true" /> : null}
+                {item.badge ? <span className="ap-nav-dot" aria-hidden="true" /> : null}
               </span>
-              <span className="ad-nav-text">{item.label}</span>
-              <LinkPending>{item.badge ? <span className="ad-nav-badge">{item.badge}</span> : null}</LinkPending>
+              <span className="ap-nav-text">{item.label}</span>
+              <LinkPending>{item.badge ? <span className="ap-nav-badge">{item.badge}</span> : null}</LinkPending>
             </Link>
           ))}
         </nav>
 
-        <div className="ad-side-foot">
+        <div className="ap-side-foot">
           <Link
             href="/admin/account"
-            className={`ad-me ${isActive("/admin/account") ? "is-active" : ""}`}
+            className={`ap-me ${isActive("/admin/account") ? "is-active" : ""}`}
             title={collapsed ? `${user.name} · ${user.roleLabel} · My account` : "My account"}
           >
-            <span className="ad-avatar">{user.initials}</span>
-            <div className="ad-me-text">
+            <span className="ap-avatar">{user.initials}</span>
+            <div className="ap-me-text">
               <strong>{user.name}</strong>
-              <span className={`ad-role is-${user.role}`}>{user.roleLabel}</span>
+              <span className={`ap-role is-${user.role}`}>{user.roleLabel}</span>
             </div>
           </Link>
           <form action={logout}>
-            <button type="submit" className="ad-logout" title={collapsed ? "Log out" : undefined}>
-              <Icon name="logout" size={17} /> <span className="ad-logout-text">Log out</span>
+            <button type="submit" className="ap-logout" title={collapsed ? "Log out" : undefined}>
+              <Icon name="logout" size={17} /> <span className="ap-logout-text">Log out</span>
             </button>
           </form>
         </div>

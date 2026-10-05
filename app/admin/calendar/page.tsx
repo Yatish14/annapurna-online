@@ -32,9 +32,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
   const entries = await calendarEntries(month.start, month.end);
 
   return (
-    <main className="ad-page">
+    <main className="ap-page">
       <PageHeader title="Availability" subtitle="Booked days for each car. Days with pending enquiries are outlined.">
-        <div className="ad-cal-nav">
+        <div className="ap-cal-nav">
           <Link href={calendarHref(month.prev)} scroll={false} aria-label="Previous month">
             ‹<LinkPending />
           </Link>
@@ -45,8 +45,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
         </div>
       </PageHeader>
 
-      <section className="ad-panel">
-        <div className="ad-cals">
+      <section className="ap-panel">
+        <div className="ap-cals">
           {CAR_IDS.map((id) => (
             <MonthCalendar
               key={id}
@@ -58,7 +58,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
             />
           ))}
         </div>
-        <div className="ad-legend">
+        <div className="ap-legend">
           <span>
             <i className="is-booked" /> Booked
           </span>

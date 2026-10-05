@@ -30,17 +30,17 @@ const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (tar
 function Entry({ row }: { row: ActivityRow }) {
   const a = ACTIONS[row.action];
   return (
-    <li className="ad-act">
-      <span className={`ad-act-icon is-${a?.tone ?? "navy"}`}>
+    <li className="ap-act">
+      <span className={`ap-act-icon is-${a?.tone ?? "navy"}`}>
         <Icon name={a?.icon ?? "activity"} size={16} />
       </span>
-      <div className="ad-act-main">
+      <div className="ap-act-main">
         <p>
           <strong>{row.actor_name}</strong> {a ? a.text(row.target ?? "") : `${row.action} ${row.target ?? ""}`}
         </p>
-        {row.details && <span className="ad-act-details">{row.details}</span>}
+        {row.details && <span className="ap-act-details">{row.details}</span>}
       </div>
-      <div className="ad-act-side">
+      <div className="ap-act-side">
         <time>{row.time}</time>
         {row.actor_mobile && <span>{formatPhone(row.actor_mobile)}</span>}
       </div>
@@ -63,12 +63,12 @@ export default async function ActivityPage({ searchParams }: { searchParams: Sea
   }
 
   return (
-    <main className="ad-page">
+    <main className="ap-page">
       <PageHeader title="Activity" subtitle="Every change made in the dashboard, and every new WhatsApp enquiry: who, what and when." />
 
-      <section className="ad-panel">
-        <div className="ad-toolbar">
-          <nav className="ad-tabs" aria-label="Show">
+      <section className="ap-panel">
+        <div className="ap-toolbar">
+          <nav className="ap-tabs" aria-label="Show">
             {FILTERS.map((f) => (
               <Link key={f.id} href={`/admin/activity?type=${f.id}`} scroll={false} className={filter === f.id ? "is-active" : ""}>
                 {f.label}
@@ -76,19 +76,19 @@ export default async function ActivityPage({ searchParams }: { searchParams: Sea
               </Link>
             ))}
           </nav>
-          <span className="ad-muted">Latest {rows.length} entries</span>
+          <span className="ap-muted">Latest {rows.length} entries</span>
         </div>
 
         {days.length === 0 ? (
-          <div className="ad-empty">
+          <div className="ap-empty">
             <Icon name="activity" size={32} />
             <p>Nothing has happened yet. Changes will appear here as people use the dashboard.</p>
           </div>
         ) : (
           days.map((d) => (
-            <div key={d.day} className="ad-act-day">
+            <div key={d.day} className="ap-act-day">
               <h3>{d.day.replace(/\s+,/, ",")}</h3>
-              <ul className="ad-acts">
+              <ul className="ap-acts">
                 {d.rows.map((row) => (
                   <Entry key={row.id} row={row} />
                 ))}

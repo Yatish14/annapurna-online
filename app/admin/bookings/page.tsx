@@ -27,19 +27,19 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
   ]);
 
   return (
-    <main className="ad-page">
+    <main className="ap-page">
       <PageHeader title="Bookings" subtitle="Enquiries from WhatsApp, and the trips you've confirmed.">
         {!canManage && (
-          <span className="ad-viewonly">
+          <span className="ap-viewonly">
             <Icon name="eye" size={15} /> View only
           </span>
         )}
       </PageHeader>
       <Flash params={params} />
 
-      <section className="ad-panel">
-        <div className="ad-toolbar">
-          <nav className="ad-tabs" aria-label="Status">
+      <section className="ap-panel">
+        <div className="ap-toolbar">
+          <nav className="ap-tabs" aria-label="Status">
             {STATUS_TABS.map((t) => (
               <Link
                 key={t.id}
@@ -48,13 +48,13 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
                 className={filters.status === t.id ? "is-active" : ""}
               >
                 {t.label}
-                <span className="ad-count">
+                <span className="ap-count">
                   <LinkPending>{stats.byStatus[t.id]}</LinkPending>
                 </span>
               </Link>
             ))}
           </nav>
-          <nav className="ad-pills" aria-label="Car">
+          <nav className="ap-pills" aria-label="Car">
             {(["all", ...CAR_IDS] as const).map((c) => (
               <Link
                 key={c}
@@ -70,7 +70,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
         </div>
 
         {bookings.length === 0 ? (
-          <div className="ad-empty">
+          <div className="ap-empty">
             <Icon name="inbox" size={32} />
             <p>
               {filters.status === "pending"
@@ -79,7 +79,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
             </p>
           </div>
         ) : (
-          <div className="ad-list">
+          <div className="ap-list">
             {bookings.map((b) => (
               <BookingCard
                 key={b.id}

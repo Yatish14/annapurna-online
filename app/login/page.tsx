@@ -22,9 +22,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { error } = await searchParams;
 
   return (
-    <main className="ad-login">
-      <form action={login} className="ad-login-card">
-        <div className="ad-login-brand">
+    <main className="ap-login">
+      <form action={login} className="ap-login-card">
+        <div className="ap-login-brand">
           <Lotus size={44} />
           <div>
             <strong>Annapurna</strong>
@@ -33,9 +33,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </div>
 
         <h1>Sign in</h1>
-        {error && ERRORS[error] && <p className="ad-alert ad-alert-error">{ERRORS[error]}</p>}
+        {error && ERRORS[error] && <p className="ap-alert ap-alert-error">{ERRORS[error]}</p>}
 
-        <label className="ad-field">
+        <label className="ap-field">
           <span>Mobile number</span>
           <input
             type="tel"
@@ -48,12 +48,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             autoFocus
           />
         </label>
-        <label className="ad-field">
+        <label className="ap-field">
           <span>Password</span>
           <input type="password" name="password" autoComplete="current-password" required />
         </label>
 
-        <SubmitButton className="ad-btn ad-btn-gold ad-btn-block">Sign in</SubmitButton>
+        <SubmitButton className="ap-btn ap-btn-gold ap-btn-block">Sign in</SubmitButton>
       </form>
     </main>
   );

@@ -28,18 +28,18 @@ function longToday(): string {
 function TripRow({ b }: { b: Booking }) {
   const days = diffDays(b.start_date, b.end_date) + 1;
   return (
-    <li className="ad-row">
-      <span className="ad-datechip">
+    <li className="ap-row">
+      <span className="ap-datechip">
         <strong>{Number(b.start_date.slice(8))}</strong>
         <small>{fmtShort(b.start_date).slice(-3)}</small>
       </span>
-      <div className="ad-row-main">
+      <div className="ap-row-main">
         <strong>{b.customer_name || "WhatsApp customer"}</strong>
         <span>
           {CARS[b.car].name} · {passengersText(b.adults, b.children)} · {fmtRange(b.start_date, b.end_date)} ({daysText(days)})
         </span>
       </div>
-      <span className="ad-row-ref">{b.ref}</span>
+      <span className="ap-row-ref">{b.ref}</span>
     </li>
   );
 }
@@ -65,7 +65,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
   ];
 
   return (
-    <main className="ad-page">
+    <main className="ap-page">
       <PageHeader
         eyebrow={longToday()}
         title={`${greeting()}, ${user.name.split(" ")[0]}`}
@@ -73,41 +73,41 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
       />
       <Flash params={params} />
 
-      <section className="ad-tiles">
+      <section className="ap-tiles">
         {tiles.map((t) => {
           const body = (
             <>
-              <span className={`ad-tile-icon is-${t.tone}`}>
+              <span className={`ap-tile-icon is-${t.tone}`}>
                 <Icon name={t.icon} size={20} />
               </span>
-              <span className="ad-tile-label">{t.label}</span>
-              <strong className="ad-tile-value">{t.value}</strong>
+              <span className="ap-tile-label">{t.label}</span>
+              <strong className="ap-tile-value">{t.value}</strong>
             </>
           );
           return t.href ? (
-            <Link key={t.label} href={t.href} className="ad-tile is-link">
+            <Link key={t.label} href={t.href} className="ap-tile is-link">
               {body}
             </Link>
           ) : (
-            <div key={t.label} className="ad-tile">
+            <div key={t.label} className="ap-tile">
               {body}
             </div>
           );
         })}
       </section>
 
-      <div className="ad-grid-2">
-        <section className="ad-panel">
-          <div className="ad-panel-head">
+      <div className="ap-grid-2">
+        <section className="ap-panel">
+          <div className="ap-panel-head">
             <h2>Needs your attention</h2>
-            <Link href="/admin/bookings?status=pending&car=all" className="ad-link">
+            <Link href="/admin/bookings?status=pending&car=all" className="ap-link">
               View all <Icon name="arrow" size={15} />
             </Link>
           </div>
           {pending.length === 0 ? (
-            <p className="ad-empty-sm">No pending enquiries. You're all caught up. ✨</p>
+            <p className="ap-empty-sm">No pending enquiries. You're all caught up. ✨</p>
           ) : (
-            <ul className="ad-rows">
+            <ul className="ap-rows">
               {pending.map((b) => (
                 <TripRow key={b.id} b={b} />
               ))}
@@ -115,18 +115,18 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
           )}
         </section>
 
-        <section className="ad-panel">
-          <div className="ad-panel-head">
+        <section className="ap-panel">
+          <div className="ap-panel-head">
             <h2>Fleet today</h2>
-            <Link href="/admin/calendar" className="ad-link">
+            <Link href="/admin/calendar" className="ap-link">
               Calendar <Icon name="arrow" size={15} />
             </Link>
           </div>
-          <div className="ad-fleet">
+          <div className="ap-fleet">
             {fleet.map(({ car, current, next }) => (
-              <div key={car.id} className={`ad-fleet-card ${current ? "is-out" : "is-free"}`}>
-                <div className="ad-fleet-top">
-                  <span className="ad-fleet-icon">
+              <div key={car.id} className={`ap-fleet-card ${current ? "is-out" : "is-free"}`}>
+                <div className="ap-fleet-top">
+                  <span className="ap-fleet-icon">
                     <Icon name="car" size={22} />
                   </span>
                   <div>
@@ -135,7 +135,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
                       Up to {car.maxAdults === car.maxTotal ? `${car.maxTotal} passengers` : `${car.maxAdults} adults · ${car.maxTotal} with children`}
                     </span>
                   </div>
-                  <span className="ad-fleet-status">{current ? "On a trip" : "Available"}</span>
+                  <span className="ap-fleet-status">{current ? "On a trip" : "Available"}</span>
                 </div>
                 <p>
                   {current
@@ -150,17 +150,17 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
         </section>
       </div>
 
-      <section className="ad-panel">
-        <div className="ad-panel-head">
+      <section className="ap-panel">
+        <div className="ap-panel-head">
           <h2>Upcoming trips</h2>
-          <Link href="/admin/bookings?status=confirmed&car=all" className="ad-link">
+          <Link href="/admin/bookings?status=confirmed&car=all" className="ap-link">
             All bookings <Icon name="arrow" size={15} />
           </Link>
         </div>
         {trips.length === 0 ? (
-          <p className="ad-empty-sm">No upcoming trips yet.</p>
+          <p className="ap-empty-sm">No upcoming trips yet.</p>
         ) : (
-          <ul className="ad-rows">
+          <ul className="ap-rows">
             {trips.slice(0, 6).map((b) => (
               <TripRow key={b.id} b={b} />
             ))}

@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const collapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "collapsed";
 
   return (
-    <div className="ad-shell">
+    <div className="ap-shell">
       <Sidebar
         user={{
           name: user.name,
@@ -32,7 +32,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         showActivity={can(user, "viewActivity")}
         initialCollapsed={collapsed}
       />
-      <div className="ad-content">{children}</div>
+      <div className="ap-content">{children}</div>
     </div>
   );
 }
