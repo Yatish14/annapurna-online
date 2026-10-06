@@ -134,7 +134,7 @@ Customers scan the QR code at the counter (**Printout → QR poster** in the das
 - **Accepted files:** PDF, Word, Excel, PowerPoint, OpenDocument, RTF, text/CSV and photos (JPG, PNG, WebP, GIF, BMP, HEIC, TIFF). ZIP and other archives, programs and web pages are refused. Up to 10 files of 25 MB each per order. The server also checks each file really is what its name says.
 - **Printing:** the **Print** button opens the browser's print dialog with the file exactly as uploaded, and shows the customer's options to choose in the dialog. PDFs, photos and text files print straight from the dashboard. Word, Excel, PowerPoint and iPhone (HEIC) photos are downloaded instead, to open and print in their app.
 - **Status:** an order becomes *Printed* once each file has been printed, then *Collected* when you mark it. The customer's confirmation page shows the current status.
-- **Privacy:** files are stored privately (only signed-in dashboard users can open them) and are **deleted 3 days after upload**, by the daily job and whenever the Orders page is opened.
+- **Privacy:** the print page shows a short privacy note before customers send anything. Files are stored privately (only signed-in dashboard users can open them) and are **deleted 3 days after upload**, by the daily job and whenever the Orders page is opened. If a customer asks, an admin can press **Delete files now** on the order; the order record is kept.
 - **Pause uploads** on the Orders page when the shop is closed; the print page then asks customers to come to the counter.
 - **Limits against abuse:** 60 uploads and 20 orders per network per hour, 300 uploads per day in total.
 

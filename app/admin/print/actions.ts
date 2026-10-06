@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { can, currentUser, requireUser } from "@/lib/auth";
-import { optionsText } from "@/lib/print/files";
-import { recordPrint, setAccepting, setOrderStatus } from "@/lib/print/orders";
+import { optionsText, PRINT_SHOP } from "@/lib/print/files";
+import { markDeleted, orderFileKeys, recordPrint, setAccepting, setOrderStatus } from "@/lib/print/orders";
+import { deleteStoredFiles } from "@/lib/print/storage";
 import { safeBack, withFlash } from "../filters";
 
 /**
@@ -54,4 +55,19 @@ export async function setUploads(formData: FormData) {
   await logActivity(user, on ? "print.uploads_resumed" : "print.uploads_paused", null);
   revalidatePath("/admin", "layout");
   redirect(withFlash(back, on ? "uploads-resumed" : "uploads-paused"));
+}
+
+/** Deletes an order's files from storage straight away, e.g. when the customer asks (the order itself is kept) */
+export async function deleteOrderFiles(formData: FormData) {
+  const user = await requireUser("managePrints");
+  const back = safeBack(formData.get("back"));
+
+  const order = await orderFileKeys(Number(formData.get("id")));
+  if (!order || order.keys.length === 0) redirect(withFlash(back, "not-found"));
+
+  await deleteStoredFiles(order.keys);
+  const count = await markDeleted(order.keys);
+  await logActivity(user, "order.files_deleted", order.order_no, `${count} file${count === 1 ? "" : "s"} deleted before the ${PRINT_SHOP.keepDays}-day limit`);
+  revalidatePath("/admin", "layout");
+  redirect(withFlash(back, "files-deleted", order.order_no));
 }

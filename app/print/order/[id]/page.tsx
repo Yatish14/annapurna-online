@@ -71,7 +71,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
         </ul>
         <p className="pp-summary-foot">
           Sent {order.created_ist}
-          {order.customer_name ? ` by ${order.customer_name}` : ""}. Files are deleted automatically after {PRINT_SHOP.keepDays} days.
+          {order.customer_name ? ` by ${order.customer_name}` : ""}. Your files are private and deleted automatically after {PRINT_SHOP.keepDays} days. Want them deleted sooner? Ask at the counter.
         </p>
       </section>
 

@@ -13,6 +13,7 @@ const ACTION_MODULES = {
   "order.file_printed": "print",
   "order.collected": "print",
   "order.reopened": "print",
+  "order.files_deleted": "print",
   "print.uploads_paused": "print",
   "print.uploads_resumed": "print",
   "print.files_deleted": "print",

@@ -18,10 +18,11 @@ const FLASH: Record<string, { tone: Tone; text: (d: string) => string }> = {
 
   "order-collected": { tone: "ok", text: (d) => `${d} marked as collected.` },
   "order-reopened": { tone: "ok", text: (d) => `${d} moved back from collected.` },
+  "files-deleted": { tone: "ok", text: (d) => `The files of ${d} were deleted from storage.` },
   "uploads-paused": { tone: "warn", text: () => "Customer uploads are paused. The print page now asks customers to come to the counter." },
   "uploads-resumed": { tone: "ok", text: () => "Customer uploads are on again." },
 
-  "user-created":{ tone: "ok", text: (d) => `${d} can now sign in with their mobile number and the password you set.` },
+  "user-created": { tone: "ok", text: (d) => `${d} can now sign in with their mobile number and the password you set.` },
   "user-deleted": { tone: "ok", text: (d) => `${d} was removed and signed out.` },
   "password-reset": { tone: "ok", text: (d) => `Password changed for ${d}. They have been signed out everywhere.` },
   "user-exists": { tone: "error", text: () => "A user with that mobile number already exists." },

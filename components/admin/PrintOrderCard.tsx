@@ -1,4 +1,4 @@
-import { updateOrder } from "@/app/admin/print/actions";
+import { deleteOrderFiles, updateOrder } from "@/app/admin/print/actions";
 import { PRINT_TABS } from "@/app/admin/filters";
 import { formatPhone } from "@/lib/format";
 import { COLOR_LABELS, copiesText, fileTypeOf, formatSize, optionsText, SIDES_LABELS } from "@/lib/print/files";
@@ -22,6 +22,7 @@ type Props = { order: PrintOrder; back: string; canManage: boolean; now: number 
 export default function PrintOrderCard({ order, back, canManage, now }: Props) {
   const statusLabel = PRINT_TABS.find((t) => t.id === order.status)?.label ?? order.status;
   const printedFiles = order.files.filter((f) => f.printed_count > 0).length;
+  const storedFiles = order.files.filter((f) => !f.deleted).length;
 
   return (
     <article className={`ap-card ap-porder is-${order.status}`}>
@@ -96,6 +97,19 @@ export default function PrintOrderCard({ order, back, canManage, now }: Props) {
         </span>
         {canManage && (
           <div className="ap-actions">
+            {storedFiles > 0 && (
+              <form action={deleteOrderFiles}>
+                <input type="hidden" name="id" value={order.id} />
+                <input type="hidden" name="back" value={back} />
+                <SubmitButton
+                  className="ap-btn ap-btn-danger ap-btn-sm"
+                  title="For example when the customer asks. The order itself is kept."
+                  confirm={`Delete the ${storedFiles} file${storedFiles === 1 ? "" : "s"} of ${order.order_no} now? They can't be printed or opened again. The order record is kept.`}
+                >
+                  <Icon name="trash" size={14} /> Delete files now
+                </SubmitButton>
+              </form>
+            )}
             <form action={updateOrder}>
               <input type="hidden" name="id" value={order.id} />
               <input type="hidden" name="back" value={back} />

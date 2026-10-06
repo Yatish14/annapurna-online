@@ -273,7 +273,19 @@ export async function setOrderStatus(
   return row ?? null;
 }
 
-// ---------- Deleting old files ----------
+// ---------- Deleting files ----------
+
+/** The stored files of one order that haven't been deleted yet (for "Delete files now") */
+export async function orderFileKeys(orderId: number): Promise<{ order_no: string; keys: string[] } | null> {
+  const [order] = await query<{ order_no: string }>(`SELECT order_no FROM print_orders WHERE id = $1`, [orderId]);
+  if (!order) return null;
+  const rows = await query<{ storage_key: string }>(
+    `SELECT storage_key FROM print_files WHERE order_id = $1 AND deleted_at IS NULL`,
+    [orderId],
+  );
+  return { order_no: order.order_no, keys: rows.map((r) => r.storage_key) };
+}
+
 
 export async function expiredUploads(keepDays: number, limit = 500): Promise<string[]> {
   const rows = await query<{ storage_key: string }>(

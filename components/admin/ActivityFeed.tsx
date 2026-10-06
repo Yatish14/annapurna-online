@@ -14,6 +14,7 @@ const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (tar
   "order.file_printed": { icon: "printer", tone: "navy", text: (t) => <>printed a file from <b>{t}</b></> },
   "order.collected": { icon: "bag", tone: "green", text: (t) => <>marked <b>{t}</b> as collected</> },
   "order.reopened": { icon: "undo", tone: "gold", text: (t) => <>moved <b>{t}</b> back from collected</> },
+  "order.files_deleted": { icon: "trash", tone: "red", text: (t) => <>deleted the files of <b>{t}</b> early</> },
   "print.uploads_paused": { icon: "pause", tone: "red", text: () => <>paused customer uploads</> },
   "print.uploads_resumed": { icon: "play", tone: "green", text: () => <>resumed customer uploads</> },
   "print.files_deleted": { icon: "trash", tone: "navy", text: () => <>deleted old customer files</> },

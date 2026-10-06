@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { reserveUploads, submitOrder } from "@/app/print/actions";
+import { BUSINESS } from "@/lib/config";
 import {
   ACCEPT,
   checkFile,
@@ -12,6 +13,7 @@ import {
   formatSize,
   normalizePageRange,
   PRINT_LIMITS,
+  PRINT_SHOP,
   SIDES_LABELS,
   type ColorMode,
   type PrintOptions,
@@ -177,6 +179,29 @@ function FileCard({
         </div>
       </fieldset>
     </li>
+  );
+}
+
+/** What happens to the customer's files and details (shown before they send anything) */
+function PrivacyNote() {
+  return (
+    <section className="pp-privacy" aria-labelledby="pp-privacy-title">
+      <h2 id="pp-privacy-title">
+        <Icon name="shield" size={17} /> Your privacy
+      </h2>
+      <ul>
+        <li>We use your files only to print this order, and never share them.</li>
+        <li>
+          Files are stored privately (only our staff can open them) and are <b>deleted automatically {PRINT_SHOP.keepDays} days</b> after
+          upload.
+        </li>
+        <li>Your name and mobile number are optional, and used only to contact you about this order.</li>
+        <li>
+          Want your files deleted sooner? Ask at the counter or call <a href={`tel:+91${BUSINESS.phone}`}>{BUSINESS.phoneDisplay}</a>.
+        </li>
+      </ul>
+      <p>By sending your files, you agree to this.</p>
+    </section>
   );
 }
 
@@ -409,6 +434,8 @@ export default function Uploader() {
             </div>
           </section>
 
+          <PrivacyNote />
+
           <div className="pp-sendbar">
             <div className="pp-sendbar-inner">
               <span>
@@ -424,6 +451,8 @@ export default function Uploader() {
           </div>
         </>
       )}
+
+      {items.length === 0 && <PrivacyNote />}
 
       {busy && (
         <div className="pp-progress" role="dialog" aria-modal="true" aria-labelledby="pp-progress-title">
