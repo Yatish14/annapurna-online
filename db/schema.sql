@@ -115,3 +115,77 @@ CREATE TABLE IF NOT EXISTS processed_messages (
   id          text PRIMARY KEY,
   received_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Which part of the dashboard an activity entry belongs to: 'cars' (bookings), 'print' (printout orders)
+-- or 'users' (team changes). Older entries are all car bookings or user changes.
+ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS module text NOT NULL DEFAULT 'cars';
+UPDATE activity_log SET module = 'users' WHERE action LIKE 'user.%' AND module <> 'users';
+ALTER TABLE activity_log DROP CONSTRAINT IF EXISTS activity_log_module_check;
+ALTER TABLE activity_log ADD CONSTRAINT activity_log_module_check CHECK (module IN ('cars', 'print', 'users'));
+CREATE INDEX IF NOT EXISTS activity_log_module_at_idx ON activity_log (module, at DESC);
+
+-- ---------- Printout: customers scan the QR code at the counter and upload documents ----------
+
+CREATE SEQUENCE IF NOT EXISTS print_order_no_seq START 1001;
+
+-- One customer submission: one or more files, shown at the counter by its order number
+CREATE TABLE IF NOT EXISTS print_orders (
+  id            bigserial PRIMARY KEY,
+  order_no      text NOT NULL UNIQUE DEFAULT ('P-' || nextval('print_order_no_seq')),
+  -- Random id in the customer's confirmation link (order numbers are easy to guess)
+  public_id     text NOT NULL UNIQUE,
+  customer_name text,
+  phone         text CHECK (phone IS NULL OR phone ~ '^[6-9][0-9]{9}$'),
+  status        text NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'printed', 'collected')),
+  -- Keyed hash of the uploader's IP address, only used to limit how often one network can upload
+  ip_hash       text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  updated_by    text
+);
+
+CREATE INDEX IF NOT EXISTS print_orders_status_idx ON print_orders (status, created_at DESC);
+
+-- Every upload slot handed out, used or not, so the files can be deleted after 3 days
+CREATE TABLE IF NOT EXISTS print_uploads (
+  storage_key  text PRIMARY KEY,
+  content_type text NOT NULL,
+  ip_hash      text,
+  order_id     bigint REFERENCES print_orders (id) ON DELETE SET NULL,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  deleted_at   timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS print_uploads_cleanup_idx ON print_uploads (created_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS print_uploads_ip_idx ON print_uploads (ip_hash, created_at);
+
+-- The files of an order, each with the customer's print options
+CREATE TABLE IF NOT EXISTS print_files (
+  id           bigserial PRIMARY KEY,
+  order_id     bigint NOT NULL REFERENCES print_orders (id) ON DELETE CASCADE,
+  position     int  NOT NULL,
+  file_name    text NOT NULL,
+  storage_key  text NOT NULL,
+  content_type text NOT NULL,
+  size_bytes   bigint NOT NULL,
+  color        text NOT NULL CHECK (color IN ('bw', 'color')),
+  sides        text NOT NULL CHECK (sides IN ('single', 'double')),
+  copies       int  NOT NULL DEFAULT 1 CHECK (copies BETWEEN 1 AND 99),
+  -- e.g. "1-3, 5"; NULL means all pages (always NULL for images)
+  page_range   text,
+  printed_count int NOT NULL DEFAULT 0,
+  printed_at   timestamptz,
+  printed_by   text,
+  -- Set when the file is removed from storage (3 days after upload)
+  deleted_at   timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS print_files_order_idx ON print_files (order_id, position);
+
+-- Small app-wide switches, e.g. whether the print page accepts uploads
+CREATE TABLE IF NOT EXISTS app_settings (
+  key        text PRIMARY KEY,
+  value      text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by text
+);

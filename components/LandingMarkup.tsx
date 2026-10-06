@@ -353,7 +353,7 @@ export default function LandingMarkup() {
               </a>
               <a className="cc glass" href="mailto:mclaponline@gmail.com">
                 <span className="cc-ic mail"><svg className="icon"><use href="#i-mail"/></svg></span>
-                <span><small>Email</small><b>mclaponline@gmail.com</b></span>
+                <span><small>Email</small><b>mclaponline<wbr />@gmail.com</b></span>
               </a>
             </div>
           </div>

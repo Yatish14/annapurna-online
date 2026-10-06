@@ -18,7 +18,7 @@ const ERRORS: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  if (await currentUser()) redirect("/admin");
+  if (await currentUser()) redirect("/admin/print");
   const { error } = await searchParams;
 
   return (

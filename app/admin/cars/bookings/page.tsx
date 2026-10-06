@@ -8,7 +8,7 @@ import { can, requireUser } from "@/lib/auth";
 import { dashboardStats, listBookings, pendingConflicts } from "@/lib/bookings";
 import { CAR_IDS, CARS } from "@/lib/config";
 import { todayIST } from "@/lib/dates";
-import { bookingsHref, parseBookingFilters, readParams, STATUS_TABS, type SearchParams } from "../filters";
+import { bookingsHref, parseBookingFilters, readParams, STATUS_TABS, type SearchParams } from "../../filters";
 
 export const metadata = { title: "Bookings" };
 
@@ -28,7 +28,7 @@ export default async function BookingsPage({ searchParams }: { searchParams: Sea
 
   return (
     <main className="ap-page">
-      <PageHeader title="Bookings" subtitle="Enquiries from WhatsApp, and the trips you've confirmed.">
+      <PageHeader eyebrow="Car Bookings" title="Bookings" subtitle="Enquiries from WhatsApp, and the trips you've confirmed.">
         {!canManage && (
           <span className="ap-viewonly">
             <Icon name="eye" size={15} /> View only

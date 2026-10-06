@@ -16,7 +16,12 @@ const FLASH: Record<string, { tone: Tone; text: (d: string) => string }> = {
   invalid: { tone: "error", text: () => "That action isn't allowed here." },
   forbidden: { tone: "error", text: () => "Your role doesn't allow that. Ask the super admin if you need access." },
 
-  "user-created": { tone: "ok", text: (d) => `${d} can now sign in with their mobile number and the password you set.` },
+  "order-collected": { tone: "ok", text: (d) => `${d} marked as collected.` },
+  "order-reopened": { tone: "ok", text: (d) => `${d} moved back from collected.` },
+  "uploads-paused": { tone: "warn", text: () => "Customer uploads are paused. The print page now asks customers to come to the counter." },
+  "uploads-resumed": { tone: "ok", text: () => "Customer uploads are on again." },
+
+  "user-created":{ tone: "ok", text: (d) => `${d} can now sign in with their mobile number and the password you set.` },
   "user-deleted": { tone: "ok", text: (d) => `${d} was removed and signed out.` },
   "password-reset": { tone: "ok", text: (d) => `Password changed for ${d}. They have been signed out everywhere.` },
   "user-exists": { tone: "error", text: () => "A user with that mobile number already exists." },

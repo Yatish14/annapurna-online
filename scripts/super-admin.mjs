@@ -119,7 +119,7 @@ if (command === "create") {
     [name, mobile, hash],
   );
   await db.query(
-    `INSERT INTO activity_log (actor_name, action, target, details) VALUES ('Command line', 'user.created', $1, 'Role: Super admin')`,
+    `INSERT INTO activity_log (actor_name, action, module, target, details) VALUES ('Command line', 'user.created', 'users', $1, 'Role: Super admin')`,
     [`${name} (${mobile})`],
   );
   console.log(`✓ ${name} (${mobile}) is now the super admin. Sign in at /login.`);
@@ -136,7 +136,7 @@ if (command === "reset-password") {
     [user.id, hash],
   );
   await db.query(
-    `INSERT INTO activity_log (actor_name, action, target, details) VALUES ('Command line', 'user.password_reset', $1, 'npm run super-admin -- reset-password')`,
+    `INSERT INTO activity_log (actor_name, action, module, target, details) VALUES ('Command line', 'user.password_reset', 'users', $1, 'npm run super-admin -- reset-password')`,
     [`${user.name} (${mobile})`],
   );
   console.log(`✓ Password changed for ${user.name} (${user.role}). They've been signed out everywhere.`);

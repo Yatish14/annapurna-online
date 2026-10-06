@@ -21,6 +21,8 @@ export const ROLE_LABELS: Record<Role, string> = {
 const PERMISSIONS = {
   /** Mark as booked, reject, cancel, resend messages */
   manageBookings: ["super_admin", "admin"],
+  /** Print customers' files, mark orders collected, pause or resume uploads */
+  managePrints: ["super_admin", "admin"],
   viewUsers: ["super_admin", "admin"],
   /** The activity log: who changed what, when */
   viewActivity: ["super_admin", "admin"],
@@ -147,10 +149,10 @@ export const currentUser = cache(async (): Promise<SessionUser | null> => {
   return { id: user.id, mobile: user.mobile, name: user.name, role: user.role };
 });
 
-/** Sends visitors who aren't signed in to /login, and users without the permission to the overview */
+/** Sends visitors who aren't signed in to /login, and users without the permission to the dashboard home */
 export async function requireUser(permission?: Permission): Promise<SessionUser> {
   const user = await currentUser();
   if (!user) redirect("/login");
-  if (permission && !can(user, permission)) redirect("/admin?flash=forbidden");
+  if (permission && !can(user, permission)) redirect("/admin/print?flash=forbidden");
   return user;
 }

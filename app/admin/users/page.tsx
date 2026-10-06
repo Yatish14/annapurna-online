@@ -19,12 +19,12 @@ const ROLE_INFO: { role: Role; icon: "crown" | "shield" | "eye"; points: string[
   {
     role: "admin",
     icon: "shield",
-    points: ["Mark enquiries as booked or rejected", "Cancel bookings, resend messages", "Remove users (not the super admin)"],
+    points: ["Print orders, mark them collected", "Mark enquiries as booked or rejected", "Remove users (not the super admin)"],
   },
   {
     role: "viewer",
     icon: "eye",
-    points: ["See bookings, calendar and overview", "Can't change anything"],
+    points: ["See print orders and open files", "See bookings and calendar", "Can't change anything"],
   },
 ];
 

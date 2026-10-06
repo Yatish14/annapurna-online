@@ -1,18 +1,25 @@
 # Annapurna Online Services
 
-Website, WhatsApp car-booking bot and admin dashboard, built with Next.js.
+Website, printout uploads (Annapurna Graphics and Internet), WhatsApp car-booking bot and admin dashboard, built with Next.js.
 
 | URL | What it is |
 |---|---|
 | `/` | Landing page |
 | `/login` | Dashboard sign-in by mobile number (linked from the site's footer, hidden from search engines) |
-| `/admin` | Overview: counts, enquiries needing attention, fleet status, upcoming trips |
-| `/admin/bookings` | All enquiries and bookings, with filters and actions |
-| `/admin/calendar` | Month calendar for each car |
-| `/admin/activity` | Activity log: who changed what, and when (admins and the super admin only) |
+| `/print` | Customers upload documents to print (opened by scanning the counter QR code) |
+| `/print/order/…` | The customer's confirmation: order number to show at the counter, and its status |
+| `/admin` | Opens **Printout → Orders** |
+| `/admin/print` | Printout → Orders: files with the customer's options, Print button, mark collected, pause uploads |
+| `/admin/print/qr` | Printout → QR poster for the counter (print it or download the QR code) |
+| `/admin/print/activity` | Printout → Activity (admins and the super admin only) |
+| `/admin/cars` | Car Bookings → Overview: counts, enquiries needing attention, fleet status, upcoming trips |
+| `/admin/cars/bookings` | Car Bookings → all enquiries and bookings, with filters and actions |
+| `/admin/cars/calendar` | Car Bookings → month calendar for each car |
+| `/admin/cars/activity` | Car Bookings → Activity (admins and the super admin only) |
 | `/admin/users` | Users & roles (admins and the super admin only) |
 | `/admin/account` | My account: change your own password (everyone) |
 | `/api/whatsapp/webhook` | Callback URL for the WhatsApp Cloud API |
+| `/api/cron/print-cleanup` | Daily job (vercel.json) that deletes customers' files after 3 days |
 
 ## Run it locally
 
@@ -49,6 +56,8 @@ All keys are listed in [.env.example](.env.example). `.env.local` is in `.gitign
 |---|---|
 | `DATABASE_URL` | Neon connection string, or `pglite:./.data/pglite` locally |
 | `SESSION_SECRET` | Any random 32+ characters (already generated in `.env.local`) |
+| `BLOB_STORE_ID` | Added by Vercel when you connect a Blob store (see Printout below); Vercel signs in with OIDC. On your computer, files are kept in `.data/uploads` instead |
+| `CRON_SECRET` | Optional, any random string: only Vercel's scheduler can then run the clean-up job |
 | `WHATSAPP_TOKEN` | Meta → your App → WhatsApp → API Setup (temporary, lasts 24 h) or a System User token (permanent, see below) |
 | `WHATSAPP_PHONE_NUMBER_ID` | Same page, "Phone number ID". This is not the phone number itself. |
 | `WHATSAPP_APP_SECRET` | Meta → your App → App settings → Basic → App secret |
@@ -118,13 +127,33 @@ The token on the API Setup page expires after 24 hours. To get a permanent one:
 3. **Generate token**: choose your App, set expiry to **Never**, and tick `whatsapp_business_messaging` and `whatsapp_business_management`.
 4. Put the token in `WHATSAPP_TOKEN`.
 
+## Printout
+
+Customers scan the QR code at the counter (**Printout → QR poster** in the dashboard), upload one or more files on `/print`, choose **colour or black & white, single or double-sided, pages** (not for photos) and **copies** for each file, and get an order number like **P-1042** to show at the counter.
+
+- **Accepted files:** PDF, Word, Excel, PowerPoint, OpenDocument, RTF, text/CSV and photos (JPG, PNG, WebP, GIF, BMP, HEIC, TIFF). ZIP and other archives, programs and web pages are refused. Up to 10 files of 25 MB each per order. The server also checks each file really is what its name says.
+- **Printing:** the **Print** button opens the browser's print dialog with the file exactly as uploaded, and shows the customer's options to choose in the dialog. PDFs, photos and text files print straight from the dashboard. Word, Excel, PowerPoint and iPhone (HEIC) photos are downloaded instead, to open and print in their app.
+- **Status:** an order becomes *Printed* once each file has been printed, then *Collected* when you mark it. The customer's confirmation page shows the current status.
+- **Privacy:** files are stored privately (only signed-in dashboard users can open them) and are **deleted 3 days after upload**, by the daily job and whenever the Orders page is opened.
+- **Pause uploads** on the Orders page when the shop is closed; the print page then asks customers to come to the counter.
+- **Limits against abuse:** 60 uploads and 20 orders per network per hour, 300 uploads per day in total.
+
+### Set up file storage on Vercel (once)
+
+1. Vercel → your project → **Storage** → **Create** → **Blob** → choose **Private** → connect it to the project. Vercel adds `BLOB_STORE_ID` and the app signs in with OIDC, so no token is needed.
+2. Optional: add `CRON_SECRET` (any random string) under Settings → Environment Variables.
+3. Run `npm run db:migrate` against Neon once, to create the new tables.
+4. Redeploy. Then print the poster from **Printout → QR poster**.
+
+The free Blob plan has monthly limits on storage and uploads; check usage under Vercel → Storage. Deleting files after 3 days keeps storage small.
+
 ## Users & roles
 
 | Role | Who | Can do |
 |---|---|---|
 | **Super admin** | The owner. There is exactly one, created with `npm run super-admin -- create`. | Everything. Only role that can add admins/viewers and reset their passwords. Can't be removed. |
-| **Admin** | Added by the super admin | Mark as booked, reject, cancel, resend messages. Can remove other users, but not the super admin or themselves. |
-| **Viewer** | Added by the super admin | Read-only: overview, bookings and calendar. Sees no buttons, and the server refuses any change. |
+| **Admin** | Added by the super admin | Print orders, mark them collected, pause uploads. Mark as booked, reject, cancel, resend messages. Can remove other users, but not the super admin or themselves. |
+| **Viewer** | Added by the super admin | Read-only: print orders (can open files), car overview, bookings and calendar. Sees no buttons, and the server refuses any change. |
 
 - **Signing in:** everyone signs in at `/login` with their mobile number and password.
 - **Where users are stored:** everyone, including the super admin, is in the `users` table, with passwords stored as scrypt hashes.
@@ -171,9 +200,13 @@ Car limits, trip length, the booking window and the timeout are set in [lib/conf
 app/
   page.tsx, landing.css          landing page
   login/                         sign-in page + sign-in/out actions
-  admin/                         layout with sidebar, overview, bookings/, calendar/, users/, account/
+  print/                         customer upload page + confirmation page (print.css)
+  admin/                         layout with sidebar; print/ (orders, qr, activity), cars/ (overview,
+                                 bookings, calendar, activity), users/, account/
   admin.css                      dashboard styles
   api/whatsapp/webhook/route.ts  Meta verification + incoming messages
+  api/print/                     uploads (Vercel Blob / local) and the dashboard file viewer
+  api/cron/print-cleanup/        deletes files older than 3 days
 components/                      landing page markup/effects, dashboard pieces
 lib/
   config.ts                      business details, cars, booking rules
@@ -186,6 +219,11 @@ lib/
   whatsapp/client.ts             sending WhatsApp messages
   whatsapp/notify.ts             booked / not-available messages
   whatsapp/session.ts            conversation state
+  print/files.ts                 accepted file types, print options
+  print/orders.ts                print orders, upload slots, limits
+  print/storage.ts               Vercel Blob or local folder
+  print/qr.ts                    counter QR code with the logo
+  activity.ts                    activity log (module: cars, print or users)
 db/schema.sql                    tables and rules
 scripts/                         migrate, seed, super-admin (create / reset password)
 ```

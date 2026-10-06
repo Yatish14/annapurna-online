@@ -1,5 +1,6 @@
 import { isCarId, type BookingStatus, type CarId } from "@/lib/config";
 import { todayIST } from "@/lib/dates";
+import type { PrintStatus } from "@/lib/print/orders";
 
 export const STATUS_TABS: { id: BookingStatus | "all"; label: string }[] = [
   { id: "pending", label: "Pending" },
@@ -30,7 +31,7 @@ export function parseBookingFilters(params: URLSearchParams): BookingFilters {
 }
 
 export function bookingsHref(current: BookingFilters, change: Partial<BookingFilters> = {}): string {
-  return `/admin/bookings?${new URLSearchParams({ ...current, ...change })}`;
+  return `/admin/cars/bookings?${new URLSearchParams({ ...current, ...change })}`;
 }
 
 // ---------- Calendar ----------
@@ -41,23 +42,45 @@ export function parseMonth(params: URLSearchParams): string {
 }
 
 export function calendarHref(month: string): string {
-  return `/admin/calendar?month=${month}`;
+  return `/admin/cars/calendar?month=${month}`;
+}
+
+// ---------- Printout orders ----------
+
+export const PRINT_TABS: { id: PrintStatus | "all"; label: string }[] = [
+  { id: "new", label: "New" },
+  { id: "printed", label: "Printed" },
+  { id: "collected", label: "Collected" },
+  { id: "all", label: "All" },
+];
+
+export function parsePrintStatus(params: URLSearchParams): PrintStatus | "all" {
+  const status = params.get("status");
+  return PRINT_TABS.find((t) => t.id === status)?.id ?? "new";
+}
+
+export function printHref(status: PrintStatus | "all"): string {
+  return `/admin/print?status=${status}`;
 }
 
 // ---------- Returning from actions ----------
 
-const DASHBOARD_PATHS = ["/admin", "/admin/bookings", "/admin/calendar", "/admin/users"];
+const DASHBOARD_PATHS = ["/admin/print", "/admin/cars", "/admin/cars/bookings", "/admin/cars/calendar", "/admin/users"];
 
 /** A dashboard URL to return to after an action: known pages and validated filter keys only */
 export function safeBack(raw: unknown): string {
   const [path, qs = ""] = String(raw ?? "").split("?");
-  if (!DASHBOARD_PATHS.includes(path)) return "/admin";
+  if (!DASHBOARD_PATHS.includes(path)) return "/admin/print";
   const params = new URLSearchParams(qs);
   const out = new URLSearchParams();
-  const f = parseBookingFilters(params);
-  if (params.has("status")) out.set("status", f.status);
-  if (params.has("car")) out.set("car", f.car);
-  if (params.has("month")) out.set("month", parseMonth(params));
+  if (path === "/admin/print") {
+    if (params.has("status")) out.set("status", parsePrintStatus(params));
+  } else {
+    const f = parseBookingFilters(params);
+    if (params.has("status")) out.set("status", f.status);
+    if (params.has("car")) out.set("car", f.car);
+    if (params.has("month")) out.set("month", parseMonth(params));
+  }
   return out.size ? `${path}?${out}` : path;
 }
 

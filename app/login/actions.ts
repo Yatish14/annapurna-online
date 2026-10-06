@@ -19,7 +19,7 @@ export async function login(formData: FormData) {
   }
 
   await setSessionCookie(result.mobile, result.version);
-  redirect("/admin");
+  redirect("/admin/print");
 }
 
 export async function logout() {

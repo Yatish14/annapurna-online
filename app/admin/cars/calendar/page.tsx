@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { calendarEntries } from "@/lib/bookings";
 import { CAR_IDS, CARS } from "@/lib/config";
 import { addDays, diffDays, MONTHS_LONG, todayIST } from "@/lib/dates";
-import { calendarHref, parseMonth, readParams, type SearchParams } from "../filters";
+import { calendarHref, parseMonth, readParams, type SearchParams } from "../../filters";
 
 export const metadata = { title: "Calendar" };
 
@@ -33,7 +33,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
 
   return (
     <main className="ap-page">
-      <PageHeader title="Availability" subtitle="Booked days for each car. Days with pending enquiries are outlined.">
+      <PageHeader eyebrow="Car Bookings" title="Availability" subtitle="Booked days for each car. Days with pending enquiries are outlined.">
         <div className="ap-cal-nav">
           <Link href={calendarHref(month.prev)} scroll={false} aria-label="Previous month">
             ‹<LinkPending />
