@@ -21,6 +21,8 @@ export type PrintFile = {
   printed_by: string | null;
   deleted: boolean;
   deleted_ist: string | null;
+  /** Milliseconds since 1970, to tell an automatic deletion (3+ days after upload) from an early one */
+  deleted_ms: number | null;
   /** Who deleted the file early; null when it was deleted automatically */
   deleted_by: string | null;
 };
@@ -174,7 +176,8 @@ const FILE_COLUMNS = `
   color, sides, copies, page_range, printed_count,
   to_char(printed_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon, HH12:MI AM') AS printed_ist, printed_by,
   deleted_at IS NOT NULL AS deleted,
-  to_char(deleted_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon, HH12:MI AM') AS deleted_ist, deleted_by`;
+  to_char(deleted_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon, HH12:MI AM') AS deleted_ist, deleted_by,
+  (extract(epoch FROM deleted_at) * 1000)::float8 AS deleted_ms`;
 
 async function withFiles(orders: Omit<PrintOrder, "files">[]): Promise<PrintOrder[]> {
   if (orders.length === 0) return [];

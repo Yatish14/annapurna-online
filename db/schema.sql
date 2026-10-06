@@ -185,6 +185,13 @@ CREATE INDEX IF NOT EXISTS print_files_order_idx ON print_files (order_id, posit
 -- Who pressed "Delete files now" (NULL when the files were deleted automatically after 3 days)
 ALTER TABLE print_files ADD COLUMN IF NOT EXISTS deleted_by text;
 
+-- Files deleted with "Delete files now" before deleted_by existed: take the name from the activity log
+UPDATE print_files f SET deleted_by = a.actor_name
+FROM print_orders o, activity_log a
+WHERE f.order_id = o.id AND f.deleted_by IS NULL AND f.deleted_at IS NOT NULL
+  AND a.action = 'order.files_deleted' AND a.target = o.order_no
+  AND a.at BETWEEN f.deleted_at - interval '2 minutes' AND f.deleted_at + interval '2 minutes';
+
 -- Small app-wide switches, e.g. whether the print page accepts uploads
 CREATE TABLE IF NOT EXISTS app_settings (
   key        text PRIMARY KEY,

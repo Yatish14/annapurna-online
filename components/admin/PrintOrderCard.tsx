@@ -72,8 +72,10 @@ export default function PrintOrderCard({ order, back, canManage, now }: Props) {
                       <>
                         Deleted by <strong>{f.deleted_by}</strong> · {f.deleted_ist}
                       </>
-                    ) : (
+                    ) : (f.deleted_ms ?? 0) - order.created_ms >= (PRINT_SHOP.keepDays * 24 - 1) * 3_600_000 ? (
                       <>Deleted automatically after {PRINT_SHOP.keepDays} days · {f.deleted_ist}</>
+                    ) : (
+                      <>Deleted · {f.deleted_ist}</>
                     )}
                   </span>
                 )}
