@@ -20,6 +20,7 @@ import {
   kmOf,
   listPayments,
   profitOf,
+  profitWhenPaid,
   routeText,
   tripExpenses,
 } from "@/lib/expenses/trips";
@@ -49,6 +50,7 @@ export default async function TripPage({ params, searchParams }: { params: Param
   const days = diffDays(trip.start_date, trip.end_date) + 1;
   const km = kmOf(trip);
   const profit = profitOf(trip);
+  const whenPaid = profitWhenPaid(trip);
   const active = trip.status === "booked";
   const editable = canManage && active;
 
@@ -66,9 +68,12 @@ export default async function TripPage({ params, searchParams }: { params: Param
     { label: "Repairs", value: formatRupees(trip.repairs), tone: "gold" },
     {
       label: "Profit",
-      value: profit === null ? "—" : formatRupees(profit),
-      sub: "Total − driver − fuel − repairs",
-      tone: profit !== null && profit < 0 ? "red" : "green",
+      value: formatRupees(profit),
+      sub:
+        whenPaid !== null && whenPaid !== profit && active
+          ? `${formatRupees(whenPaid)} once fully paid`
+          : "Received − driver − fuel − repairs",
+      tone: profit < 0 ? "red" : "green",
     },
   ];
 
@@ -136,7 +141,7 @@ export default async function TripPage({ params, searchParams }: { params: Param
               <div>
                 <dt>Driver</dt>
                 <dd>
-                  {trip.driver_name}
+                  <Link href={`/admin/expenses/fleet/drivers/${trip.driver_id}`}>{trip.driver_name}</Link>
                   <br />
                   <a href={`tel:+91${trip.driver_phone}`}>{formatPhone(trip.driver_phone)}</a>
                 </dd>

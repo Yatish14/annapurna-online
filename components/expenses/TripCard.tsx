@@ -26,6 +26,7 @@ export function TripBadges({ trip }: { trip: Trip }) {
   );
 }
 
+/** A booking in the list; the whole card opens the booking (phone numbers and buttons still work on their own) */
 export default function TripCard({ trip }: { trip: Trip }) {
   const href = `/admin/expenses/bookings/${trip.trip_no}`;
   const km = kmOf(trip);
@@ -35,7 +36,8 @@ export default function TripCard({ trip }: { trip: Trip }) {
     <article className={`ap-card xp-trip is-${trip.phase}`}>
       <div className="ap-card-head">
         <div className="ap-card-title">
-          <Link href={href} className="ap-ref xp-tripno">
+          {/* Stretched over the whole card, so clicking anywhere on it opens the booking */}
+          <Link href={href} className="ap-ref xp-tripno xp-cardlink">
             {trip.trip_no}
           </Link>
           <TripBadges trip={trip} />
@@ -73,7 +75,8 @@ export default function TripCard({ trip }: { trip: Trip }) {
           </dd>
         </div>
         <div>
-          <dt>Driver · km</dt>
+          {/* "km" only once the odometer readings give a distance */}
+          <dt>{km !== null ? "Driver · km" : "Driver"}</dt>
           <dd>
             {trip.driver_amount === null ? "Amount not set" : owed > 0 ? <b className="xp-owed">{formatRupees(owed)} to pay</b> : "Driver settled"}
             {km !== null && <> · {formatNumber(km)} km</>}

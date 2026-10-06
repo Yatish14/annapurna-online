@@ -7,8 +7,9 @@ import { can, requireUser } from "@/lib/auth";
 import { addDays, fmtRange, MONTHS_LONG, todayIST } from "@/lib/dates";
 import { listDrivers } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees } from "@/lib/expenses/money";
-import { monthSummary, outstanding, vehiclesMonth } from "@/lib/expenses/overview";
+import { monthSummary, outstanding, vehicleProfit, vehiclesMonth } from "@/lib/expenses/overview";
 import { balanceOf, listTrips, routeText, type Trip } from "@/lib/expenses/trips";
+import { reminders } from "@/lib/expenses/finance";
 import { formatPhone } from "@/lib/format";
 import { parseMonth, readParams, type SearchParams } from "../filters";
 
@@ -22,9 +23,9 @@ const shiftMonth = (m: string, by: number) => {
 
 function TripLine({ t, extra }: { t: Trip; extra?: React.ReactNode }) {
   return (
-    <li className="ap-row">
+    <li className="ap-row xp-rowlink">
       <div className="ap-row-main">
-        <Link href={`/admin/expenses/bookings/${t.trip_no}`}>
+        <Link href={`/admin/expenses/bookings/${t.trip_no}`} className="xp-cardlink">
           <strong>{t.customer_name}</strong>
         </Link>
         <span>
@@ -43,7 +44,7 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
   const month = parseMonth(params);
   const thisMonth = todayIST().slice(0, 7);
 
-  const [summary, vehicles, owed, ongoing, upcoming, dues, drivers] = await Promise.all([
+  const [summary, vehicles, owed, ongoing, upcoming, dues, drivers, alerts] = await Promise.all([
     monthSummary(month),
     vehiclesMonth(month),
     outstanding(),
@@ -51,8 +52,9 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
     listTrips("upcoming", { pageSize: 5 }),
     listTrips("due", { pageSize: 6 }),
     listDrivers(),
+    reminders(),
   ]);
-  const moneyOut = summary.driverPaid + summary.fuel + summary.repairs;
+  const moneyOut = summary.driverPaid + summary.fuel + summary.repairs + summary.emi + summary.insurance;
   const driversToPay = drivers.filter((d) => d.owed > 0);
   // Upcoming bookings in the next two weeks only
   const soon = addDays(todayIST(), 14);
@@ -60,7 +62,7 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
 
   const tiles = [
     { label: "Money in", value: formatRupees(summary.received), sub: "Received from customers", icon: "rupee" as const, tone: "green" },
-    { label: "Money out", value: formatRupees(moneyOut), sub: "Drivers + fuel + repairs", icon: "wallet" as const, tone: "plum" },
+    { label: "Money out", value: formatRupees(moneyOut), sub: "Drivers + fuel + repairs + EMI + insurance", icon: "wallet" as const, tone: "plum" },
     {
       label: "Net",
       value: formatRupees(summary.received - moneyOut),
@@ -118,6 +120,31 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
         ))}
       </section>
 
+      {alerts.length > 0 && (
+        <section className="ap-panel xp-reminders">
+          <div className="ap-panel-head">
+            <h2>Reminders</h2>
+            <span className="ap-muted">EMIs and insurance</span>
+          </div>
+          <ul className="ap-rows">
+            {alerts.map((a) => (
+              <li key={`${a.vehicleId}-${a.kind}`} className={`ap-row xp-rowlink xp-reminder is-${a.tone}`}>
+                <span className="xp-reminder-icon">
+                  <Icon name={a.kind === "emi" ? "wallet" : "shield"} size={18} />
+                </span>
+                <div className="ap-row-main">
+                  <Link href={`/admin/expenses/fleet/${a.vehicleId}#${a.kind}`} className="xp-cardlink">
+                    <strong>{a.vehicle}</strong>
+                  </Link>
+                  <span>{a.text}</span>
+                </div>
+                <span className={`xp-state ${a.tone === "overdue" ? "is-late" : "is-out"}`}>{a.tone === "overdue" ? (a.kind === "emi" ? "Overdue" : "Expired") : "Due soon"}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="xp-owedrow">
         <Link href="/admin/expenses/bookings?view=due" className="xp-owedcard is-customer">
           <Icon name="rupee" size={20} />
@@ -163,15 +190,18 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
                   <th>Bookings</th>
                   <th>Km</th>
                   <th>Billed</th>
+                  <th>Received</th>
                   <th>Driver</th>
                   <th>Fuel</th>
                   <th>Repairs</th>
+                  <th>EMI</th>
+                  <th>Insurance</th>
                   <th>Profit</th>
                 </tr>
               </thead>
               <tbody>
                 {vehicles.map((v) => {
-                  const profit = v.billed - v.driverAmount - v.fuel - v.repairs;
+                  const profit = vehicleProfit(v);
                   return (
                     <tr key={v.id}>
                       <th scope="row">
@@ -181,9 +211,12 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
                       <td data-label="Bookings">{v.bookings}</td>
                       <td data-label="Km">{formatNumber(v.km)}</td>
                       <td data-label="Billed">{formatRupees(v.billed)}</td>
+                      <td data-label="Received">{formatRupees(v.received)}</td>
                       <td data-label="Driver">{formatRupees(v.driverAmount)}</td>
                       <td data-label="Fuel">{formatRupees(v.fuel)}</td>
                       <td data-label="Repairs">{formatRupees(v.repairs)}</td>
+                      <td data-label="EMI">{formatRupees(v.emi)}</td>
+                      <td data-label="Insurance">{formatRupees(v.insurance)}</td>
                       <td data-label="Profit" className={profit < 0 ? "is-neg" : "is-pos"}>
                         {formatRupees(profit)}
                       </td>
@@ -195,7 +228,9 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
           </div>
         )}
         <p className="ap-hint">
-          Billed and driver amounts count bookings that start in the month; fuel and repairs count the date they were spent.
+          Profit is on money actually received: received − driver amount − fuel − repairs − EMI − insurance. Billed, received and
+          driver amounts count bookings that start in the month (received = paid so far); fuel, repairs, EMI and insurance count
+          the date they were paid.
         </p>
       </section>
 
@@ -227,16 +262,16 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
           ) : (
             <ul className="ap-rows">
               {driversToPay.map((d) => (
-                <li key={d.id} className="ap-row">
+                <li key={d.id} className="ap-row xp-rowlink">
                   <div className="ap-row-main">
-                    <strong>{d.name}</strong>
+                    <Link href={`/admin/expenses/fleet/drivers/${d.id}#unpaid`} className="xp-cardlink">
+                      <strong>{d.name}</strong>
+                    </Link>
                     <span>
                       <a href={`tel:+91${d.phone}`}>{formatPhone(d.phone)}</a>
                     </span>
                   </div>
-                  <Link href={`/admin/expenses/bookings?q=${encodeURIComponent(d.name)}`} className="xp-owed xp-nowrap">
-                    {formatRupees(d.owed)}
-                  </Link>
+                  <b className="xp-owed xp-nowrap">{formatRupees(d.owed)}</b>
                 </li>
               ))}
             </ul>

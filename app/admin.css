@@ -650,18 +650,27 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 /* ---------- Expense Tracker (xp-) ---------- */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .ap-pagehead-side { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.ap-field select, .ap-field textarea {
+.ap-field textarea {
   font: inherit; font-size: .98rem; font-weight: 500; color: var(--ink); width: 100%;
   padding: 11px 14px; border-radius: 12px; border: 1px solid rgba(16,26,51,.16); background: var(--surface);
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s; resize: vertical; min-height: 84px; line-height: 1.45;
 }
-.ap-field select {
-  appearance: none; padding-right: 38px; cursor: pointer;
+.ap-field textarea:focus { outline: none; border-color: var(--gold-500); box-shadow: 0 0 0 3px rgba(201,162,74,.22); }
+.ap-field input:disabled { background: var(--ivory-2); color: var(--ink-soft); cursor: not-allowed; }
+
+/* Dropdowns (components/Dropdown.tsx) and the city picker share one look: a chevron, and the list below */
+.ap-field .xp-dd input[role="combobox"] {
+  padding-right: 38px;
   background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23566079' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center;
 }
-.ap-field textarea { resize: vertical; min-height: 84px; line-height: 1.45; }
-.ap-field select:focus, .ap-field textarea:focus { outline: none; border-color: var(--gold-500); box-shadow: 0 0 0 3px rgba(201,162,74,.22); }
-.ap-field input:disabled, .ap-field select:disabled { background: var(--ivory-2); color: var(--ink-soft); cursor: not-allowed; }
+.ap-field .xp-dd input[role="combobox"]:disabled { background-color: var(--ivory-2); }
+.ap-field .xp-dd input[role="combobox"].is-invalid { background-color: #fffafa; }
+.ap-field .xp-dd input.xp-dd-fixed { cursor: pointer; caret-color: transparent; }
+.xp-combo-list li.is-selected { position: relative; padding-right: 30px; color: var(--gold-600); }
+.xp-combo-list li.is-selected::after {
+  content: ""; position: absolute; right: 12px; top: 50%; width: 6px; height: 11px; margin-top: -7px;
+  border: solid var(--gold-600); border-width: 0 2.2px 2.2px 0; transform: rotate(45deg);
+}
 .ap-act-link { color: var(--gold-600); text-decoration: none; }
 .ap-act-link:hover { text-decoration: underline; }
 
@@ -811,17 +820,14 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-fleetlist li.is-off .xp-fleeticon { background: #c3c8d4; color: #fff; }
 .xp-fleetmain { grid-area: main; display: grid; min-width: 0; }
 .xp-fleetname { font-weight: 800; font-size: .98rem; text-decoration: none; }
-a.xp-fleetname:hover { color: var(--gold-600); }
+/* The whole row is the link, so the name turns gold while anywhere on the row is hovered (the phone link too) */
+.xp-rowlink:hover .xp-fleetname { color: var(--gold-600); }
 .xp-fleetmain .ap-muted { font-size: .8rem; }
 .xp-fleetmain a:not(.xp-fleetname) { color: var(--emerald-700); font-weight: 700; text-decoration: none; }
 .xp-state { grid-area: state; padding: 3px 10px; border-radius: 999px; font-size: .72rem; font-weight: 800; white-space: nowrap; text-decoration: none; }
 .xp-state.is-free { background: var(--ok-bg); color: var(--ok); }
 .xp-state.is-out { background: var(--warn-bg); color: var(--warn); }
 .xp-state.is-off { background: #eef0f4; color: #5b6478; }
-.xp-rowactions { grid-area: act; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-top: 4px; }
-.xp-rowactions form { margin: 0; }
-.xp-editdriver { flex-wrap: wrap; }
-.xp-editdriver .mob-msg { width: 100%; }
 
 /* Overview */
 .xp-tilemoney { font-size: 1.75rem; overflow-wrap: anywhere; }
@@ -910,3 +916,96 @@ a.xp-fleetname:hover { color: var(--gold-600); }
 .xp-report-file { font-size: .74rem; color: var(--ink-soft); }
 @media (max-width: 860px) { .xp-reports { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .xp-report-btn { align-self: stretch; } .xp-monthpick { width: 100%; justify-content: space-between; } }
+
+/* A field with a note under it (e.g. "Not in the list…", "5/10") mustn't push the field next to it down:
+   fields sit at the top of their row instead of stretching to the tallest one */
+.ap-field { align-content: start; }
+.xp-place, .xp-grid, .xp-adder-form { align-items: start; }
+
+/* Booking cards and rows: the whole card is a link to the booking (stretched link); other links and buttons stay on top */
+.xp-trip, .xp-rowlink { position: relative; }
+.xp-cardlink::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+.xp-trip a:not(.xp-cardlink), .xp-trip button, .xp-rowlink a:not(.xp-cardlink) { position: relative; z-index: 2; }
+.xp-trip { cursor: pointer; transition: box-shadow .2s, border-color .2s, transform .2s; }
+.xp-trip:hover { border-color: rgba(201,162,74,.45); transform: translateY(-1px); }
+.xp-trip:hover .xp-tripno { color: var(--gold-600); }
+.xp-cardlink:focus-visible { outline: none; }
+.xp-trip:has(.xp-cardlink:focus-visible), .xp-rowlink:has(.xp-cardlink:focus-visible) { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+.xp-rowlink { border-radius: 12px; transition: background .15s; }
+.xp-rowlink:hover { background: var(--ivory); }
+.xp-rowlink:hover strong { color: var(--gold-600); }
+.ap-act-icon.is-plum { background: #f1e8fb; color: #6b3fa0; }
+
+/* Vehicle loan (EMI) and insurance */
+.xp-state.is-late { background: var(--err-bg); color: var(--err); }
+.xp-moneybar .is-soon strong { color: var(--warn); }
+.xp-finance-line { margin: 0 0 12px; }
+.xp-adders { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.xp-adders .xp-adder { margin-top: 0; }
+.xp-adders .xp-adder[open] { flex-basis: 100%; }
+.xp-remove-details { margin-top: 10px; }
+.xp-check { display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.xp-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--gold-600); flex-shrink: 0; }
+.ap-field.xp-check input[type="date"] { width: auto; padding: 7px 10px; }
+
+/* Overview reminders */
+.xp-reminders { border-left: 4px solid var(--gold-500); }
+.xp-reminder { gap: 12px; }
+.xp-reminder-icon { width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; background: var(--warn-bg); color: var(--warn); }
+.xp-reminder.is-overdue .xp-reminder-icon { background: var(--err-bg); color: var(--err); }
+.xp-reminder .ap-row-main span { white-space: normal; }
+
+/* Vehicles & drivers list: each row opens the vehicle's or driver's page */
+.xp-fleetlist li.xp-rowlink { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "icon main state chev"; padding: 14px 10px; margin: 0 -10px; }
+.xp-rowchevron { grid-area: chev; color: var(--ink-soft); opacity: .6; }
+.xp-rowlink:hover .xp-rowchevron { opacity: 1; color: var(--gold-600); }
+/* Edit / switch off / delete on a vehicle's or driver's page */
+@media (max-width: 420px) {
+  .xp-fleetlist li.xp-rowlink { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "icon main chev" "icon state chev"; }
+}
+
+/* Vehicle and driver pages: name (and mobile) edited in place in the header */
+/* Header of a vehicle or driver page: the name, then status and buttons on the same line */
+.xp-editablehead { margin-bottom: 26px; }
+.xp-editablehead h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(1.8rem, 3vw, 2.4rem); line-height: 1.15; margin: 0; letter-spacing: -.01em; }
+.xp-headrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 6px; }
+.xp-headrow > .xp-titlerow, .xp-headrow > .xp-inlineform { flex: 0 1 auto; min-width: 0; }
+.xp-headrow > .xp-inlineform { flex: 1 1 520px; margin: 0; }
+.xp-headside { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+/* While editing, line the chips up with the 52px-tall fields (not with the message under the mobile number) */
+.xp-headrow.is-editing { align-items: flex-start; }
+.xp-headrow.is-editing .xp-headside { padding-top: 7px; }
+.xp-headsub { margin: 6px 0 0; color: var(--ink-soft); }
+.xp-titlerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.xp-roundbtn {
+  width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 1px solid rgba(16,26,51,.16); background: var(--surface); color: var(--ink-soft);
+  transition: background .15s, color .15s, border-color .15s, transform .15s;
+}
+.xp-roundbtn:hover { color: var(--ink); border-color: rgba(16,26,51,.32); }
+.xp-roundbtn:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+.xp-roundbtn.is-ok { border: 0; color: var(--navy-950); background: linear-gradient(135deg, var(--gold-300), var(--gold-500)); box-shadow: 0 6px 14px -8px rgba(201,162,74,.9); }
+.xp-roundbtn.is-ok:hover { transform: translateY(-1px); }
+.xp-roundbtn:disabled { opacity: .6; cursor: wait; }
+.xp-editbtn { width: 34px; height: 34px; }
+.xp-editbtn:hover { color: var(--gold-600); border-color: var(--gold-500); background: #fffaf0; }
+.xp-inlineform { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; margin: 6px 0 2px; }
+.xp-titleinput {
+  flex: 1 1 260px; min-width: 0; max-width: 520px; margin: 0; padding: 2px 14px;
+  font-family: var(--serif); font-weight: 400; font-size: clamp(1.6rem, 2.6vw, 2.1rem); line-height: 1.25; letter-spacing: -.01em; color: var(--ink);
+  border: 1.5px solid var(--gold-500); border-radius: 14px; background: var(--surface); box-shadow: 0 0 0 4px rgba(201,162,74,.16);
+}
+.xp-titleinput:focus { outline: none; }
+.ap-field.xp-inlinefield { flex: 0 1 230px; margin: 0; }
+.ap-field.xp-inlinefield input { height: 52px; }
+.xp-inlinebtns { display: flex; gap: 8px; align-items: center; padding-top: 6px; }
+.xp-phone { color: var(--emerald-700); font-weight: 700; text-decoration: none; }
+.xp-phone:hover { text-decoration: underline; }
+.xp-fleetactions { margin: 0; }
+@media (max-width: 560px) {
+  .xp-titleinput, .ap-field.xp-inlinefield { flex-basis: 100%; max-width: none; }
+}
+@media (max-width: 560px) {
+  .xp-headside { margin-left: 0; justify-content: flex-start; width: 100%; }
+  .xp-headrow.is-editing .xp-headside { padding-top: 0; }
+}

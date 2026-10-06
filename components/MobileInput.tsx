@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useImperativeHandle, useRef, useState } from "react";
+import { focusFirstInvalid } from "./focusFirstInvalid";
 
 /** Indian mobile number: exactly 10 digits, starting with 6, 7, 8 or 9 */
 export const MOBILE_PATTERN = /^[6-9]\d{9}$/;
@@ -115,8 +116,7 @@ export default function MobileInput({
           // Show our message instead of the browser's bubble, and put the cursor back here
           e.preventDefault();
           setTouched(true);
-          const el = e.currentTarget;
-          window.setTimeout(() => el.focus(), 0);
+          focusFirstInvalid(e.currentTarget);
         }}
       />
       <span id={messageId} className={showError ? "mob-msg is-error" : "mob-msg"} aria-live="polite">

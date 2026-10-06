@@ -1,17 +1,19 @@
 import type { CsvValue } from "../csv";
 import { diffDays, MONTHS_LONG } from "../dates";
 import { PAYMENT_METHODS } from "./money";
-import { vehiclesMonth } from "./overview";
+import { vehicleProfit, vehiclesMonth } from "./overview";
 import {
   balanceOf,
   driverOwed,
   expensesIn,
   kmOf,
+  EXPENSE_LABELS,
   PAY_LABELS,
   payState,
   paymentsIn,
   PHASE_LABELS,
   profitOf,
+  profitWhenPaid,
   tripsStartingIn,
 } from "./trips";
 
@@ -22,19 +24,19 @@ export const REPORTS: Record<ReportType, { title: string; description: string }>
   bookings: {
     title: "Bookings",
     description:
-      "One row per booking starting in the month: customer, vehicle, driver, route, referrer, km, total, received, balance, driver amount, fuel, repairs and profit.",
+      "One row per booking starting in the month: customer, vehicle, driver, route, referrer, km, total, received, balance, driver amount, fuel, repairs and profit (on money received).",
   },
   payments: {
     title: "Payments",
     description: "Every payment made in the month, from customers and to drivers, with date, time, method and who recorded it.",
   },
   costs: {
-    title: "Fuel & repairs",
-    description: "Every fuel fill-up and repair dated in the month, with the vehicle, booking, shop and place.",
+    title: "Vehicle costs",
+    description: "Every fuel fill-up, repair, EMI and insurance premium paid in the month, with the vehicle, booking, shop and place.",
   },
   vehicles: {
     title: "Vehicle summary",
-    description: "Each vehicle's bookings, km, billed amount, driver amounts, fuel, repairs and profit for the month.",
+    description: "Each vehicle's bookings, km, billed and received amounts, driver amounts, fuel, repairs, EMI, insurance and profit (on money received) for the month.",
   },
 };
 
@@ -57,7 +59,7 @@ const sum = <T>(items: T[], pick: (item: T) => number | null) => items.reduce((a
 
 /** The report as spreadsheet rows: a header row, one row per item, then totals */
 export async function buildReport(type: ReportType, month: string): Promise<Report> {
-  const filename = `annapurna-${type === "costs" ? "fuel-repairs" : type === "vehicles" ? "vehicle-summary" : type}-${month}.csv`;
+  const filename = `annapurna-${type === "costs" ? "vehicle-costs" : type === "vehicles" ? "vehicle-summary" : type}-${month}.csv`;
 
   if (type === "bookings") {
     const trips = await tripsStartingIn(month);
@@ -69,7 +71,7 @@ export async function buildReport(type: ReportType, month: string): Promise<Repo
         "Round trip", "Went to (city)", "Went to (state)", "Referred by", "Referrer mobile",
         "Odometer start", "Odometer end", "Km", "Total (Rs)", "Received (Rs)", "Balance due (Rs)", "Payment status",
         "Driver amount (Rs)", "Paid to driver (Rs)", "Driver still to pay (Rs)", "Fuel (Rs)", "Repairs (Rs)", "Profit (Rs)",
-        "Notes", "Created by", "Created at", "Sample",
+        "Profit when fully paid (Rs)", "Notes", "Created by", "Created at", "Sample",
       ],
       ...trips.map((t) => [
         t.trip_no, PHASE_LABELS[t.phase], t.start_date, t.end_date, diffDays(t.start_date, t.end_date) + 1,
@@ -78,7 +80,7 @@ export async function buildReport(type: ReportType, month: string): Promise<Repo
         t.referrer_name, t.referrer_phone, t.odometer_start, t.odometer_end, kmOf(t),
         t.total_amount, t.received, t.status === "booked" ? balanceOf(t) : null, t.status === "booked" ? PAY_LABELS[payState(t)] : "Cancelled",
         t.driver_amount, t.driver_paid, t.status === "booked" ? driverOwed(t) : null, t.fuel, t.repairs, profitOf(t),
-        t.notes, t.created_by, t.created_ist, t.is_sample,
+        profitWhenPaid(t), t.notes, t.created_by, t.created_ist, t.is_sample,
       ]),
     ];
     const totals = {
@@ -92,14 +94,17 @@ export async function buildReport(type: ReportType, month: string): Promise<Repo
       fuel: sum(live, (t) => t.fuel),
       repairs: sum(live, (t) => t.repairs),
       profit: sum(live, profitOf),
+      whenPaid: sum(live, profitWhenPaid),
     };
     rows.push(
       [],
       [
         `Total (${live.length} bookings, cancelled not counted)`, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         totals.km, totals.total, totals.received, totals.balance, "", totals.driver, totals.driverPaid, totals.driverOwed,
-        totals.fuel, totals.repairs, totals.profit,
+        totals.fuel, totals.repairs, totals.profit, totals.whenPaid,
       ],
+      [],
+      ["Profit = money received from the customer − driver amount − fuel − repairs. \"When fully paid\" uses the total instead of what was received."],
     );
     return {
       filename,
@@ -148,49 +153,55 @@ export async function buildReport(type: ReportType, month: string): Promise<Repo
     const fuel = sum(kept.filter((e) => e.kind === "fuel"), (e) => e.amount);
     const repairs = sum(kept.filter((e) => e.kind === "repair"), (e) => e.amount);
     const litres = sum(kept.filter((e) => e.kind === "fuel"), (e) => e.litres);
+    const emi = sum(kept.filter((e) => e.kind === "emi"), (e) => e.amount);
+    const insurance = sum(kept.filter((e) => e.kind === "insurance"), (e) => e.amount);
     return {
       filename,
       count: entries.length,
       rows: [
         [
-          "Date", "Vehicle", "Booking no", "Type", "Amount (Rs)", "Litres", "What was done", "Shop", "City", "State", "Note",
+          "Date", "Vehicle", "Booking no", "Type", "Amount (Rs)", "Litres", "EMI for month", "Details", "Shop", "City", "State", "Note",
           "Added by", "Added at", "Removed by", "Removed at",
         ],
         ...entries.map((e) => [
-          e.spent_on, e.vehicle_name, e.trip_no, e.kind === "fuel" ? "Fuel" : "Repair", e.amount, e.litres, e.description,
+          e.spent_on, e.vehicle_name, e.trip_no, EXPENSE_LABELS[e.kind], e.amount, e.litres, e.period ? monthLabel(e.period) : null, e.description,
           e.shop_name, e.shop_city, e.shop_state, e.note, e.created_by, e.created_ist, e.deleted_by, e.deleted_ist,
         ]),
         [],
         ["Fuel total (removed entries not counted)", "", "", "", fuel, Math.round(litres * 100) / 100],
         ["Repairs total (removed entries not counted)", "", "", "", repairs],
+        ["EMI total (removed entries not counted)", "", "", "", emi],
+        ["Insurance total (removed entries not counted)", "", "", "", insurance],
+        ["All costs", "", "", "", fuel + repairs + emi + insurance],
       ],
       highlights: [
-        { label: "Fuel", amount: fuel },
-        { label: "Repairs", amount: repairs },
+        { label: "Fuel & repairs", amount: fuel + repairs },
+        { label: "EMI & insurance", amount: emi + insurance },
       ],
     };
   }
 
   const vehicles = await vehiclesMonth(month);
-  const profit = (v: (typeof vehicles)[number]) => v.billed - v.driverAmount - v.fuel - v.repairs;
+  const profit = vehicleProfit;
   return {
     filename,
     count: vehicles.length,
     rows: [
-      ["Vehicle", "Status", "Bookings", "Km", "Billed (Rs)", "Driver amount (Rs)", "Fuel (Rs)", "Repairs (Rs)", "Profit (Rs)"],
+      ["Vehicle", "Status", "Bookings", "Km", "Billed (Rs)", "Received (Rs)", "Driver amount (Rs)", "Fuel (Rs)", "Repairs (Rs)", "EMI (Rs)", "Insurance (Rs)", "Profit (Rs)"],
       ...vehicles.map((v) => [
-        v.name, v.active ? "In use" : "Switched off", v.bookings, v.km, v.billed, v.driverAmount, v.fuel, v.repairs, profit(v),
+        v.name, v.active ? "In use" : "Switched off", v.bookings, v.km, v.billed, v.received, v.driverAmount, v.fuel, v.repairs, v.emi, v.insurance, profit(v),
       ]),
       [],
       [
         "Total", "", sum(vehicles, (v) => v.bookings), sum(vehicles, (v) => v.km), sum(vehicles, (v) => v.billed),
-        sum(vehicles, (v) => v.driverAmount), sum(vehicles, (v) => v.fuel), sum(vehicles, (v) => v.repairs), sum(vehicles, profit),
+        sum(vehicles, (v) => v.received), sum(vehicles, (v) => v.driverAmount), sum(vehicles, (v) => v.fuel), sum(vehicles, (v) => v.repairs),
+        sum(vehicles, (v) => v.emi), sum(vehicles, (v) => v.insurance), sum(vehicles, profit),
       ],
       [],
-      ["Billed and driver amounts count bookings that start in the month; fuel and repairs count the date they were spent."],
+      ["Profit = received − driver amount − fuel − repairs − EMI − insurance. Billed, received (paid so far) and driver amounts count bookings that start in the month; fuel, repairs, EMI and insurance count the date they were paid."],
     ],
     highlights: [
-      { label: "Billed", amount: sum(vehicles, (v) => v.billed) },
+      { label: "Received", amount: sum(vehicles, (v) => v.received) },
       { label: "Profit", amount: sum(vehicles, profit) },
     ],
   };

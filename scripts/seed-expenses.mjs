@@ -1,4 +1,5 @@
-// Adds sample Expense Tracker data (vehicles, drivers, bookings, payments, fuel, repairs and their activity)
+// Adds sample Expense Tracker data (vehicles with loans and insurance, drivers, bookings, payments, fuel,
+// repairs, EMIs and their activity)
 // so every page and report has something to show:
 //   npm run db:seed-expenses              add / refresh the samples
 //   npm run db:seed-expenses -- --clear   remove them again
@@ -163,10 +164,85 @@ for (const [name, phone] of DRIVERS) {
   await log(at(-90, "10:05"), "driver.created", `${name} (${phone})`);
 }
 
+const counts = { trips: 0, payments: 0, fuel: 0, repairs: 0, emi: 0, insurance: 0 };
+
+// ---------- Loans (EMI) and insurance ----------
+const thisMonth = todayIST.slice(0, 7);
+const addMonths = (m, n) => {
+  const i = Number(m.slice(0, 4)) * 12 + Number(m.slice(5)) - 1 + n;
+  return `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+};
+const monthName = (m) =>
+  `${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
+const yearLater = (iso) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
+const fmtDay = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+const FINANCE = [
+  // Innova: 4-year loan, EMIs paid up to date
+  { emi: { amount: 18500, lender: "HDFC Bank", day: 5, start: -14, months: 48, paid: [-3, -2, -1, 0] },
+    insurance: { company: "ICICI Lombard", policy: "3001/ICI/48213", premium: 32400, from: -200 } },
+  // Carens: this month's EMI not paid yet, insurance about to expire
+  { emi: { amount: 15200, lender: "Kotak Mahindra Prime", day: 10, start: -8, months: 60, paid: [-3, -2, -1] },
+    insurance: { company: "Tata AIG", policy: "TA-0927-55120", premium: 27800, from: -345 } },
+  // Ertiga: bought outright; insurance renewed recently (premium recorded)
+  { emi: null, insurance: { company: "Bajaj Allianz", policy: "OG-26-1901-1801", premium: 21500, from: -40, recordPremium: true } },
+];
+
+for (const [vi, fin] of FINANCE.entries()) {
+  const vehicle = VEHICLES[vi].name;
+  if (fin.emi) {
+    const e = fin.emi;
+    const start = addMonths(thisMonth, e.start);
+    const end = addMonths(start, e.months - 1);
+    await db.query(
+      `UPDATE vehicles SET emi_amount = $2, emi_lender = $3, emi_day = $4, emi_start = $5::date, emi_end = $6::date WHERE id = $1`,
+      [vehicleIds[vi], e.amount, e.lender, e.day, `${start}-01`, `${end}-01`],
+    );
+    await log(at(-89, "12:00"), "vehicle.emi_updated", vehicle,
+      `Lender: none → ${e.lender} · EMI: none → ${rupees(e.amount)} · Due day: none → ${e.day} · From: none → ${monthName(start)} · To: none → ${monthName(end)}`);
+    for (const offset of e.paid) {
+      const month = addMonths(thisMonth, offset);
+      const paidOn = `${month}-${String(e.day).padStart(2, "0")}`;
+      if (paidOn > todayIST) continue; // this month's EMI isn't due yet
+      const when = `${paidOn}T10:30:00+05:30`;
+      await db.query(
+        `INSERT INTO vehicle_expenses (vehicle_id, kind, amount, spent_on, description, period, created_at, created_by, is_sample)
+         VALUES ($1, 'emi', $2, $3, $4, $5::date, $6, $7, true)`,
+        [vehicleIds[vi], e.amount, paidOn, e.lender, `${month}-01`, when, actor.name],
+      );
+      counts.emi++;
+      await log(when, "expense.emi_paid", vehicle, `${rupees(e.amount)} · EMI for ${monthName(month)} · ${e.lender}`);
+    }
+  }
+  const ins = fin.insurance;
+  const from = day(ins.from);
+  const to = yearLater(from);
+  await db.query(
+    `UPDATE vehicles SET insurance_company = $2, insurance_policy = $3, insurance_premium = $4, insurance_from = $5, insurance_to = $6 WHERE id = $1`,
+    [vehicleIds[vi], ins.company, ins.policy, ins.premium, from, to],
+  );
+  await log(at(-89, "12:10"), "vehicle.insurance_updated", vehicle,
+    `Company: none → ${ins.company} · Policy no.: none → ${ins.policy} · Premium: none → ${rupees(ins.premium)} · Valid to: none → ${fmtDay(to)}`);
+  if (ins.recordPremium) {
+    const description = `${ins.company} · Policy ${ins.policy} · ${fmtDay(from)} – ${fmtDay(to)}`;
+    await db.query(
+      `INSERT INTO vehicle_expenses (vehicle_id, kind, amount, spent_on, description, created_at, created_by, is_sample)
+       VALUES ($1, 'insurance', $2, $3, $4, $5, $6, true)`,
+      [vehicleIds[vi], ins.premium, from, description, at(ins.from, "11:00"), actor.name],
+    );
+    counts.insurance++;
+    await log(at(ins.from, "11:00"), "expense.insurance_paid", vehicle, `${rupees(ins.premium)} · Insurance premium · ${description}`);
+  }
+}
+
 // Book in date order, so booking numbers follow the dates
 const order = BOOKINGS.map((b, i) => ({ b, i })).sort((x, y) => x.b[2] - y.b[2]);
 const odometer = VEHICLES.map((v) => v.odometer);
-const counts = { trips: 0, payments: 0, fuel: 0, repairs: 0 };
 
 for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
   const v = VEHICLES[vi];
@@ -291,7 +367,7 @@ for (const [vi, offset, amount, description, shop, state, city] of VEHICLE_REPAI
 
 console.log(
   `✓ Added ${VEHICLES.length} vehicles, ${DRIVERS.length} drivers, ${counts.trips} bookings, ${counts.payments} payments, ` +
-    `${counts.fuel} fuel and ${counts.repairs} repair entries (marked as samples).`,
+    `${counts.fuel} fuel, ${counts.repairs} repair, ${counts.emi} EMI and ${counts.insurance} insurance entries (marked as samples).`,
 );
 console.log("  Remove them with: npm run db:seed-expenses -- --clear");
 await db.close();

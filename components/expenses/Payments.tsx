@@ -1,6 +1,7 @@
 import { deletePayment, recordPayment } from "@/app/admin/expenses/bookings/actions";
 import Icon from "@/components/admin/Icon";
 import SubmitButton from "@/components/admin/SubmitButton";
+import Dropdown from "@/components/Dropdown";
 import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import type { Party, Payment } from "@/lib/expenses/trips";
 
@@ -127,13 +128,11 @@ export default function Payments({ party, trip, payments, due, paid, canManage, 
             </label>
             <label className="ap-field">
               <span>Paid by</span>
-              <select name="method" defaultValue="cash">
-                {Object.entries(PAYMENT_METHODS).map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <Dropdown
+                name="method"
+                defaultValue="cash"
+                options={Object.entries(PAYMENT_METHODS).map(([value, label]) => ({ value, label }))}
+              />
             </label>
             <label className="ap-field">
               <span>When</span>

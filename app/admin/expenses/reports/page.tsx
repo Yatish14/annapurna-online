@@ -9,7 +9,7 @@ import { parseMonth, readParams, type SearchParams } from "../../filters";
 
 export const metadata = { title: "Reports · Expense Tracker" };
 
-const ICONS: Record<ReportType, IconName> = { bookings: "bookings", payments: "rupee", costs: "fuel", vehicles: "car" };
+const ICONS: Record<ReportType, IconName> = { bookings: "bookings", payments: "rupee", costs: "wallet", vehicles: "car" };
 
 const shiftMonth = (m: string, by: number) =>
   new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5)) - 1 + by, 1)).toISOString().slice(0, 7);

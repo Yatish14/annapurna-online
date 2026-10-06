@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useRef, useState, startTransition } from "react";
 import { saveTrip, type TripFormState } from "@/app/admin/expenses/bookings/actions";
 import Icon from "@/components/admin/Icon";
+import Dropdown from "@/components/Dropdown";
 import MobileInput from "@/components/MobileInput";
 import { PAYMENT_METHODS } from "@/lib/expenses/money";
 import PlacePicker from "./PlacePicker";
@@ -80,11 +81,21 @@ export default function TripForm({ tripId, initial, vehicles, drivers, cancelHre
   const vehicleChoices = vehicles.filter((x) => x.active || String(x.id) === initial.vehicle_id);
   const driverChoices = drivers.filter((x) => x.active || String(x.id) === initial.driver_id);
   const days = dayCount(v.start_date, v.end_date);
+  const off = (active: boolean) => (active ? "" : " (switched off)");
+  const vehicleOptions = vehicleChoices.map((x) => ({ value: String(x.id), label: x.name + off(x.active) }));
+  const driverOptions = driverChoices.map((x) => ({
+    value: String(x.id),
+    label: `${x.name} · ${x.phone.slice(0, 5)} ${x.phone.slice(5)}${off(x.active)}`,
+  }));
+  const methodOptions = Object.entries(PAYMENT_METHODS).map(([value, label]) => ({ value, label }));
+  // A field to put the cursor in (dropdowns: their visible box, not the hidden value)
+  const fieldEl = (name: string) =>
+    form.current?.querySelector<HTMLElement>(`[data-for="${name}"]`) ?? (form.current?.elements.namedItem(name) as HTMLElement | null);
 
   // After a server error: show it and put the cursor in the field it's about
   useEffect(() => {
     if (!state.error && !state.driverClash) return;
-    const field = state.field && form.current?.elements.namedItem(state.field);
+    const field = state.field && fieldEl(state.field);
     if (field instanceof HTMLElement) {
       field.focus();
       field.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -143,7 +154,7 @@ export default function TripForm({ tripId, initial, vehicles, drivers, cancelHre
               <button
                 type="button"
                 className="ap-btn ap-btn-ghost ap-btn-sm"
-                onClick={() => (form.current?.elements.namedItem("driver_id") as HTMLElement | null)?.focus()}
+                onClick={() => fieldEl("driver_id")?.focus()}
               >
                 Change driver
               </button>
@@ -193,27 +204,27 @@ export default function TripForm({ tripId, initial, vehicles, drivers, cancelHre
         <div className="xp-grid">
           <label className="ap-field">
             <span>Vehicle</span>
-            <select name="vehicle_id" required value={v.vehicle_id} onChange={(e) => set("vehicle_id", e.target.value)}>
-              <option value="">Select vehicle</option>
-              {vehicleChoices.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                  {x.active ? "" : " (switched off)"}
-                </option>
-              ))}
-            </select>
+            <Dropdown
+              name="vehicle_id"
+              options={vehicleOptions}
+              required
+              placeholder="Select vehicle"
+              requiredMessage="Choose the vehicle."
+              value={v.vehicle_id}
+              onChange={(id) => set("vehicle_id", id)}
+            />
           </label>
           <label className="ap-field">
             <span>Driver</span>
-            <select name="driver_id" required value={v.driver_id} onChange={(e) => set("driver_id", e.target.value)}>
-              <option value="">Select driver</option>
-              {driverChoices.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name} · {x.phone.slice(0, 5)} {x.phone.slice(5)}
-                  {x.active ? "" : " (switched off)"}
-                </option>
-              ))}
-            </select>
+            <Dropdown
+              name="driver_id"
+              options={driverOptions}
+              required
+              placeholder="Select driver"
+              requiredMessage="Choose the driver."
+              value={v.driver_id}
+              onChange={(id) => set("driver_id", id)}
+            />
           </label>
           <label className="ap-field">
             <span>Start date</span>
@@ -372,13 +383,12 @@ export default function TripForm({ tripId, initial, vehicles, drivers, cancelHre
             </label>
             <label className="ap-field">
               <span>Advance paid by</span>
-              <select name="advance_method" value={v.advance_method} onChange={(e) => set("advance_method", e.target.value)}>
-                {Object.entries(PAYMENT_METHODS).map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <Dropdown
+                name="advance_method"
+                options={methodOptions}
+                value={v.advance_method}
+                onChange={(method) => set("advance_method", method)}
+              />
             </label>
             <label className="ap-field">
               <span>Amount for the driver (₹)</span>

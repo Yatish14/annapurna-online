@@ -2,9 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Flash from "@/components/admin/Flash";
 import Icon from "@/components/admin/Icon";
-import PageHeader from "@/components/admin/PageHeader";
 import Pagination from "@/components/admin/Pagination";
 import Expenses from "@/components/expenses/Expenses";
+import EditableHeader from "@/components/expenses/EditableHeader";
+import FleetActions, { FleetStatus } from "@/components/expenses/FleetActions";
+import VehicleFinancePanels from "@/components/expenses/VehicleFinance";
+import { getFinance } from "@/lib/expenses/finance";
 import { requireUser, can } from "@/lib/auth";
 import { fmtRange, fmtShort, todayIST } from "@/lib/dates";
 import { getVehicle } from "@/lib/expenses/fleet";
@@ -12,6 +15,7 @@ import { formatNumber, formatRupees } from "@/lib/expenses/money";
 import { PHASE_LABELS, routeText, vehicleExpenses, vehicleTrips } from "@/lib/expenses/trips";
 import { pageCount, PAGE_SIZE, parsePage } from "@/lib/pagination";
 import { readParams, type SearchParams } from "../../../filters";
+import { editVehicle, vehicleStatus } from "../actions";
 
 type Params = Promise<{ id: string }>;
 
@@ -26,19 +30,26 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
   const vehicle = await getVehicle(Number((await params).id));
   if (!vehicle) notFound();
   const query = await readParams(searchParams);
-  const fuelPage = parsePage(query.get("fuel"));
-  const repairPage = parsePage(query.get("repairs"));
+  // Each list has its own page number in the URL (?fuel=2&repairs=1&emi=1&insurance=1)
+  const LISTS = ["fuel", "repairs", "emi", "insurance"] as const;
+  const pages = Object.fromEntries(LISTS.map((k) => [k, parsePage(query.get(k))])) as Record<(typeof LISTS)[number], number>;
 
-  const [fuel, repairs, trips] = await Promise.all([
-    vehicleExpenses(vehicle.id, "fuel", { page: fuelPage, pageSize: PAGE_SIZE }),
-    vehicleExpenses(vehicle.id, "repair", { page: repairPage, pageSize: PAGE_SIZE }),
+  const [fuel, repairs, emi, insurance, finance, trips] = await Promise.all([
+    vehicleExpenses(vehicle.id, "fuel", { page: pages.fuel, pageSize: PAGE_SIZE }),
+    vehicleExpenses(vehicle.id, "repair", { page: pages.repairs, pageSize: PAGE_SIZE }),
+    vehicleExpenses(vehicle.id, "emi", { page: pages.emi, pageSize: PAGE_SIZE }),
+    vehicleExpenses(vehicle.id, "insurance", { page: pages.insurance, pageSize: PAGE_SIZE }),
+    getFinance(vehicle.id),
     vehicleTrips(vehicle.id, 8),
   ]);
+  if (!finance) notFound();
   const base = `/admin/expenses/fleet/${vehicle.id}`;
-  const href = (key: "fuel" | "repairs", n: number) => {
+  const href = (key: (typeof LISTS)[number], n: number) => {
     const p = new URLSearchParams();
-    if (key === "fuel" ? n > 1 : fuelPage > 1) p.set("fuel", String(key === "fuel" ? n : fuelPage));
-    if (key === "repairs" ? n > 1 : repairPage > 1) p.set("repairs", String(key === "repairs" ? n : repairPage));
+    for (const k of LISTS) {
+      const page = k === key ? n : pages[k];
+      if (page > 1) p.set(k, String(page));
+    }
     return `${base}${p.size ? `?${p}` : ""}#${key}`;
   };
 
@@ -47,6 +58,8 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
     { label: "Km travelled", value: formatNumber(vehicle.km) },
     { label: "Fuel", value: formatRupees(vehicle.fuel) },
     { label: "Repairs", value: formatRupees(vehicle.repairs) },
+    { label: "EMI paid", value: formatRupees(finance.emi_paid_total) },
+    { label: "Insurance paid", value: formatRupees(finance.insurance_paid_total) },
   ];
 
   return (
@@ -54,18 +67,37 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
       <Link href="/admin/expenses/fleet" className="ap-link xp-back">
         <Icon name="arrow" size={15} className="xp-flip" /> Vehicles & drivers
       </Link>
-      <PageHeader
+      <EditableHeader
+        // A new name starts the header fresh (out of edit mode)
+        key={vehicle.name}
         eyebrow="Expense Tracker · Vehicle"
         title={vehicle.name}
-        subtitle="Fuel and repairs here include costs added on its bookings and costs added to the vehicle directly."
+        subtitle="Loan, insurance, fuel and repairs. Fuel and repairs include costs added on its bookings and costs added to the vehicle directly."
+        id={vehicle.id}
+        fields={[{ name: "name", label: "Vehicle name", value: vehicle.name }]}
+        action={editVehicle}
+        canEdit={canManage}
+        editLabel="Edit name"
       >
-        <span className={`xp-state ${!vehicle.active ? "is-off" : vehicle.on_trip ? "is-out" : "is-free"}`}>
-          {!vehicle.active ? "Switched off" : vehicle.on_trip ? `On trip · ${vehicle.on_trip}` : "Available"}
-        </span>
-      </PageHeader>
+        {vehicle.is_sample && <span className="ap-badge is-sample">Sample</span>}
+        <FleetStatus active={vehicle.active} onTrip={vehicle.on_trip} />
+        {canManage && (
+          <FleetActions
+            id={vehicle.id}
+            name={vehicle.name}
+            kind="vehicle"
+            active={vehicle.active}
+            used={vehicle.used}
+            statusAction={vehicleStatus}
+          />
+        )}
+      </EditableHeader>
+      {!vehicle.active && (
+        <p className="ap-alert ap-alert-warn">This vehicle is switched off: it can&apos;t be picked for new bookings. Its history is kept.</p>
+      )}
       <Flash params={query} floating />
 
-      <section className="xp-sumtiles xp-sumtiles-4">
+      <section className="xp-sumtiles">
         {tiles.map((t) => (
           <div key={t.label} className="xp-sumtile is-navy">
             <span>{t.label}</span>
@@ -73,6 +105,17 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
           </div>
         ))}
       </section>
+
+      <VehicleFinancePanels
+        finance={finance}
+        emiEntries={emi.expenses}
+        insuranceEntries={insurance.expenses}
+        canManage={canManage}
+        emiFooter={<Pagination page={pages.emi} totalPages={pageCount(emi.total)} href={(n) => href("emi", n)} summary={`${emi.total} EMI payments`} />}
+        insuranceFooter={
+          <Pagination page={pages.insurance} totalPages={pageCount(insurance.total)} href={(n) => href("insurance", n)} summary={`${insurance.total} premiums`} />
+        }
+      />
 
       <div className="xp-detail">
         <Expenses
@@ -86,7 +129,7 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
           showTrip
           footer={
             <Pagination
-              page={fuelPage}
+              page={pages.fuel}
               totalPages={pageCount(fuel.total)}
               href={(n) => href("fuel", n)}
               summary={`${fuel.total} fuel entries`}
@@ -104,7 +147,7 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
           showTrip
           footer={
             <Pagination
-              page={repairPage}
+              page={pages.repairs}
               totalPages={pageCount(repairs.total)}
               href={(n) => href("repairs", n)}
               summary={`${repairs.total} repairs`}
@@ -127,13 +170,13 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
         ) : (
           <ul className="ap-rows">
             {trips.map((t) => (
-              <li key={t.id} className="ap-row">
+              <li key={t.id} className="ap-row xp-rowlink">
                 <span className="ap-datechip">
                   <strong>{Number(t.start_date.slice(8))}</strong>
                   <small>{fmtShort(t.start_date).slice(-3)}</small>
                 </span>
                 <div className="ap-row-main">
-                  <Link href={`/admin/expenses/bookings/${t.trip_no}`}>
+                  <Link href={`/admin/expenses/bookings/${t.trip_no}`} className="xp-cardlink">
                     <strong>{t.customer_name}</strong>
                   </Link>
                   <span>

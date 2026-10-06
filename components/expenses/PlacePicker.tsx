@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { focusFirstInvalid } from "@/components/focusFirstInvalid";
+import Dropdown from "@/components/Dropdown";
 import { CITY_MAX, loadCities, STATES } from "@/lib/expenses/places";
+
+const STATE_OPTIONS = STATES.map((s) => ({ value: s, label: s }));
 
 type Value = { state: string; city: string };
 
@@ -45,20 +49,17 @@ export default function PlacePicker({
     <div className="xp-place">
       <div className="ap-field">
         <label htmlFor={`${id}-state`}>{label} state</label>
-        <select
+        <Dropdown
           id={`${id}-state`}
           name={stateName}
+          options={STATE_OPTIONS}
           required={required}
+          emptyLabel={required ? undefined : "No state"}
+          placeholder={required ? "Select state" : "Select state (optional)"}
+          requiredMessage={`Choose the ${label.toLowerCase()} state.`}
           value={value.state}
-          onChange={(e) => update({ state: e.target.value, city: "" })}
-        >
-          <option value="">{required ? "Select state" : "Select state (optional)"}</option>
-          {STATES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+          onChange={(state) => state !== value.state && update({ state, city: "" })}
+        />
       </div>
       <div className="ap-field">
         <label htmlFor={`${id}-city`}>{label} city</label>
@@ -165,7 +166,7 @@ function CityCombo({
   }
 
   return (
-    <div className={`xp-combo ${open && rows.length ? "is-open" : ""}`}>
+    <div className={`xp-combo xp-dd ${open && rows.length ? "is-open" : ""}`}>
       <input
         ref={input}
         id={id}
@@ -217,8 +218,7 @@ function CityCombo({
         onInvalid={(e) => {
           e.preventDefault();
           setTouched(true);
-          const el = e.currentTarget;
-          window.setTimeout(() => el.focus(), 0);
+          focusFirstInvalid(e.currentTarget);
         }}
       />
       {open && state && (

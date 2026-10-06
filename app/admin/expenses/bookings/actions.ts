@@ -22,11 +22,13 @@ import {
   setTripStatus,
   updateReadings,
   updateTrip,
+  EXPENSE_LABELS,
   type ExpenseInput,
   type TripInput,
 } from "@/lib/expenses/trips";
 import { withFlash } from "../../filters";
 
+const EXPENSE_ANCHORS = { fuel: "#fuel", repair: "#repairs", emi: "#emi", insurance: "#insurance" } as const;
 const tripPath = (tripNo: string) => `/admin/expenses/bookings/${tripNo}`;
 const vehiclePath = (id: number) => `/admin/expenses/fleet/${id}`;
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").replace(/\s+/g, " ").trim();
@@ -344,8 +346,8 @@ export async function deleteExpense(fd: FormData) {
   const removed = await removeExpense(Number(fd.get("id")), user.name);
   if (!removed) redirect("/admin/expenses/bookings?flash=not-found");
   await logActivity(user, "expense.removed", removed.trip_no ?? removed.vehicle_name,
-    `${removed.kind === "fuel" ? "Fuel" : "Repair"} · ${expenseText(removed)}${removed.trip_no ? ` · ${removed.vehicle_name}` : ""}`);
+    `${EXPENSE_LABELS[removed.kind]} · ${expenseText(removed)}${removed.trip_no ? ` · ${removed.vehicle_name}` : ""}`);
   refresh();
   const back = fd.get("from") === "vehicle" || !removed.trip_no ? vehiclePath(removed.vehicle_id) : tripPath(removed.trip_no);
-  redirect(withFlash(back, "expense-removed") + (removed.kind === "fuel" ? "#fuel" : "#repairs"));
+  redirect(withFlash(back, "expense-removed") + EXPENSE_ANCHORS[removed.kind]);
 }

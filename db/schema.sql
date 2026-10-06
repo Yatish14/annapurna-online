@@ -329,3 +329,24 @@ ALTER TABLE drivers ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT 
 ALTER TABLE trips ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;
 ALTER TABLE trip_payments ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;
 ALTER TABLE vehicle_expenses ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;
+
+-- Vehicle loan (EMI) and insurance details, kept on the vehicle
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS emi_amount numeric(12, 2) CHECK (emi_amount > 0);
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS emi_lender text;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS emi_day int CHECK (emi_day BETWEEN 1 AND 31);
+-- First and last EMI months (stored as the 1st of the month)
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS emi_start date;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS emi_end date;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_company text;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_policy text;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_premium numeric(12, 2) CHECK (insurance_premium > 0);
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_from date;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_to date;
+
+-- EMI and insurance payments are vehicle costs too; an EMI payment says which month it's for
+ALTER TABLE vehicle_expenses DROP CONSTRAINT IF EXISTS vehicle_expenses_kind_check;
+ALTER TABLE vehicle_expenses ADD CONSTRAINT vehicle_expenses_kind_check CHECK (kind IN ('fuel', 'repair', 'emi', 'insurance'));
+ALTER TABLE vehicle_expenses ADD COLUMN IF NOT EXISTS period date;
+-- One EMI payment per vehicle per month (a removed one doesn't count)
+CREATE UNIQUE INDEX IF NOT EXISTS vehicle_expenses_emi_month ON vehicle_expenses (vehicle_id, period)
+  WHERE kind = 'emi' AND deleted_at IS NULL;
