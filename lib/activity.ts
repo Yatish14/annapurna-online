@@ -60,13 +60,18 @@ export async function logActivity(actor: Actor, action: ActivityAction, target: 
  */
 export type ActivityFilter = "all" | "module" | "users";
 
+/** One page of a module's activity, newest first, with the total number of entries */
 export async function listActivity(
   module: Exclude<ActivityModule, "users">,
   filter: ActivityFilter,
-  limit = 200,
-): Promise<ActivityRow[]> {
+  { page = 1, pageSize = 10 }: { page?: number; pageSize?: number } = {},
+): Promise<{ rows: ActivityRow[]; total: number }> {
   const modules = filter === "module" ? [module] : filter === "users" ? ["users"] : [module, "users"];
-  return query<ActivityRow>(
+  const [{ total }] = await query<{ total: number }>(
+    `SELECT count(*)::int AS total FROM activity_log WHERE module = ANY($1)`,
+    [modules],
+  );
+  const rows = await query<ActivityRow>(
     `SELECT id::int AS id,
             to_char(at AT TIME ZONE 'Asia/Kolkata', 'FMDay, DD Mon YYYY') AS day,
             to_char(at AT TIME ZONE 'Asia/Kolkata', 'HH12:MI AM') AS time,
@@ -74,7 +79,8 @@ export async function listActivity(
      FROM activity_log
      WHERE module = ANY($1)
      ORDER BY at DESC, id DESC
-     LIMIT $2`,
-    [modules, limit],
+     LIMIT $2 OFFSET $3`,
+    [modules, pageSize, (Math.max(1, page) - 1) * pageSize],
   );
+  return { rows, total };
 }

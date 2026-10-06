@@ -502,6 +502,48 @@ button { font: inherit; }
 .ap-pfile-note.is-error { background: var(--err-bg); color: var(--err); }
 .ap-pfile-gone { font-size: .78rem; font-weight: 700; color: var(--ink-soft); padding: 6px 10px; border-radius: 999px; background: var(--ivory-2); white-space: nowrap; }
 
+/* ---------- Search and page numbers (print orders, activity) ---------- */
+.ap-search {
+  display: flex; align-items: center; gap: 8px; min-width: 0; width: min(300px, 100%);
+  padding: 0 12px; height: 40px; border-radius: 999px; background: var(--ivory-2); border: 1px solid transparent;
+  color: var(--ink-soft); transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.ap-search:focus-within { background: var(--surface); border-color: var(--gold-500); box-shadow: 0 0 0 3px rgba(201,162,74,.2); }
+.ap-search input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-size: .88rem; font-weight: 600; color: var(--ink); outline: none; }
+.ap-search input::-webkit-search-cancel-button { display: none; }
+.ap-search button { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(16,26,51,.08); color: var(--ink-soft); cursor: pointer; }
+.ap-search .ap-link-spinner { margin: 0; color: var(--gold-600); }
+.ap-searchnote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -4px 0 16px; padding: 10px 14px; border-radius: 12px; background: #fffaf0; border: 1px solid rgba(201,162,74,.3); font-size: .86rem; }
+.ap-searchnote svg { color: var(--gold-600); }
+.ap-searchnote span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+.ap-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ap-pagination > .ap-muted { font-size: .82rem; }
+.ap-pages { display: flex; align-items: center; gap: 5px; }
+.ap-pages.is-narrow { display: none; }
+.ap-pgbtn {
+  min-width: 38px; height: 38px; padding: 0 6px; display: grid; place-items: center; border-radius: 12px;
+  font-size: .88rem; font-weight: 700; text-decoration: none; color: var(--ink); background: var(--ivory-2);
+  border: 1px solid transparent; transition: background .15s, border-color .15s;
+}
+a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18); }
+.ap-pgbtn.is-current { background: var(--navy-900); color: #fff; box-shadow: 0 6px 14px -8px rgba(10,24,56,.7); }
+.ap-pgbtn .ap-link-spinner { margin: 0; }
+.ap-page-gap { min-width: 22px; text-align: center; color: var(--ink-soft); font-weight: 700; letter-spacing: .1em; }
+@media (max-width: 560px) {
+  .ap-pagination { justify-content: center; }
+  .ap-pagination > .ap-muted { width: 100%; text-align: center; }
+  .ap-pages { gap: 4px; }
+  .ap-pgbtn { min-width: 34px; height: 34px; border-radius: 10px; font-size: .84rem; }
+  .ap-page-gap { min-width: 16px; }
+  .ap-search { width: 100%; }
+}
+/* Very narrow phones: fewer buttons (1 … 7 … 14) so the row still fits */
+@media (max-width: 359px) {
+  .ap-pages.is-wide { display: none; }
+  .ap-pages.is-narrow { display: flex; }
+}
+
 /* ---------- Printout: QR poster ---------- */
 .ap-qr-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ap-poster {

@@ -188,14 +188,58 @@ async function withFiles(orders: Omit<PrintOrder, "files">[]): Promise<PrintOrde
   return orders.map((o) => ({ ...o, files: files.filter((f) => f.order_id === o.id) }));
 }
 
-export async function listOrders(status: PrintStatus | "all", limit = 100): Promise<PrintOrder[]> {
+/** Escapes % and _ so a search for "50%" matches literally */
+const likeEscape = (s: string) => s.replace(/[\\%_]/g, "\\$&");
+
+/**
+ * Turns the search box text into query parts: an order number ("P-1042", "p1042", "1042"),
+ * a customer name, or (digits only) part of a mobile number ("98765 00001", "+91 98765…").
+ */
+function searchTerms(q: string) {
+  const text = q.trim().slice(0, 60);
+  let digits = text.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
+  return {
+    text: text ? `%${likeEscape(text)}%` : null,
+    orderNo: text ? `%${likeEscape(text.replace(/[\s-]/g, ""))}%` : null,
+    // Short digit runs would match too many numbers; 3+ digits are enough for a partial mobile number
+    phone: digits.length >= 3 ? `%${digits}%` : null,
+  };
+}
+
+export type OrderPage = { orders: PrintOrder[]; total: number };
+
+/**
+ * One page of orders, newest first. With a search, every status is searched
+ * (staff don't need to know whether an order was printed or collected yet).
+ */
+export async function listOrders(
+  status: PrintStatus | "all",
+  { search = "", page = 1, pageSize = 10 }: { search?: string; page?: number; pageSize?: number } = {},
+): Promise<OrderPage> {
+  const s = searchTerms(search);
+  const params: unknown[] = [];
+  const param = (value: unknown) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+  let where = "";
+  if (s.text && s.orderNo) {
+    const matches = [`replace(order_no, '-', '') ILIKE ${param(s.orderNo)}`, `customer_name ILIKE ${param(s.text)}`];
+    if (s.phone) matches.push(`phone LIKE ${param(s.phone)}`);
+    where = `WHERE ${matches.join(" OR ")}`;
+  } else if (status !== "all") {
+    where = `WHERE status = ${param(status)}`;
+  }
+
+  const [{ total }] = await query<{ total: number }>(`SELECT count(*)::int AS total FROM print_orders ${where}`, params);
   const orders = await query<Omit<PrintOrder, "files">>(
-    `SELECT ${ORDER_COLUMNS} FROM print_orders
-     WHERE $1 = 'all' OR status = $1
-     ORDER BY created_at DESC LIMIT $2`,
-    [status, limit],
+    `SELECT ${ORDER_COLUMNS} FROM print_orders ${where}
+     ORDER BY created_at DESC, id DESC
+     LIMIT ${param(pageSize)} OFFSET ${param((Math.max(1, page) - 1) * pageSize)}`,
+    params,
   );
-  return withFiles(orders);
+  return { orders: await withFiles(orders), total };
 }
 
 /** The customer's confirmation page */

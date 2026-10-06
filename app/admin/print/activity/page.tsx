@@ -1,6 +1,7 @@
 import ActivityFeed from "@/components/admin/ActivityFeed";
 import PageHeader from "@/components/admin/PageHeader";
 import { requireUser } from "@/lib/auth";
+import { parsePage } from "@/lib/pagination";
 import { readParams, type SearchParams } from "../../filters";
 
 export const metadata = { title: "Printout activity" };
@@ -21,6 +22,7 @@ export default async function PrintActivityPage({ searchParams }: { searchParams
         path="/admin/print/activity"
         moduleLabel="Orders"
         filter={params.get("type")}
+        page={parsePage(params.get("page"))}
         emptyText="Nothing has happened yet. Print orders will appear here once customers start uploading."
       />
     </main>

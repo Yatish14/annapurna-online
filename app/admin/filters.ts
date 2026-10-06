@@ -1,5 +1,6 @@
 import { isCarId, type BookingStatus, type CarId } from "@/lib/config";
 import { todayIST } from "@/lib/dates";
+import { parsePage } from "@/lib/pagination";
 import type { PrintStatus } from "@/lib/print/orders";
 
 export const STATUS_TABS: { id: BookingStatus | "all"; label: string }[] = [
@@ -59,8 +60,17 @@ export function parsePrintStatus(params: URLSearchParams): PrintStatus | "all" {
   return PRINT_TABS.find((t) => t.id === status)?.id ?? "new";
 }
 
-export function printHref(status: PrintStatus | "all"): string {
-  return `/admin/print?status=${status}`;
+export type PrintView = { status: PrintStatus | "all"; q: string; page: number };
+
+/** Orders page state from the URL: tab, search text (searches every tab) and page number */
+export function parsePrintView(params: URLSearchParams): PrintView {
+  return { status: parsePrintStatus(params), q: (params.get("q") ?? "").trim().slice(0, 60), page: parsePage(params.get("page")) };
+}
+
+export function printHref(status: PrintStatus | "all", { q = "", page = 1 }: { q?: string; page?: number } = {}): string {
+  const params = new URLSearchParams(q ? { q } : { status });
+  if (page > 1) params.set("page", String(page));
+  return `/admin/print?${params}`;
 }
 
 // ---------- Returning from actions ----------
@@ -74,7 +84,10 @@ export function safeBack(raw: unknown): string {
   const params = new URLSearchParams(qs);
   const out = new URLSearchParams();
   if (path === "/admin/print") {
-    if (params.has("status")) out.set("status", parsePrintStatus(params));
+    const view = parsePrintView(params);
+    if (view.q) out.set("q", view.q);
+    else if (params.has("status")) out.set("status", view.status);
+    if (view.page > 1) out.set("page", String(view.page));
   } else {
     const f = parseBookingFilters(params);
     if (params.has("status")) out.set("status", f.status);

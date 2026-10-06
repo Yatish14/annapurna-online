@@ -2,7 +2,9 @@ import Link from "next/link";
 import { listActivity, type ActivityAction, type ActivityFilter, type ActivityRow } from "@/lib/activity";
 import { formatPhone } from "@/lib/format";
 import Icon, { type IconName } from "./Icon";
+import { pageCount, PAGE_SIZE } from "@/lib/pagination";
 import LinkPending from "./LinkPending";
+import Pagination from "./Pagination";
 
 const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (target: string) => React.ReactNode }> = {
   "enquiry.created": { icon: "whatsapp", tone: "green", text: (t) => <>sent a new enquiry <b>{t}</b> on WhatsApp</> },
@@ -52,18 +54,28 @@ type Props = {
   /** Label of the module's own entries, e.g. "Bookings" */
   moduleLabel: string;
   filter: string | null;
+  /** Page number from the URL */
+  page: number;
   emptyText: string;
 };
 
 /** One module's activity log (plus team changes), grouped by day */
-export default async function ActivityFeed({ module, path, moduleLabel, filter: requested, emptyText }: Props) {
+export default async function ActivityFeed({ module, path, moduleLabel, filter: requested, page: requestedPage, emptyText }: Props) {
   const filters: { id: ActivityFilter; label: string }[] = [
     { id: "all", label: "Everything" },
     { id: "module", label: moduleLabel },
     { id: "users", label: "Team" },
   ];
   const filter = filters.find((f) => f.id === requested)?.id ?? "all";
-  const rows = await listActivity(module, filter);
+  let page = requestedPage;
+  let { rows, total } = await listActivity(module, filter, { page, pageSize: PAGE_SIZE });
+  const totalPages = pageCount(total);
+  if (rows.length === 0 && total > 0 && page > totalPages) {
+    page = totalPages;
+    ({ rows, total } = await listActivity(module, filter, { page, pageSize: PAGE_SIZE }));
+  }
+  const first = (page - 1) * PAGE_SIZE + 1;
+  const href = (n: number) => `${path}?type=${filter}${n > 1 ? `&page=${n}` : ""}`;
 
   const days: { day: string; rows: ActivityRow[] }[] = [];
   for (const row of rows) {
@@ -83,7 +95,7 @@ export default async function ActivityFeed({ module, path, moduleLabel, filter: 
             </Link>
           ))}
         </nav>
-        <span className="ap-muted">Latest {rows.length} entries</span>
+        <span className="ap-muted">{total} {total === 1 ? "entry" : "entries"}</span>
       </div>
 
       {days.length === 0 ? (
@@ -103,6 +115,8 @@ export default async function ActivityFeed({ module, path, moduleLabel, filter: 
           </div>
         ))
       )}
+
+      <Pagination page={page} totalPages={totalPages} href={href} summary={`Showing ${first}–${first + rows.length - 1} of ${total} entries`} />
     </section>
   );
 }
