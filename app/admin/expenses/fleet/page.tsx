@@ -125,9 +125,12 @@ export default async function FleetPage({ searchParams }: { searchParams: Search
                     <Icon name="car" size={20} />
                   </span>
                   <div className="xp-fleetmain">
-                    <Link href={`/admin/expenses/fleet/${v.id}`} className="xp-fleetname">
-                      {v.name}
-                    </Link>
+                    <span>
+                      <Link href={`/admin/expenses/fleet/${v.id}`} className="xp-fleetname">
+                        {v.name}
+                      </Link>
+                      {v.is_sample && <span className="ap-badge is-sample xp-samplebadge">Sample</span>}
+                    </span>
                     <span className="ap-muted">
                       {v.trips} booking{v.trips === 1 ? "" : "s"} · {formatNumber(v.km)} km · Fuel {formatRupees(v.fuel)} · Repairs{" "}
                       {formatRupees(v.repairs)}
@@ -181,7 +184,10 @@ export default async function FleetPage({ searchParams }: { searchParams: Search
                     <Icon name="steering" size={20} />
                   </span>
                   <div className="xp-fleetmain">
-                    <strong className="xp-fleetname">{d.name}</strong>
+                    <span>
+                      <strong className="xp-fleetname">{d.name}</strong>
+                      {d.is_sample && <span className="ap-badge is-sample xp-samplebadge">Sample</span>}
+                    </span>
                     <span className="ap-muted">
                       <a href={`tel:+91${d.phone}`}>{formatPhone(d.phone)}</a> · {d.trips} booking{d.trips === 1 ? "" : "s"}
                       {d.owed > 0 && <b className="xp-owed"> · {formatRupees(d.owed)} to pay</b>}

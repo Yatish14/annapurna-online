@@ -15,8 +15,9 @@ Website, printout uploads (Annapurna Graphics and Internet), an expense tracker 
 | `/admin/expenses` | Expense Tracker → Overview: money in and out for a month, what customers still owe, what drivers are still owed, figures per vehicle |
 | `/admin/expenses/bookings` | Expense Tracker → Bookings: list with tabs and search; **New booking**; each booking's page has payments, fuel, repairs and its history |
 | `/admin/expenses/fleet` | Expense Tracker → Vehicles & drivers (each vehicle has its own page with all its fuel and repairs) |
+| `/admin/expenses/reports` | Expense Tracker → Reports: download a month's bookings, payments, fuel & repairs, or vehicle summary as CSV |
 | `/admin/expenses/activity` | Expense Tracker → Activity (admins and the super admin only) |
-| `/admin/cars` | Car Bookings → Overview: counts, enquiries needing attention, fleet status, upcoming trips |
+| `/admin/cars` | Car Bookings (hidden from the sidebar: only legal with yellow-plate cars; pages kept, see `components/admin/Sidebar.tsx`) → Overview: counts, enquiries needing attention, fleet status, upcoming trips |
 | `/admin/cars/bookings` | Car Bookings → all enquiries and bookings, with filters and actions |
 | `/admin/cars/calendar` | Car Bookings → month calendar for each car |
 | `/admin/cars/activity` | Car Bookings → Activity (admins and the super admin only) |
@@ -167,6 +168,8 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 - **Profit:** total − driver amount − fuel − repairs.
 - **Removing entries:** a payment, fuel or repair entered by mistake can be removed. It stays on the page crossed out, with who removed it and when.
 - **Booking numbers:** VB-1001, VB-1002, …
+- **Reports:** pick a month and download CSV files (open in Excel or Google Sheets): bookings starting in the month, payments made in the month, fuel and repairs dated in the month, and a per-vehicle summary. Amounts are plain numbers in rupees. Each download is recorded in Activity.
+- **Sample data:** `npm run db:seed-expenses` adds 3 vehicles, 3 drivers and 25 bookings with payments, fuel and repairs (dates around today, marked with a *Sample* badge). `npm run db:seed-expenses -- --clear` removes them; booking numbers start again at VB-1001 when no bookings are left.
 - **Cities:** the list of states and cities is `lib/expenses/india-places.json`, built by `node scripts/india-places.mjs` from the [countries-states-cities database](https://github.com/dr5hn/countries-states-cities-database) (Open Database License, free for commercial use with this credit).
 
 ## Users & roles

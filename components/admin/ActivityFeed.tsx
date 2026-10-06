@@ -41,6 +41,7 @@ const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (tar
   "expense.fuel_added": { icon: "fuel", tone: "gold", text: (t) => <>added fuel for <b>{t}</b></> },
   "expense.repair_added": { icon: "wrench", tone: "gold", text: (t) => <>added a repair for <b>{t}</b></> },
   "expense.removed": { icon: "trash", tone: "red", text: (t) => <>removed a fuel or repair entry from <b>{t}</b></> },
+  "report.downloaded": { icon: "download", tone: "navy", text: (t) => <>downloaded a report for <b>{t}</b></> },
   "user.created": { icon: "userplus", tone: "gold", text: (t) => <>added <b>{t}</b></> },
   "user.deleted": { icon: "trash", tone: "red", text: (t) => <>removed <b>{t}</b></> },
   "user.password_reset": { icon: "key", tone: "gold", text: (t) => <>reset the password of <b>{t}</b></> },

@@ -13,8 +13,6 @@ type Props = {
   user: { name: string; mobile: string; role: string; roleLabel: string; initials: string };
   /** New print orders */
   printCount: number;
-  /** Pending car enquiries */
-  pendingCount: number;
   showUsers: boolean;
   showActivity: boolean;
   /** Desktop: start with the icon-only sidebar (remembered in a cookie) */
@@ -27,12 +25,12 @@ type Item = { href: string; label: string; icon: IconName; badge?: number };
 type Module = { id: ModuleId; label: string; icon: IconName; items: Item[] };
 
 // Module home pages are only "active" on exactly their own URL
-const EXACT = new Set(["/admin/print", "/admin/cars", "/admin/expenses"]);
+const EXACT = new Set(["/admin/print", "/admin/expenses"]);
 
 const isDesktop = () => window.matchMedia("(min-width: 1001px)").matches;
 
 export default function Sidebar(props: Props) {
-  const { user, printCount, pendingCount, showUsers, showActivity, initialCollapsed, initialOpen } = props;
+  const { user, printCount, showUsers, showActivity, initialCollapsed, initialOpen } = props;
   const pathname = usePathname();
   const [drawer, setDrawer] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(initialCollapsed); // desktop icon-only mode
@@ -58,20 +56,17 @@ export default function Sidebar(props: Props) {
         { href: "/admin/expenses", label: "Overview", icon: "overview" },
         { href: "/admin/expenses/bookings", label: "Bookings", icon: "bookings" },
         { href: "/admin/expenses/fleet", label: "Vehicles & drivers", icon: "car" },
+        { href: "/admin/expenses/reports", label: "Reports", icon: "download" },
         ...(showActivity ? [{ href: "/admin/expenses/activity", label: "Activity", icon: "activity" as const }] : []),
       ],
     },
-    {
-      id: "cars",
-      label: "Car Bookings",
-      icon: "car",
-      items: [
-        { href: "/admin/cars", label: "Overview", icon: "overview" },
-        { href: "/admin/cars/bookings", label: "Bookings", icon: "bookings", badge: pendingCount },
-        { href: "/admin/cars/calendar", label: "Calendar", icon: "calendar" },
-        ...(showActivity ? [{ href: "/admin/cars/activity", label: "Activity", icon: "activity" as const }] : []),
-      ],
-    },
+    // Car Bookings (WhatsApp enquiries, app/admin/cars) is hidden from the menu: it's only legal with
+    // yellow-plate (commercial) cars. The pages and code are kept; to bring it back, add:
+    // { id: "cars", label: "Car Bookings", icon: "car", items: [
+    //   { href: "/admin/cars", label: "Overview", icon: "overview" },
+    //   { href: "/admin/cars/bookings", label: "Bookings", icon: "bookings" },
+    //   { href: "/admin/cars/calendar", label: "Calendar", icon: "calendar" },
+    //   { href: "/admin/cars/activity", label: "Activity", icon: "activity" } ] },
   ];
 
   const isActive = (href: string) => (EXACT.has(href) ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));

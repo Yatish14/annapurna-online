@@ -38,6 +38,7 @@ const ACTION_MODULES = {
   "expense.fuel_added": "expenses",
   "expense.repair_added": "expenses",
   "expense.removed": "expenses",
+  "report.downloaded": "expenses",
   "user.created": "users",
   "user.deleted": "users",
   "user.password_reset": "users",

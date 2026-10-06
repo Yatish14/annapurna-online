@@ -8,6 +8,7 @@
     "start": "next start",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
+    "db:seed-expenses": "node --env-file-if-exists=.env.local scripts/seed-expenses.mjs",
     "super-admin": "node --env-file-if-exists=.env.local scripts/super-admin.mjs"
   },
   "dependencies": {

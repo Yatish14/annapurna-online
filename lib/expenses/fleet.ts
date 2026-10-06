@@ -18,6 +18,7 @@ export type Vehicle = {
   on_trip: string | null;
   /** Anything recorded against it; vehicles without history can be deleted outright */
   used: boolean;
+  is_sample: boolean;
 };
 
 export type Driver = {
@@ -32,12 +33,13 @@ export type Driver = {
   owed: number;
   on_trip: string | null;
   used: boolean;
+  is_sample: boolean;
 };
 
 const TODAY = `(now() AT TIME ZONE 'Asia/Kolkata')::date`;
 
 const VEHICLE_COLUMNS = `
-  v.id::int AS id, v.name, v.kind, v.active, v.created_by,
+  v.id::int AS id, v.name, v.kind, v.active, v.created_by, v.is_sample,
   to_char(v.created_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY') AS created_ist,
   (SELECT count(*)::int FROM trips t WHERE t.vehicle_id = v.id AND t.status = 'booked') AS trips,
   (SELECT coalesce(sum(t.odometer_end - t.odometer_start), 0)::int FROM trips t
@@ -52,7 +54,7 @@ const VEHICLE_COLUMNS = `
    OR EXISTS (SELECT 1 FROM vehicle_expenses e WHERE e.vehicle_id = v.id)) AS used`;
 
 const DRIVER_COLUMNS = `
-  d.id::int AS id, d.name, d.phone, d.active, d.created_by,
+  d.id::int AS id, d.name, d.phone, d.active, d.created_by, d.is_sample,
   to_char(d.created_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY') AS created_ist,
   (SELECT count(*)::int FROM trips t WHERE t.driver_id = d.id AND t.status = 'booked') AS trips,
   (SELECT coalesce(sum(greatest(coalesce(t.driver_amount, 0) - coalesce((

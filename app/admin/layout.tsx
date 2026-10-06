@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import Sidebar from "@/components/admin/Sidebar";
 import { MODULES_COOKIE, parseOpenModules, SIDEBAR_COOKIE } from "@/components/admin/sidebarCookie";
 import { can, requireUser, ROLE_LABELS } from "@/lib/auth";
-import { dashboardStats } from "@/lib/bookings";
 import { initials } from "@/lib/format";
 import { printStats } from "@/lib/print/orders";
 import "../admin.css";
@@ -15,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const [stats, prints, store] = await Promise.all([dashboardStats(), printStats(), cookies()]);
+  const [prints, store] = await Promise.all([printStats(), cookies()]);
 
   return (
     <div className="ap-shell">
@@ -28,7 +27,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           initials: initials(user.name),
         }}
         printCount={prints.new}
-        pendingCount={stats.pending}
         showUsers={can(user, "viewUsers")}
         showActivity={can(user, "viewActivity")}
         initialCollapsed={store.get(SIDEBAR_COOKIE)?.value === "collapsed"}

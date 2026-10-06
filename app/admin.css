@@ -888,3 +888,25 @@ a.xp-fleetname:hover { color: var(--gold-600); }
 @media (max-width: 560px) {
   .xp-history .ap-act-side { max-width: 92px; white-space: normal; text-align: right; line-height: 1.3; }
 }
+
+.xp-samplebadge { margin-left: 8px; vertical-align: 2px; }
+
+/* Expense Tracker: reports */
+.xp-monthpick { display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.xp-monthpick input { font: inherit; font-size: .88rem; font-weight: 600; color: var(--ink); border: 0; background: none; outline: none; }
+.xp-reports { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; }
+.xp-report { display: flex; flex-direction: column; gap: 12px; }
+.xp-report-head { display: flex; align-items: center; gap: 12px; }
+.xp-report-head .ap-tile-icon { margin: 0; flex-shrink: 0; }
+.xp-report-head h2 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1.3rem; }
+.xp-report-head .ap-muted { font-size: .82rem; }
+.xp-report p { margin: 0; color: var(--ink-soft); font-size: .9rem; }
+.xp-report-figures { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
+.xp-report-figures div { flex: 1; min-width: 120px; padding: 10px 12px; border-radius: 12px; background: var(--ivory); }
+.xp-report-figures dt { font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.xp-report-figures dd { margin: 2px 0 0; font-weight: 800; font-size: 1.05rem; }
+.xp-report-figures dd.is-neg { color: var(--err); }
+.xp-report-btn { align-self: flex-start; margin-top: auto; }
+.xp-report-file { font-size: .74rem; color: var(--ink-soft); }
+@media (max-width: 860px) { .xp-reports { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .xp-report-btn { align-self: stretch; } .xp-monthpick { width: 100%; justify-content: space-between; } }

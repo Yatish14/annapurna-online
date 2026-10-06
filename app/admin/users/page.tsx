@@ -23,14 +23,13 @@ const ROLE_INFO: { role: Role; icon: "crown" | "shield" | "eye"; points: string[
     points: [
       "Print orders, mark them collected",
       "Expense Tracker: bookings, payments, fuel, repairs",
-      "Mark enquiries as booked or rejected",
       "Remove users (not the super admin)",
     ],
   },
   {
     role: "viewer",
     icon: "eye",
-    points: ["See print orders and open files", "See Expense Tracker bookings and figures", "See bookings and calendar", "Can't change anything"],
+    points: ["See print orders and open files", "See Expense Tracker bookings and figures", "Can't change anything"],
   },
 ];
 

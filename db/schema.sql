@@ -322,3 +322,10 @@ CREATE INDEX IF NOT EXISTS vehicle_expenses_trip_idx ON vehicle_expenses (trip_i
 
 -- A booking's own history on its page
 CREATE INDEX IF NOT EXISTS activity_log_target_idx ON activity_log (module, target);
+
+-- Expense Tracker test data from `npm run db:seed-expenses` (removed again with `-- --clear`)
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;
+ALTER TABLE trip_payments ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;
+ALTER TABLE vehicle_expenses ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;

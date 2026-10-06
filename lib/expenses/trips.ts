@@ -39,6 +39,8 @@ export type Trip = {
   notes: string | null;
   status: "booked" | "cancelled";
   phase: TripPhase;
+  /** Test data from npm run db:seed-expenses */
+  is_sample: boolean;
   /** Paid by the customer so far */
   received: number;
   /** Paid to the driver so far */
@@ -135,7 +137,7 @@ const TRIP_COLUMNS = `
          t.customer_name, t.customer_phone, t.start_date::text AS start_date, t.end_date::text AS end_date,
          t.pickup_state, t.pickup_city, t.drop_state, t.drop_city, t.round_trip, t.dest_state, t.dest_city,
          t.referrer_name, t.referrer_phone, t.odometer_start, t.odometer_end,
-         t.total_amount::float8 AS total_amount, t.driver_amount::float8 AS driver_amount, t.notes, t.status,
+         t.total_amount::float8 AS total_amount, t.driver_amount::float8 AS driver_amount, t.notes, t.status, t.is_sample,
          CASE WHEN t.status = 'cancelled' THEN 'cancelled'
               WHEN t.start_date > ${TODAY} THEN 'upcoming'
               WHEN t.end_date < ${TODAY} THEN 'completed'
@@ -614,4 +616,56 @@ export function expenseText(e: Pick<Expense, "kind" | "amount" | "litres" | "des
       ? [formatRupees(e.amount), e.litres ? `${e.litres} L` : null, e.note]
       : [formatRupees(e.amount), e.description, [e.shop_name, place].filter(Boolean).join(", ") || null, e.note];
   return parts.filter(Boolean).join(" · ");
+}
+
+// ---------- Monthly reports ----------
+
+const MONTH_START = `$1::date`;
+const MONTH_END = `($1::date + interval '1 month')::date`;
+
+/** Every booking (cancelled too) starting in the month ("YYYY-MM"), by date */
+export async function tripsStartingIn(month: string): Promise<Trip[]> {
+  return query<Trip>(
+    `${TRIP_SELECT} WHERE t.start_date >= ${MONTH_START} AND t.start_date < ${MONTH_END} ORDER BY t.start_date, t.id`,
+    [`${month}-01`],
+  );
+}
+
+export type PaymentRow = Payment & {
+  paid_date: string;
+  paid_time: string;
+  trip_no: string;
+  customer_name: string;
+  vehicle_name: string;
+  driver_name: string;
+};
+
+/** Every payment (removed ones too) made in the month, by time */
+export async function paymentsIn(month: string): Promise<PaymentRow[]> {
+  return query<PaymentRow>(
+    `SELECT p.id::int AS id, p.party, p.amount::float8 AS amount, p.method, p.note, p.created_by, p.deleted_by,
+            to_char(p.paid_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') AS paid_date,
+            to_char(p.paid_at AT TIME ZONE 'Asia/Kolkata', 'HH24:MI') AS paid_time,
+            to_char(p.paid_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY, HH12:MI AM') AS paid_ist,
+            to_char(p.created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI') AS created_ist,
+            false AS late_entry,
+            to_char(p.deleted_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI') AS deleted_ist,
+            t.trip_no, t.customer_name, v.name AS vehicle_name, d.name AS driver_name
+     FROM trip_payments p
+     JOIN trips t ON t.id = p.trip_id
+     JOIN vehicles v ON v.id = t.vehicle_id
+     JOIN drivers d ON d.id = t.driver_id
+     WHERE (p.paid_at AT TIME ZONE 'Asia/Kolkata')::date >= ${MONTH_START}
+       AND (p.paid_at AT TIME ZONE 'Asia/Kolkata')::date < ${MONTH_END}
+     ORDER BY p.paid_at, p.id`,
+    [`${month}-01`],
+  );
+}
+
+/** Every fuel and repair entry (removed ones too) dated in the month */
+export async function expensesIn(month: string): Promise<Expense[]> {
+  return query<Expense>(
+    `${EXPENSE_SELECT} WHERE e.spent_on >= ${MONTH_START} AND e.spent_on < ${MONTH_END} ORDER BY e.spent_on, e.id`,
+    [`${month}-01`],
+  );
 }

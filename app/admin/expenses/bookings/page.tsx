@@ -63,7 +63,6 @@ export default async function TripsPage({ searchParams }: { searchParams: Search
             ))}
           </nav>
           <OrderSearch
-            key={q}
             initial={q}
             clearHref={tripsHref(view)}
             path="/admin/expenses/bookings"

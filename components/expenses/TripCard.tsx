@@ -21,6 +21,7 @@ export function TripBadges({ trip }: { trip: Trip }) {
     <span className="xp-badges">
       <span className={`ap-badge xp-phase is-${trip.phase}`}>{PHASE_LABELS[trip.phase]}</span>
       {trip.status === "booked" && <span className={`ap-badge xp-pay is-${pay}`}>{PAY_LABELS[pay]}</span>}
+      {trip.is_sample && <span className="ap-badge is-sample">Sample</span>}
     </span>
   );
 }

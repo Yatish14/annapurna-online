@@ -96,7 +96,7 @@ export default async function PrintOrdersPage({ searchParams }: { searchParams: 
               </Link>
             ))}
           </nav>
-          <OrderSearch key={q} initial={q} clearHref={printHref(status)} />
+          <OrderSearch initial={q} clearHref={printHref(status)} />
         </div>
 
         {q && (
