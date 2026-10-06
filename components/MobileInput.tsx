@@ -32,6 +32,8 @@ type Props = {
   /** Controlled use (e.g. the print page); leave out inside a plain form */
   value?: string;
   onChange?: (value: string) => void;
+  /** Starting number when uncontrolled (e.g. editing a driver) */
+  defaultValue?: string;
   placeholder?: string;
   autoComplete?: string;
   autoFocus?: boolean;
@@ -52,13 +54,14 @@ export default function MobileInput({
   required = false,
   value: controlled,
   onChange,
+  defaultValue = "",
   placeholder = "10-digit mobile number",
   autoComplete = "tel-national",
   autoFocus,
   disabled,
   handle,
 }: Props) {
-  const [own, setOwn] = useState("");
+  const [own, setOwn] = useState(() => cleanMobile(defaultValue));
   const value = controlled ?? own;
   const [touched, setTouched] = useState(false);
   const input = useRef<HTMLInputElement>(null);

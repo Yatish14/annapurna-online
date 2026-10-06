@@ -27,7 +27,7 @@ type Item = { href: string; label: string; icon: IconName; badge?: number };
 type Module = { id: ModuleId; label: string; icon: IconName; items: Item[] };
 
 // Module home pages are only "active" on exactly their own URL
-const EXACT = new Set(["/admin/print", "/admin/cars"]);
+const EXACT = new Set(["/admin/print", "/admin/cars", "/admin/expenses"]);
 
 const isDesktop = () => window.matchMedia("(min-width: 1001px)").matches;
 
@@ -48,6 +48,17 @@ export default function Sidebar(props: Props) {
         { href: "/admin/print", label: "Orders", icon: "inbox", badge: printCount },
         { href: "/admin/print/qr", label: "QR poster", icon: "qr" },
         ...(showActivity ? [{ href: "/admin/print/activity", label: "Activity", icon: "activity" as const }] : []),
+      ],
+    },
+    {
+      id: "expenses",
+      label: "Expense Tracker",
+      icon: "wallet",
+      items: [
+        { href: "/admin/expenses", label: "Overview", icon: "overview" },
+        { href: "/admin/expenses/bookings", label: "Bookings", icon: "bookings" },
+        { href: "/admin/expenses/fleet", label: "Vehicles & drivers", icon: "car" },
+        ...(showActivity ? [{ href: "/admin/expenses/activity", label: "Activity", icon: "activity" as const }] : []),
       ],
     },
     {

@@ -4,11 +4,26 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Icon from "./Icon";
 
+type Props = {
+  initial: string;
+  clearHref: string;
+  /** The list page the search runs on */
+  path?: string;
+  placeholder?: string;
+  label?: string;
+};
+
 /**
- * Search print orders by order number, customer name or mobile. Searches as you type
+ * Search box for a list (print orders, Expense Tracker bookings). Searches as you type
  * (after a short pause) without reloading the page.
  */
-export default function OrderSearch({ initial, clearHref }: { initial: string; clearHref: string }) {
+export default function OrderSearch({
+  initial,
+  clearHref,
+  path = "/admin/print",
+  placeholder = "Order no., name or mobile",
+  label = "Search orders by order number, customer name or mobile number",
+}: Props) {
   const router = useRouter();
   const [value, setValue] = useState(initial);
   const [pending, startTransition] = useTransition();
@@ -20,7 +35,7 @@ export default function OrderSearch({ initial, clearHref }: { initial: string; c
     const q = text.trim().slice(0, 60);
     if (q === last.current) return;
     last.current = q;
-    startTransition(() => router.replace(q ? `/admin/print?q=${encodeURIComponent(q)}` : clearHref, { scroll: false }));
+    startTransition(() => router.replace(q ? `${path}?q=${encodeURIComponent(q)}` : clearHref, { scroll: false }));
   }
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -44,8 +59,8 @@ export default function OrderSearch({ initial, clearHref }: { initial: string; c
           const text = e.target.value;
           timer.current = window.setTimeout(() => go(text), 350);
         }}
-        placeholder="Order no., name or mobile"
-        aria-label="Search orders by order number, customer name or mobile number"
+        placeholder={placeholder}
+        aria-label={label}
         maxLength={60}
         enterKeyHint="search"
       />

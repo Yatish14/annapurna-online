@@ -6,7 +6,7 @@ import { pageCount, PAGE_SIZE } from "@/lib/pagination";
 import LinkPending from "./LinkPending";
 import Pagination from "./Pagination";
 
-const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (target: string) => React.ReactNode }> = {
+const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (target: React.ReactNode) => React.ReactNode }> = {
   "enquiry.created": { icon: "whatsapp", tone: "green", text: (t) => <>sent a new enquiry <b>{t}</b> on WhatsApp</> },
   "booking.confirmed": { icon: "check", tone: "green", text: (t) => <>marked <b>{t}</b> as booked</> },
   "booking.rejected": { icon: "xcircle", tone: "red", text: (t) => <>rejected enquiry <b>{t}</b></> },
@@ -20,14 +20,44 @@ const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (tar
   "print.uploads_paused": { icon: "pause", tone: "red", text: () => <>paused customer uploads</> },
   "print.uploads_resumed": { icon: "play", tone: "green", text: () => <>resumed customer uploads</> },
   "print.files_deleted": { icon: "trash", tone: "navy", text: () => <>deleted old customer files</> },
+  "vehicle.created": { icon: "car", tone: "gold", text: (t) => <>added vehicle <b>{t}</b></> },
+  "vehicle.renamed": { icon: "edit", tone: "navy", text: (t) => <>renamed a vehicle to <b>{t}</b></> },
+  "vehicle.deactivated": { icon: "pause", tone: "red", text: (t) => <>switched off vehicle <b>{t}</b></> },
+  "vehicle.reactivated": { icon: "play", tone: "green", text: (t) => <>switched vehicle <b>{t}</b> back on</> },
+  "vehicle.deleted": { icon: "trash", tone: "red", text: (t) => <>deleted vehicle <b>{t}</b></> },
+  "driver.created": { icon: "steering", tone: "gold", text: (t) => <>added driver <b>{t}</b></> },
+  "driver.updated": { icon: "edit", tone: "navy", text: (t) => <>updated driver <b>{t}</b></> },
+  "driver.deactivated": { icon: "pause", tone: "red", text: (t) => <>switched off driver <b>{t}</b></> },
+  "driver.reactivated": { icon: "play", tone: "green", text: (t) => <>switched driver <b>{t}</b> back on</> },
+  "driver.deleted": { icon: "trash", tone: "red", text: (t) => <>deleted driver <b>{t}</b></> },
+  "trip.created": { icon: "bookings", tone: "gold", text: (t) => <>created booking <b>{t}</b></> },
+  "trip.updated": { icon: "edit", tone: "navy", text: (t) => <>edited booking <b>{t}</b></> },
+  "trip.readings_updated": { icon: "edit", tone: "navy", text: (t) => <>updated the readings and amounts of <b>{t}</b></> },
+  "trip.cancelled": { icon: "xcircle", tone: "red", text: (t) => <>cancelled booking <b>{t}</b></> },
+  "trip.restored": { icon: "undo", tone: "green", text: (t) => <>restored booking <b>{t}</b></> },
+  "payment.received": { icon: "rupee", tone: "green", text: (t) => <>recorded a customer payment for <b>{t}</b></> },
+  "payment.driver_paid": { icon: "wallet", tone: "navy", text: (t) => <>recorded a driver payment for <b>{t}</b></> },
+  "payment.removed": { icon: "trash", tone: "red", text: (t) => <>removed a payment from <b>{t}</b></> },
+  "expense.fuel_added": { icon: "fuel", tone: "gold", text: (t) => <>added fuel for <b>{t}</b></> },
+  "expense.repair_added": { icon: "wrench", tone: "gold", text: (t) => <>added a repair for <b>{t}</b></> },
+  "expense.removed": { icon: "trash", tone: "red", text: (t) => <>removed a fuel or repair entry from <b>{t}</b></> },
   "user.created": { icon: "userplus", tone: "gold", text: (t) => <>added <b>{t}</b></> },
   "user.deleted": { icon: "trash", tone: "red", text: (t) => <>removed <b>{t}</b></> },
   "user.password_reset": { icon: "key", tone: "gold", text: (t) => <>reset the password of <b>{t}</b></> },
   "user.password_changed": { icon: "key", tone: "navy", text: () => <>changed their own password</> },
 };
 
-function Entry({ row }: { row: ActivityRow }) {
+/** One activity line. Booking numbers link to the booking (unless `linkTargets` is off, e.g. on that booking's own page). */
+export function ActivityEntry({ row, linkTargets = true }: { row: ActivityRow; linkTargets?: boolean }) {
   const a = ACTIONS[row.action];
+  const target =
+    linkTargets && row.target && /^VB-\d+$/.test(row.target) ? (
+      <Link href={`/admin/expenses/bookings/${row.target}`} className="ap-act-link">
+        {row.target}
+      </Link>
+    ) : (
+      row.target ?? ""
+    );
   return (
     <li className="ap-act">
       <span className={`ap-act-icon is-${a?.tone ?? "navy"}`}>
@@ -35,7 +65,7 @@ function Entry({ row }: { row: ActivityRow }) {
       </span>
       <div className="ap-act-main">
         <p>
-          <strong>{row.actor_name}</strong> {a ? a.text(row.target ?? "") : `${row.action} ${row.target ?? ""}`}
+          <strong>{row.actor_name}</strong> {a ? a.text(target) : `${row.action} ${row.target ?? ""}`}
         </p>
         {row.details && <span className="ap-act-details">{row.details}</span>}
       </div>
@@ -48,7 +78,7 @@ function Entry({ row }: { row: ActivityRow }) {
 }
 
 type Props = {
-  module: "cars" | "print";
+  module: "cars" | "print" | "expenses";
   /** This page's URL, for the filter tabs */
   path: string;
   /** Label of the module's own entries, e.g. "Bookings" */
@@ -109,7 +139,7 @@ export default async function ActivityFeed({ module, path, moduleLabel, filter: 
             <h3>{d.day.replace(/\s+,/, ",")}</h3>
             <ul className="ap-acts">
               {d.rows.map((row) => (
-                <Entry key={row.id} row={row} />
+                <ActivityEntry key={row.id} row={row} />
               ))}
             </ul>
           </div>

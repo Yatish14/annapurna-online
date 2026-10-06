@@ -1,6 +1,6 @@
 # Annapurna Online Services
 
-Website, printout uploads (Annapurna Graphics and Internet), WhatsApp car-booking bot and admin dashboard, built with Next.js.
+Website, printout uploads (Annapurna Graphics and Internet), an expense tracker for the shop's own vehicles, WhatsApp car-booking bot and admin dashboard, built with Next.js.
 
 | URL | What it is |
 |---|---|
@@ -12,6 +12,10 @@ Website, printout uploads (Annapurna Graphics and Internet), WhatsApp car-bookin
 | `/admin/print` | Printout → Orders: files with the customer's options, Print button, mark collected, pause uploads |
 | `/admin/print/qr` | Printout → QR poster for the counter (print it or download the QR code) |
 | `/admin/print/activity` | Printout → Activity (admins and the super admin only) |
+| `/admin/expenses` | Expense Tracker → Overview: money in and out for a month, what customers still owe, what drivers are still owed, figures per vehicle |
+| `/admin/expenses/bookings` | Expense Tracker → Bookings: list with tabs and search; **New booking**; each booking's page has payments, fuel, repairs and its history |
+| `/admin/expenses/fleet` | Expense Tracker → Vehicles & drivers (each vehicle has its own page with all its fuel and repairs) |
+| `/admin/expenses/activity` | Expense Tracker → Activity (admins and the super admin only) |
 | `/admin/cars` | Car Bookings → Overview: counts, enquiries needing attention, fleet status, upcoming trips |
 | `/admin/cars/bookings` | Car Bookings → all enquiries and bookings, with filters and actions |
 | `/admin/cars/calendar` | Car Bookings → month calendar for each car |
@@ -147,13 +151,31 @@ Customers scan the QR code at the counter (**Printout → QR poster** in the das
 
 The free Blob plan has monthly limits on storage and uploads; check usage under Vercel → Storage. Deleting files after 3 days keeps storage small.
 
+## Expense Tracker
+
+Records the shop's own vehicle bookings and what each one earned and cost. Separate from the WhatsApp car bookings.
+
+- **Vehicles & drivers:** add vehicles (a name, cars only for now) and drivers (name and mobile number). One that already has bookings can't be deleted, only switched off: it disappears from new bookings and keeps its history.
+- **New booking:** customer name and mobile, vehicle, driver, start and end date, pickup state and city, drop state and city, and who referred the customer (optional). For a **round trip** the drop is the pickup city, and the form asks where the vehicle went instead. The city list depends on the state; a place that isn't in the list can be typed in. The total, advance, driver's amount and starting odometer can be entered now or later.
+- **Clashes:** a vehicle can't have two bookings on the same days (the database refuses it too). A driver who is already on another booking gets a warning, and you can save anyway.
+- **On the booking's page:**
+  - odometer readings at start and end (km travelled is worked out), the total from the customer and the amount for the driver
+  - customer payments and payments to the driver, each with its amount, method (cash, UPI, bank, other), date and time, and who recorded it
+  - fuel (amount, litres) and repairs or servicing such as engine oil (what was done, amount, shop name, state and city)
+  - its full history from the activity log
+- **Payment status:** *Paid*, *Partly paid* or *Payment due* is worked out from the total and the payments, never typed in.
+- **Profit:** total − driver amount − fuel − repairs.
+- **Removing entries:** a payment, fuel or repair entered by mistake can be removed. It stays on the page crossed out, with who removed it and when.
+- **Booking numbers:** VB-1001, VB-1002, …
+- **Cities:** the list of states and cities is `lib/expenses/india-places.json`, built by `node scripts/india-places.mjs` from the [countries-states-cities database](https://github.com/dr5hn/countries-states-cities-database) (Open Database License, free for commercial use with this credit).
+
 ## Users & roles
 
 | Role | Who | Can do |
 |---|---|---|
 | **Super admin** | The owner. There is exactly one, created with `npm run super-admin -- create`. | Everything. Only role that can add admins/viewers and reset their passwords. Can't be removed. |
-| **Admin** | Added by the super admin | Print orders, mark them collected, pause uploads. Mark as booked, reject, cancel, resend messages. Can remove other users, but not the super admin or themselves. |
-| **Viewer** | Added by the super admin | Read-only: print orders (can open files), car overview, bookings and calendar. Sees no buttons, and the server refuses any change. |
+| **Admin** | Added by the super admin | Print orders, mark them collected, pause uploads. Everything in the Expense Tracker. Mark as booked, reject, cancel, resend messages. Can remove other users, but not the super admin or themselves. |
+| **Viewer** | Added by the super admin | Read-only: print orders (can open files), Expense Tracker pages, car overview, bookings and calendar. Sees no buttons, and the server refuses any change. |
 
 - **Signing in:** everyone signs in at `/login` with their mobile number and password.
 - **Where users are stored:** everyone, including the super admin, is in the `users` table, with passwords stored as scrypt hashes.
@@ -201,8 +223,9 @@ app/
   page.tsx, landing.css          landing page
   login/                         sign-in page + sign-in/out actions
   print/                         customer upload page + confirmation page (print.css)
-  admin/                         layout with sidebar; print/ (orders, qr, activity), cars/ (overview,
-                                 bookings, calendar, activity), users/, account/
+  admin/                         layout with sidebar; print/ (orders, qr, activity), expenses/ (overview,
+                                 bookings, fleet, activity), cars/ (overview, bookings, calendar, activity),
+                                 users/, account/
   admin.css                      dashboard styles
   api/whatsapp/webhook/route.ts  Meta verification + incoming messages
   api/print/                     uploads (Vercel Blob / local) and the dashboard file viewer
@@ -223,7 +246,11 @@ lib/
   print/orders.ts                print orders, upload slots, limits
   print/storage.ts               Vercel Blob or local folder
   print/qr.ts                    counter QR code with the logo
-  activity.ts                    activity log (module: cars, print or users)
+  expenses/trips.ts              Expense Tracker bookings, payments, fuel and repairs
+  expenses/fleet.ts              vehicles and drivers
+  expenses/overview.ts           monthly figures and amounts owed
+  expenses/places.ts             Indian states (cities in india-places.json)
+  activity.ts                    activity log (module: cars, print, expenses or users)
 db/schema.sql                    tables and rules
 scripts/                         migrate, seed, super-admin (create / reset password)
 ```

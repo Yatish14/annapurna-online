@@ -1,7 +1,7 @@
 import { query } from "./db";
 
 /** Dashboard modules; every activity entry belongs to one */
-export type ActivityModule = "cars" | "print" | "users";
+export type ActivityModule = "cars" | "print" | "users" | "expenses";
 
 const ACTION_MODULES = {
   "enquiry.created": "cars",
@@ -17,6 +17,27 @@ const ACTION_MODULES = {
   "print.uploads_paused": "print",
   "print.uploads_resumed": "print",
   "print.files_deleted": "print",
+  "vehicle.created": "expenses",
+  "vehicle.renamed": "expenses",
+  "vehicle.deactivated": "expenses",
+  "vehicle.reactivated": "expenses",
+  "vehicle.deleted": "expenses",
+  "driver.created": "expenses",
+  "driver.updated": "expenses",
+  "driver.deactivated": "expenses",
+  "driver.reactivated": "expenses",
+  "driver.deleted": "expenses",
+  "trip.created": "expenses",
+  "trip.updated": "expenses",
+  "trip.readings_updated": "expenses",
+  "trip.cancelled": "expenses",
+  "trip.restored": "expenses",
+  "payment.received": "expenses",
+  "payment.driver_paid": "expenses",
+  "payment.removed": "expenses",
+  "expense.fuel_added": "expenses",
+  "expense.repair_added": "expenses",
+  "expense.removed": "expenses",
   "user.created": "users",
   "user.deleted": "users",
   "user.password_reset": "users",
@@ -55,7 +76,7 @@ export async function logActivity(actor: Actor, action: ActivityAction, target: 
 }
 
 /**
- * The activity page of a module (Car Bookings or Printout). Team changes (users and passwords)
+ * The activity page of a module (Car Bookings, Printout or Expense Tracker). Team changes (users and passwords)
  * are shown on both: "all" is the module plus team changes, "users" is team changes only.
  */
 export type ActivityFilter = "all" | "module" | "users";
@@ -83,4 +104,22 @@ export async function listActivity(
     [modules, pageSize, (Math.max(1, page) - 1) * pageSize],
   );
   return { rows, total };
+}
+
+export type TargetActivityRow = ActivityRow & { at_ist: string };
+
+/** Everything recorded about one item, e.g. a booking ("VB-1004"), oldest first */
+export async function listTargetActivity(module: ActivityModule, target: string, limit = 100): Promise<TargetActivityRow[]> {
+  return query<TargetActivityRow>(
+    `SELECT id::int AS id,
+            to_char(at AT TIME ZONE 'Asia/Kolkata', 'FMDay, DD Mon YYYY') AS day,
+            to_char(at AT TIME ZONE 'Asia/Kolkata', 'HH12:MI AM') AS time,
+            to_char(at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY, HH12:MI AM') AS at_ist,
+            actor_name, actor_mobile, action, module, target, details
+     FROM activity_log
+     WHERE module = $1 AND target = $2
+     ORDER BY at, id
+     LIMIT $3`,
+    [module, target, limit],
+  );
 }

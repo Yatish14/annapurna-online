@@ -116,12 +116,12 @@ CREATE TABLE IF NOT EXISTS processed_messages (
   received_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Which part of the dashboard an activity entry belongs to: 'cars' (bookings), 'print' (printout orders)
--- or 'users' (team changes). Older entries are all car bookings or user changes.
+-- Which part of the dashboard an activity entry belongs to: 'cars' (bookings), 'print' (printout orders),
+-- 'expenses' (Expense Tracker) or 'users' (team changes). Older entries are all car bookings or user changes.
 ALTER TABLE activity_log ADD COLUMN IF NOT EXISTS module text NOT NULL DEFAULT 'cars';
 UPDATE activity_log SET module = 'users' WHERE action LIKE 'user.%' AND module <> 'users';
 ALTER TABLE activity_log DROP CONSTRAINT IF EXISTS activity_log_module_check;
-ALTER TABLE activity_log ADD CONSTRAINT activity_log_module_check CHECK (module IN ('cars', 'print', 'users'));
+ALTER TABLE activity_log ADD CONSTRAINT activity_log_module_check CHECK (module IN ('cars', 'print', 'users', 'expenses'));
 CREATE INDEX IF NOT EXISTS activity_log_module_at_idx ON activity_log (module, at DESC);
 
 -- ---------- Printout: customers scan the QR code at the counter and upload documents ----------
@@ -199,3 +199,126 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at timestamptz NOT NULL DEFAULT now(),
   updated_by text
 );
+
+-- ---------- Expense Tracker: own vehicles, drivers, bookings, payments and running costs ----------
+-- (Separate from the WhatsApp car bookings above.)
+
+CREATE TABLE IF NOT EXISTS vehicles (
+  id          bigserial PRIMARY KEY,
+  name        text NOT NULL CHECK (length(name) BETWEEN 2 AND 60),
+  -- Only cars for now
+  kind        text NOT NULL DEFAULT 'car' CHECK (kind IN ('car')),
+  -- Vehicles that have bookings are switched off instead of deleted, so old bookings keep their name
+  active      boolean NOT NULL DEFAULT true,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  created_by  text,
+  updated_at  timestamptz,
+  updated_by  text
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS vehicles_name_key ON vehicles (lower(name));
+
+CREATE TABLE IF NOT EXISTS drivers (
+  id          bigserial PRIMARY KEY,
+  name        text NOT NULL CHECK (length(name) BETWEEN 2 AND 60),
+  phone       text NOT NULL UNIQUE CHECK (phone ~ '^[6-9][0-9]{9}$'),
+  active      boolean NOT NULL DEFAULT true,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  created_by  text,
+  updated_at  timestamptz,
+  updated_by  text
+);
+
+CREATE SEQUENCE IF NOT EXISTS trip_no_seq START 1001;
+
+-- One booking of a vehicle with a driver. "Upcoming", "on trip" and "completed" come from the dates.
+CREATE TABLE IF NOT EXISTS trips (
+  id              bigserial PRIMARY KEY,
+  trip_no         text NOT NULL UNIQUE DEFAULT ('VB-' || nextval('trip_no_seq')),
+  vehicle_id      bigint NOT NULL REFERENCES vehicles (id),
+  driver_id       bigint NOT NULL REFERENCES drivers (id),
+  customer_name   text NOT NULL,
+  customer_phone  text NOT NULL CHECK (customer_phone ~ '^[6-9][0-9]{9}$'),
+  start_date      date NOT NULL,
+  end_date        date NOT NULL,
+  pickup_state    text NOT NULL,
+  pickup_city     text NOT NULL,
+  drop_state      text NOT NULL,
+  drop_city       text NOT NULL,
+  -- Round trip: drop = pickup, and dest_* is where the vehicle went
+  round_trip      boolean NOT NULL DEFAULT false,
+  dest_state      text,
+  dest_city       text,
+  referrer_name   text,
+  referrer_phone  text CHECK (referrer_phone IS NULL OR referrer_phone ~ '^[6-9][0-9]{9}$'),
+  odometer_start  int CHECK (odometer_start >= 0),
+  odometer_end    int,
+  -- What the customer pays in total, and what the driver is owed for this booking
+  total_amount    numeric(12, 2) CHECK (total_amount >= 0),
+  driver_amount   numeric(12, 2) CHECK (driver_amount >= 0),
+  notes           text,
+  status          text NOT NULL DEFAULT 'booked' CHECK (status IN ('booked', 'cancelled')),
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  created_by      text,
+  updated_at      timestamptz,
+  updated_by      text,
+  CONSTRAINT trips_dates CHECK (end_date >= start_date),
+  CONSTRAINT trips_odometer CHECK (odometer_end IS NULL OR (odometer_start IS NOT NULL AND odometer_end >= odometer_start)),
+  CONSTRAINT trips_destination CHECK (NOT round_trip OR (dest_state IS NOT NULL AND dest_city IS NOT NULL)),
+  -- The database itself refuses two bookings of the same vehicle on overlapping days
+  CONSTRAINT trips_no_overlap EXCLUDE USING gist (
+    vehicle_id WITH =,
+    daterange(start_date, end_date, '[]') WITH &&
+  ) WHERE (status = 'booked')
+);
+
+CREATE INDEX IF NOT EXISTS trips_dates_idx ON trips (start_date DESC);
+CREATE INDEX IF NOT EXISTS trips_driver_idx ON trips (driver_id, start_date);
+
+-- Money received from the customer, or paid to the driver, for a booking
+CREATE TABLE IF NOT EXISTS trip_payments (
+  id          bigserial PRIMARY KEY,
+  trip_id     bigint NOT NULL REFERENCES trips (id),
+  party       text NOT NULL CHECK (party IN ('customer', 'driver')),
+  amount      numeric(12, 2) NOT NULL CHECK (amount > 0),
+  method      text NOT NULL CHECK (method IN ('cash', 'upi', 'bank', 'other')),
+  -- When the money changed hands (can be set to an earlier time than when it was recorded)
+  paid_at     timestamptz NOT NULL,
+  note        text,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  created_by  text,
+  -- Removed entries stay visible (crossed out), so the money history can't silently change
+  deleted_at  timestamptz,
+  deleted_by  text
+);
+
+CREATE INDEX IF NOT EXISTS trip_payments_trip_idx ON trip_payments (trip_id, paid_at);
+
+-- Running costs of a vehicle: fuel filled, and repairs or servicing (engine oil, tyres…).
+-- trip_id is set when the cost belongs to a booking.
+CREATE TABLE IF NOT EXISTS vehicle_expenses (
+  id          bigserial PRIMARY KEY,
+  vehicle_id  bigint NOT NULL REFERENCES vehicles (id),
+  trip_id     bigint REFERENCES trips (id),
+  kind        text NOT NULL CHECK (kind IN ('fuel', 'repair')),
+  amount      numeric(12, 2) NOT NULL CHECK (amount > 0),
+  spent_on    date NOT NULL,
+  -- Fuel: litres filled (optional). Repair: what was done.
+  litres      numeric(8, 2) CHECK (litres > 0),
+  description text,
+  -- Repair: where it was done (typed by hand)
+  shop_name   text,
+  shop_state  text,
+  shop_city   text,
+  note        text,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  created_by  text,
+  deleted_at  timestamptz,
+  deleted_by  text
+);
+
+CREATE INDEX IF NOT EXISTS vehicle_expenses_vehicle_idx ON vehicle_expenses (vehicle_id, spent_on DESC);
+CREATE INDEX IF NOT EXISTS vehicle_expenses_trip_idx ON vehicle_expenses (trip_id) WHERE trip_id IS NOT NULL;
+
+-- A booking's own history on its page
+CREATE INDEX IF NOT EXISTS activity_log_target_idx ON activity_log (module, target);

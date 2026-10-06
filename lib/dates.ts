@@ -76,3 +76,29 @@ export function fmtRangeCompact(start: string, end: string): string {
 export function daysText(days: number): string {
   return `${days} day${days === 1 ? "" : "s"}`;
 }
+
+/** Current Indian date and time as a datetime-local value: "2026-10-06T15:20" */
+export function nowLocalIST(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+/**
+ * A datetime-local value typed in India ("2026-10-06T15:20") as a time, or null if it isn't a real
+ * time between 1 Jan 2020 and a few minutes from now.
+ */
+export function parseLocalIST(value: unknown): string | null {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const ms = Date.parse(`${value}:00+05:30`);
+  if (Number.isNaN(ms) || ms < Date.parse("2020-01-01T00:00:00+05:30") || ms > Date.now() + 10 * 60_000) return null;
+  return value;
+}

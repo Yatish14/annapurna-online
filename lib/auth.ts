@@ -23,6 +23,8 @@ const PERMISSIONS = {
   manageBookings: ["super_admin", "admin"],
   /** Print customers' files, mark orders collected, pause or resume uploads */
   managePrints: ["super_admin", "admin"],
+  /** Expense Tracker: vehicles, drivers, bookings, payments, fuel and repairs */
+  manageExpenses: ["super_admin", "admin"],
   viewUsers: ["super_admin", "admin"],
   /** The activity log: who changed what, when */
   viewActivity: ["super_admin", "admin"],

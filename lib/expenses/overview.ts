@@ -1,0 +1,100 @@
+import { query } from "../db";
+
+/**
+ * Figures for one month ("YYYY-MM"):
+ * - bookings, km, billed and driver amounts: bookings starting in the month
+ * - received and paid to drivers: payments made in the month
+ * - fuel and repairs: costs dated in the month
+ */
+export type MonthSummary = {
+  bookings: number;
+  km: number;
+  billed: number;
+  driverAmount: number;
+  received: number;
+  driverPaid: number;
+  fuel: number;
+  repairs: number;
+};
+
+export type VehicleMonth = {
+  id: number;
+  name: string;
+  active: boolean;
+  bookings: number;
+  km: number;
+  billed: number;
+  driverAmount: number;
+  fuel: number;
+  repairs: number;
+};
+
+/** Money still to come in from customers, and still to be paid to drivers, over all bookings */
+export type Outstanding = { customerDue: number; customerTrips: number; driverDue: number; driverTrips: number };
+
+const IN_MONTH = (col: string) => `${col} >= $1::date AND ${col} < ($1::date + interval '1 month')::date`;
+const PAID_DAY = `(p.paid_at AT TIME ZONE 'Asia/Kolkata')::date`;
+
+export async function monthSummary(month: string): Promise<MonthSummary> {
+  const [row] = await query<MonthSummary>(
+    `SELECT
+       (SELECT count(*)::int FROM trips t WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS bookings,
+       (SELECT coalesce(sum(t.odometer_end - t.odometer_start), 0)::int FROM trips t
+          WHERE t.status = 'booked' AND t.odometer_end IS NOT NULL AND ${IN_MONTH("t.start_date")}) AS km,
+       (SELECT coalesce(sum(t.total_amount), 0)::float8 FROM trips t WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS billed,
+       (SELECT coalesce(sum(t.driver_amount), 0)::float8 FROM trips t WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS "driverAmount",
+       (SELECT coalesce(sum(p.amount), 0)::float8 FROM trip_payments p
+          WHERE p.party = 'customer' AND p.deleted_at IS NULL AND ${IN_MONTH(PAID_DAY)}) AS received,
+       (SELECT coalesce(sum(p.amount), 0)::float8 FROM trip_payments p
+          WHERE p.party = 'driver' AND p.deleted_at IS NULL AND ${IN_MONTH(PAID_DAY)}) AS "driverPaid",
+       (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
+          WHERE e.kind = 'fuel' AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}) AS fuel,
+       (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
+          WHERE e.kind = 'repair' AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}) AS repairs`,
+    [`${month}-01`],
+  );
+  return row;
+}
+
+/** Each vehicle's figures for the month (switched-off vehicles only when they have any) */
+export async function vehiclesMonth(month: string): Promise<VehicleMonth[]> {
+  const rows = await query<VehicleMonth>(
+    `SELECT v.id::int AS id, v.name, v.active,
+       coalesce(tr.bookings, 0)::int AS bookings, coalesce(tr.km, 0)::int AS km,
+       coalesce(tr.billed, 0)::float8 AS billed, coalesce(tr.driver_amount, 0)::float8 AS "driverAmount",
+       coalesce(ex.fuel, 0)::float8 AS fuel, coalesce(ex.repairs, 0)::float8 AS repairs
+     FROM vehicles v
+     LEFT JOIN LATERAL (
+       SELECT count(*) AS bookings, sum(t.odometer_end - t.odometer_start) AS km,
+              sum(t.total_amount) AS billed, sum(t.driver_amount) AS driver_amount
+       FROM trips t WHERE t.vehicle_id = v.id AND t.status = 'booked' AND ${IN_MONTH("t.start_date")}
+     ) tr ON true
+     LEFT JOIN LATERAL (
+       SELECT sum(e.amount) FILTER (WHERE e.kind = 'fuel') AS fuel, sum(e.amount) FILTER (WHERE e.kind = 'repair') AS repairs
+       FROM vehicle_expenses e WHERE e.vehicle_id = v.id AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}
+     ) ex ON true
+     ORDER BY v.active DESC, lower(v.name)`,
+    [`${month}-01`],
+  );
+  return rows.filter((v) => v.active || v.bookings || v.fuel || v.repairs);
+}
+
+export async function outstanding(): Promise<Outstanding> {
+  const [row] = await query<Outstanding>(
+    `WITH b AS (
+       SELECT t.total_amount, t.driver_amount,
+              coalesce(sum(p.amount) FILTER (WHERE p.party = 'customer'), 0) AS received,
+              coalesce(sum(p.amount) FILTER (WHERE p.party = 'driver'), 0) AS driver_paid
+       FROM trips t
+       LEFT JOIN trip_payments p ON p.trip_id = t.id AND p.deleted_at IS NULL
+       WHERE t.status = 'booked'
+       GROUP BY t.id
+     )
+     SELECT coalesce(sum(greatest(total_amount - received, 0)), 0)::float8 AS "customerDue",
+            count(*) FILTER (WHERE total_amount > received)::int AS "customerTrips",
+            coalesce(sum(greatest(driver_amount - driver_paid, 0)), 0)::float8 AS "driverDue",
+            count(*) FILTER (WHERE driver_amount > driver_paid)::int AS "driverTrips"
+     FROM b`,
+  );
+  return row;
+}
