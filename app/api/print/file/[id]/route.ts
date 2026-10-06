@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const file = await getFileLocation(Number((await params).id));
   if (!file) return new Response("File not found.", { status: 404 });
-  if (file.deleted) return new Response("This file was deleted automatically 3 days after it was uploaded.", { status: 410 });
+  if (file.deleted) return new Response("This file has been deleted (automatically after 3 days, or by a staff member on request).", { status: 410 });
 
   const stream = await readStoredFile(file.storage_key);
   if (!stream) return new Response("This file is no longer in storage.", { status: 410 });

@@ -1,7 +1,7 @@
 import { deleteOrderFiles, updateOrder } from "@/app/admin/print/actions";
 import { PRINT_TABS } from "@/app/admin/filters";
 import { formatPhone } from "@/lib/format";
-import { COLOR_LABELS, copiesText, fileTypeOf, formatSize, optionsText, SIDES_LABELS } from "@/lib/print/files";
+import { COLOR_LABELS, copiesText, fileTypeOf, formatSize, optionsText, PRINT_SHOP, SIDES_LABELS } from "@/lib/print/files";
 import type { PrintOrder } from "@/lib/print/orders";
 import Icon from "./Icon";
 import PrintFileButton from "./PrintFileButton";
@@ -65,9 +65,21 @@ export default function PrintOrderCard({ order, back, canManage, now }: Props) {
                     <Icon name="check" size={13} /> Printed{f.printed_count > 1 ? ` ${f.printed_count}×` : ""} by <strong>{f.printed_by}</strong> · {f.printed_ist}
                   </span>
                 )}
+                {f.deleted && (
+                  <span className="ap-by ap-deleted">
+                    <Icon name="trash" size={13} />{" "}
+                    {f.deleted_by ? (
+                      <>
+                        Deleted by <strong>{f.deleted_by}</strong> · {f.deleted_ist}
+                      </>
+                    ) : (
+                      <>Deleted automatically after {PRINT_SHOP.keepDays} days · {f.deleted_ist}</>
+                    )}
+                  </span>
+                )}
               </div>
               {f.deleted ? (
-                <span className="ap-pfile-gone">Deleted after 3 days</span>
+                <span className="ap-pfile-gone">File deleted</span>
               ) : (
                 <PrintFileButton
                   fileId={f.id}

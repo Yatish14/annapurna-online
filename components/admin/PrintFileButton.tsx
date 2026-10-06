@@ -37,7 +37,7 @@ const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt
  */
 async function openPrintDialog(url: string, mode: PrintMode, title: string): Promise<void> {
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(res.status === 410 ? "This file was deleted after 3 days." : "Couldn't load the file.");
+  if (!res.ok) throw new Error(res.status === 410 ? "This file has been deleted." : "Couldn't load the file.");
   const blob = await res.blob();
 
   resetFrame();

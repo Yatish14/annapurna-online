@@ -66,7 +66,7 @@ export async function deleteOrderFiles(formData: FormData) {
   if (!order || order.keys.length === 0) redirect(withFlash(back, "not-found"));
 
   await deleteStoredFiles(order.keys);
-  const count = await markDeleted(order.keys);
+  const count = await markDeleted(order.keys, user.name);
   await logActivity(user, "order.files_deleted", order.order_no, `${count} file${count === 1 ? "" : "s"} deleted before the ${PRINT_SHOP.keepDays}-day limit`);
   revalidatePath("/admin", "layout");
   redirect(withFlash(back, "files-deleted", order.order_no));

@@ -182,6 +182,9 @@ CREATE TABLE IF NOT EXISTS print_files (
 
 CREATE INDEX IF NOT EXISTS print_files_order_idx ON print_files (order_id, position);
 
+-- Who pressed "Delete files now" (NULL when the files were deleted automatically after 3 days)
+ALTER TABLE print_files ADD COLUMN IF NOT EXISTS deleted_by text;
+
 -- Small app-wide switches, e.g. whether the print page accepts uploads
 CREATE TABLE IF NOT EXISTS app_settings (
   key        text PRIMARY KEY,

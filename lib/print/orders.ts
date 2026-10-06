@@ -20,6 +20,9 @@ export type PrintFile = {
   printed_ist: string | null;
   printed_by: string | null;
   deleted: boolean;
+  deleted_ist: string | null;
+  /** Who deleted the file early; null when it was deleted automatically */
+  deleted_by: string | null;
 };
 
 export type PrintOrder = {
@@ -170,7 +173,8 @@ const FILE_COLUMNS = `
   id::int AS id, order_id::int AS order_id, position, file_name, content_type, size_bytes::int AS size_bytes,
   color, sides, copies, page_range, printed_count,
   to_char(printed_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon, HH12:MI AM') AS printed_ist, printed_by,
-  deleted_at IS NOT NULL AS deleted`;
+  deleted_at IS NOT NULL AS deleted,
+  to_char(deleted_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon, HH12:MI AM') AS deleted_ist, deleted_by`;
 
 async function withFiles(orders: Omit<PrintOrder, "files">[]): Promise<PrintOrder[]> {
   if (orders.length === 0) return [];
@@ -297,12 +301,16 @@ export async function expiredUploads(keepDays: number, limit = 500): Promise<str
   return rows.map((r) => r.storage_key);
 }
 
-/** Returns how many of the keys belonged to submitted orders (the rest were abandoned uploads) */
-export async function markDeleted(keys: string[]): Promise<number> {
+/**
+ * Records that files were removed from storage: `by` is the dashboard user for "Delete files now",
+ * null for the automatic 3-day clean-up. Returns how many belonged to submitted orders
+ * (the rest were abandoned uploads).
+ */
+export async function markDeleted(keys: string[], by: string | null = null): Promise<number> {
   await query(`UPDATE print_uploads SET deleted_at = now() WHERE storage_key = ANY($1::text[])`, [keys]);
   const rows = await query(
-    `UPDATE print_files SET deleted_at = now() WHERE storage_key = ANY($1::text[]) AND deleted_at IS NULL RETURNING id`,
-    [keys],
+    `UPDATE print_files SET deleted_at = now(), deleted_by = $2 WHERE storage_key = ANY($1::text[]) AND deleted_at IS NULL RETURNING id`,
+    [keys, by],
   );
   return rows.length;
 }

@@ -493,6 +493,7 @@ button { font: inherit; }
 .ap-chip.is-strong { background: var(--gold-200); border-color: var(--gold-500); color: var(--warn); }
 .ap-pfile .ap-by { display: block; margin-top: 3px; color: var(--ok); }
 .ap-pfile .ap-by svg { vertical-align: -2px; }
+.ap-pfile .ap-by.ap-deleted, .ap-pfile .ap-by.ap-deleted strong { color: var(--err); }
 .ap-pfile .ap-by strong { color: var(--ok); }
 .ap-pfile-actions { display: grid; justify-items: end; gap: 6px; max-width: 260px; }
 .ap-pfile-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
