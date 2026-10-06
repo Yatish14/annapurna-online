@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { LOTUS_GRADIENT, LOTUS_SHAPES } from "@/components/admin/lotusShapes";
+import { LOTUS_GRADIENT, LOTUS_LINE_COLOR, LOTUS_SHAPES } from "@/components/admin/lotusShapes";
 
 /**
  * The counter QR code as an SVG string, with the lotus logo in the middle.
@@ -56,7 +56,7 @@ export function qrSvg(text: string, { color = "#0a1838", pixelSize = 512 } = {})
   const stops = LOTUS_GRADIENT.map((s) => `<stop offset="${s.offset}" stop-color="${s.color}"/>`).join("");
   const lotus = LOTUS_SHAPES.map((s) =>
     s.line
-      ? `<path d="${s.d}" fill="none" stroke="url(#qr-lotus)" stroke-width="1.6" stroke-linecap="round"/>`
+      ? `<path d="${s.d}" fill="none" stroke="${LOTUS_LINE_COLOR}" stroke-width="1.6" stroke-linecap="round"/>`
       : `<path d="${s.d}" fill="url(#qr-lotus)"${s.opacity ? ` opacity="${s.opacity}"` : ""}/>`,
   ).join("");
 

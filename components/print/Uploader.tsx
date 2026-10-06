@@ -20,6 +20,7 @@ import {
   type Sides,
 } from "@/lib/print/files";
 import Icon from "../admin/Icon";
+import MobileInput, { type MobileInputHandle } from "../MobileInput";
 
 type Item = {
   id: number;
@@ -215,6 +216,7 @@ export default function Uploader() {
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
+  const phoneField = useRef<MobileInputHandle>(null);
   const previews = useRef(new Set<string>());
   const busy = phase.step !== "idle";
 
@@ -268,8 +270,9 @@ export default function Uploader() {
         return;
       }
     }
-    if (phone.trim() && !/^[6-9]\d{9}$/.test(phone.replace(/\D/g, "").replace(/^(91|0)(?=\d{10}$)/, ""))) {
-      setError("Enter a valid 10-digit mobile number, or leave it empty.");
+    // Optional, but if given it must be a valid number; the field turns red and gets the cursor
+    if (!phoneField.current?.check()) {
+      setError("Enter a valid 10-digit mobile number (starting with 6, 7, 8 or 9), or leave it empty.");
       return;
     }
 
@@ -420,16 +423,7 @@ export default function Uploader() {
               </label>
               <label className="pp-input">
                 <span>Mobile number</span>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={16}
-                  autoComplete="tel"
-                  placeholder="10-digit number"
-                  disabled={busy}
-                />
+                <MobileInput value={phone} onChange={setPhone} handle={phoneField} placeholder="10-digit number" disabled={busy} />
               </label>
             </div>
           </section>

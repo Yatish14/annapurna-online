@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Lotus from "@/components/admin/Lotus";
+import MobileInput from "@/components/MobileInput";
 import SubmitButton from "@/components/admin/SubmitButton";
 import { currentUser } from "@/lib/auth";
 import { login } from "./actions";
@@ -37,16 +38,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
         <label className="ap-field">
           <span>Mobile number</span>
-          <input
-            type="tel"
-            name="mobile"
-            inputMode="numeric"
-            autoComplete="username"
-            placeholder="10-digit mobile number"
-            maxLength={16}
-            required
-            autoFocus
-          />
+          <MobileInput name="mobile" autoComplete="username" required autoFocus />
         </label>
         <label className="ap-field">
           <span>Password</span>

@@ -2,6 +2,7 @@ import Flash from "@/components/admin/Flash";
 import Icon from "@/components/admin/Icon";
 import PageHeader from "@/components/admin/PageHeader";
 import SubmitButton from "@/components/admin/SubmitButton";
+import MobileInput from "@/components/MobileInput";
 import { can, requireUser, ROLE_LABELS, type Role } from "@/lib/auth";
 import { formatPhone, initials } from "@/lib/format";
 import { listUsers } from "@/lib/users";
@@ -154,15 +155,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
               </label>
               <label className="ap-field">
                 <span>Mobile number</span>
-                <input
-                  type="tel"
-                  name="mobile"
-                  inputMode="numeric"
-                  required
-                  maxLength={16}
-                  autoComplete="off"
-                  placeholder="10-digit mobile number"
-                />
+                <MobileInput name="mobile" autoComplete="off" required />
               </label>
               <fieldset className="ap-field ap-rolepick">
                 <span>Role</span>

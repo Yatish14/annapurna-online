@@ -12,6 +12,9 @@ export const LOTUS_SHAPES: { d: string; opacity?: number; line?: true }[] = [
   { d: "M10 41h28", line: true },
 ];
 
+/** Solid gold for the base line: a gradient on a perfectly flat line has no height, so it would render nothing */
+export const LOTUS_LINE_COLOR = "#d6b062";
+
 export const LOTUS_GRADIENT = [
   { offset: "0", color: "#f6e3ad" },
   { offset: ".55", color: "#e2bd67" },

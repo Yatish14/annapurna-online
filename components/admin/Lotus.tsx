@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { LOTUS_GRADIENT, LOTUS_SHAPES } from "./lotusShapes";
+import { LOTUS_GRADIENT, LOTUS_LINE_COLOR, LOTUS_SHAPES } from "./lotusShapes";
 
 export default function Lotus({ size = 34 }: { size?: number }) {
   // Each logo needs its own gradient id: with a shared one, a logo inside a hidden
@@ -19,7 +19,7 @@ export default function Lotus({ size = 34 }: { size?: number }) {
       </defs>
       {LOTUS_SHAPES.map((s) =>
         s.line ? (
-          <path key={s.d} fill="none" stroke={fill} strokeWidth="1.6" strokeLinecap="round" d={s.d} />
+          <path key={s.d} fill="none" stroke={LOTUS_LINE_COLOR} strokeWidth="1.6" strokeLinecap="round" d={s.d} />
         ) : (
           <path key={s.d} fill={fill} opacity={s.opacity} d={s.d} />
         ),
