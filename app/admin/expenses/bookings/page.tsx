@@ -67,7 +67,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Search
             clearHref={tripsHref(view)}
             path="/admin/expenses/bookings"
             placeholder="Booking no., name or mobile"
-            label="Search bookings by booking number, customer, driver or vehicle name, or mobile number"
+            label="Search bookings by booking number, customer, driver, vehicle or referrer name, or mobile number"
           />
         </div>
 
@@ -86,7 +86,7 @@ export default async function TripsPage({ searchParams }: { searchParams: Search
         {trips.length === 0 ? (
           <div className="ap-empty">
             <Icon name="bookings" size={32} />
-            <p>{q ? `No bookings match “${q}”. Try the booking number (like VB-1004), a name or a mobile number.` : EMPTY[view]}</p>
+            <p>{q ? `No bookings match “${q}”. Try the booking number (like VB-0004), a name or a mobile number.` : EMPTY[view]}</p>
           </div>
         ) : (
           <div className="ap-list">

@@ -161,7 +161,7 @@ export default function Dropdown({
       />
       {open && (
         <ul ref={list} id={listId} role="listbox" className="xp-combo-list">
-          {shown.length === 0 && <li className="xp-combo-note">Nothing matches “{query}”.</li>}
+          {shown.length === 0 && <li className="xp-combo-note">{query ? <>Nothing matches “{query}”.</> : "Nothing to choose yet."}</li>}
           {shown.map((o, i) => (
             <li
               key={o.value}

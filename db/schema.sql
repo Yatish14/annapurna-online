@@ -229,12 +229,17 @@ CREATE TABLE IF NOT EXISTS drivers (
   updated_by  text
 );
 
-CREATE SEQUENCE IF NOT EXISTS trip_no_seq START 1001;
+CREATE SEQUENCE IF NOT EXISTS trip_no_seq START 1;
+
+-- Booking numbers VB-0001, VB-0002, … (VB-10000 after VB-9999: never cut short)
+CREATE OR REPLACE FUNCTION next_trip_no() RETURNS text LANGUAGE sql AS $$
+  SELECT 'VB-' || lpad(n::text, greatest(4, length(n::text)), '0') FROM (SELECT nextval('trip_no_seq') AS n) s
+$$;
 
 -- One booking of a vehicle with a driver. "Upcoming", "on trip" and "completed" come from the dates.
 CREATE TABLE IF NOT EXISTS trips (
   id              bigserial PRIMARY KEY,
-  trip_no         text NOT NULL UNIQUE DEFAULT ('VB-' || nextval('trip_no_seq')),
+  trip_no         text NOT NULL UNIQUE DEFAULT next_trip_no(),
   vehicle_id      bigint NOT NULL REFERENCES vehicles (id),
   driver_id       bigint NOT NULL REFERENCES drivers (id),
   customer_name   text NOT NULL,
@@ -322,6 +327,9 @@ CREATE INDEX IF NOT EXISTS vehicle_expenses_trip_idx ON vehicle_expenses (trip_i
 
 -- A booking's own history on its page
 CREATE INDEX IF NOT EXISTS activity_log_target_idx ON activity_log (module, target);
+
+-- Databases made before 4-digit numbers used 'VB-' || nextval(…) here
+ALTER TABLE trips ALTER COLUMN trip_no SET DEFAULT next_trip_no();
 
 -- Expense Tracker test data from `npm run db:seed-expenses` (removed again with `-- --clear`)
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS is_sample boolean NOT NULL DEFAULT false;

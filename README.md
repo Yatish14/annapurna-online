@@ -172,9 +172,9 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 - **Payment status:** *Paid*, *Partly paid* or *Payment due* is worked out from the total and the payments, never typed in.
 - **Profit:** on money actually received: received from the customer − driver amount − fuel − repairs (per vehicle and month, also − EMI − insurance). The driver amount is the agreed one, even before it's paid. While a balance is still due, the booking page also shows the profit once fully paid (total instead of received), and the bookings report has both columns. Per vehicle and month: received for bookings starting in the month − their driver amounts − fuel, repairs, EMI and insurance paid in the month.
 - **Removing entries:** a payment, fuel, repair, EMI or premium entered by mistake can be removed. It stays on the page crossed out, with who removed it and when.
-- **Booking numbers:** VB-1001, VB-1002, …
+- **Booking numbers:** VB-0001, VB-0002, … (VB-10000 after VB-9999)
 - **Reports:** pick a month and download CSV files (open in Excel or Google Sheets): bookings starting in the month, payments made in the month, vehicle costs (fuel, repairs, EMI, insurance) paid in the month, and a per-vehicle summary. Amounts are plain numbers in rupees. Each download is recorded in Activity.
-- **Sample data:** `npm run db:seed-expenses` adds 3 vehicles, 3 drivers and 25 bookings with payments, fuel and repairs (dates around today, marked with a *Sample* badge). `npm run db:seed-expenses -- --clear` removes them; booking numbers start again at VB-1001 when no bookings are left.
+- **Sample data:** `npm run db:seed-expenses` adds 3 vehicles, 3 drivers and 25 bookings with payments, fuel and repairs (dates around today, marked with a *Sample* badge). `npm run db:seed-expenses -- --clear` removes them; booking numbers then carry on from the last booking left (VB-0001 when none are left), so removed samples don't use up numbers.
 - **Cities:** the list of states and cities is `lib/expenses/india-places.json`, built by `node scripts/india-places.mjs` from the [countries-states-cities database](https://github.com/dr5hn/countries-states-cities-database) (Open Database License, free for commercial use with this credit).
 
 ## Users & roles

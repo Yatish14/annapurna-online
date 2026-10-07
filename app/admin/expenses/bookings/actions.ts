@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { isValidMobile, normalizeMobile, requireUser } from "@/lib/auth";
-import { diffDays, isIsoDate, parseLocalIST } from "@/lib/dates";
+import { diffDays, isIsoDate, parseLocalIST, todayIST } from "@/lib/dates";
 import { fleetChoices } from "@/lib/expenses/fleet";
 import { formatRupees, isPaymentMethod, parseAmount, parseWhole, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { cleanPlace, isState } from "@/lib/expenses/places";
@@ -56,6 +56,7 @@ type Parsed =
       totalAmount: number | null;
       driverAmount: number | null;
       advance: { amount: number; method: keyof typeof PAYMENT_METHODS } | null;
+      fuel: { amount: number; litres: number | null; spentOn: string } | null;
     }
   | { ok: false; error: string; field: string };
 
@@ -116,7 +117,7 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
     pickupState, pickupCity, dropState, dropCity, roundTrip, destState, destCity,
     referrerName, referrerPhone, notes,
   };
-  if (!isNew) return { ok: true, input, odometerStart: null, totalAmount: null, driverAmount: null, advance: null };
+  if (!isNew) return { ok: true, input, odometerStart: null, totalAmount: null, driverAmount: null, advance: null, fuel: null };
 
   const odometerStart = parseWhole(fd.get("odometer_start"));
   if (odometerStart === "invalid") return fail("odometer_start", "The odometer reading should be a whole number of km.");
@@ -129,6 +130,13 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
   if (advanceAmount !== null && totalAmount !== null && advanceAmount > totalAmount)
     return fail("advance_amount", "The advance is more than the total. Check both amounts.");
   const method = String(fd.get("advance_method") ?? "cash");
+  // Fuel filled for the trip (optional): dated the start day, or today if the trip hasn't started yet
+  const fuelAmount = parseAmount(fd.get("fuel_amount"), { allowZero: false });
+  if (fuelAmount === "invalid") return fail("fuel_amount", "Enter the fuel amount in rupees, like 3000 (or leave it empty).");
+  const litres = parseAmount(fd.get("fuel_litres"), { allowZero: false });
+  if (litres === "invalid" || (litres !== null && litres > 9999)) return fail("fuel_litres", "Enter the litres as a number, like 32.5 (or leave it empty).");
+  if (litres !== null && fuelAmount === null) return fail("fuel_amount", "Add what the fuel cost, or clear the litres.");
+  const today = todayIST();
 
   return {
     ok: true,
@@ -137,6 +145,7 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
     totalAmount,
     driverAmount,
     advance: advanceAmount !== null ? { amount: advanceAmount, method: isPaymentMethod(method) ? method : "cash" } : null,
+    fuel: fuelAmount !== null ? { amount: fuelAmount, litres, spentOn: startDate < today ? startDate : today } : null,
   };
 }
 
@@ -173,7 +182,7 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
   }
 
   if (id === null) {
-    const result = await createTrip(input, parsed, parsed.advance, user.name);
+    const result = await createTrip(input, parsed, parsed.advance, parsed.fuel, user.name);
     if (!result.ok) {
       return {
         error: `${vehicle.name} is already booked on these days${result.clash ? `: ${clashText(result.clash)}` : ""}. Choose other dates or another vehicle.`,
@@ -181,7 +190,7 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
       };
     }
     const route = input.roundTrip
-      ? `${input.pickupCity} → ${input.destCity} → back`
+      ? `${input.pickupCity} → ${input.destCity} → ${input.pickupCity} (round trip)`
       : `${input.pickupCity} → ${input.dropCity}`;
     await logActivity(
       user,
@@ -191,6 +200,10 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
         parsed.totalAmount !== null ? `Total ${formatRupees(parsed.totalAmount)}` : null].filter(Boolean).join(" · "),
     );
     if (parsed.advance) await logActivity(user, "payment.received", result.trip_no, `${paymentText(parsed.advance)} · Advance`);
+    if (parsed.fuel) {
+      const fuelText = expenseText({ kind: "fuel", amount: parsed.fuel.amount, litres: parsed.fuel.litres, description: null, shop_name: null, shop_city: null, shop_state: null, note: null });
+      await logActivity(user, "expense.fuel_added", result.trip_no, `${fuelText} · ${vehicle.name}`);
+    }
     refresh();
     redirect(withFlash(tripPath(result.trip_no), "trip-created", result.trip_no));
   }

@@ -680,7 +680,6 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-owed { color: var(--err); font-weight: 800; text-decoration: none; }
 
 /* Booking form */
-.xp-formpage { max-width: 1080px; }
 .xp-section h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin: 0 0 16px; font-family: var(--serif); font-weight: 400; font-size: 1.25rem; }
 .xp-section h2 svg { color: var(--gold-600); }
 .xp-section h2 small { font-family: "Manrope", system-ui, sans-serif; font-size: .74rem; font-weight: 700; color: var(--ink-soft); background: var(--ivory-2); padding: 2px 9px; border-radius: 999px; }
@@ -736,12 +735,15 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-pay.is-unset { background: #eef0f4; color: #5b6478; }
 
 /* Booking cards */
-.xp-trip.is-upcoming { border-left-color: #4a6fd1; }
-.xp-trip.is-ongoing { border-left-color: var(--gold-500); }
-.xp-trip.is-completed { border-left-color: var(--emerald-700); }
-.xp-trip.is-cancelled { border-left-color: #c3c8d4; background: #fcfcfd; }
+/* Each booking keeps its colour: --phase is the stripe on the left; on hover the stripe turns to the lighter
+   --phase-light, the rest of the border to --phase-soft, and the booking number to --phase-ink */
+.xp-trip { --phase: var(--line); --phase-light: #e3d3a8; --phase-soft: rgba(201,162,74,.45); --phase-ink: var(--gold-600); border-left-color: var(--phase); }
+.xp-trip.is-upcoming { --phase: #4a6fd1; --phase-light: #92a9e3; --phase-soft: rgba(74,111,209,.35); --phase-ink: #3457b8; }
+.xp-trip.is-ongoing { --phase: var(--gold-500); --phase-light: #dfc792; --phase-soft: rgba(201,162,74,.45); --phase-ink: var(--gold-600); }
+.xp-trip.is-completed { --phase: var(--emerald-700); --phase-light: #6fa695; --phase-soft: rgba(15,107,79,.3); --phase-ink: var(--emerald-700); }
+.xp-trip.is-cancelled { --phase: #c3c8d4; --phase-light: #dadde5; --phase-soft: #d5d9e2; --phase-ink: #5b6478; background: #fcfcfd; }
 .xp-tripno { text-decoration: none; }
-.xp-tripno:hover { color: var(--gold-600); }
+.xp-tripno:hover { color: var(--phase-ink, var(--gold-600)); }
 .xp-dates { display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; font-weight: 700; color: var(--ink-soft); }
 .xp-trip .ap-customer { margin-bottom: 10px; }
 .xp-cardfacts { margin-bottom: 10px; }
@@ -900,8 +902,7 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 /* Expense Tracker: reports */
 .xp-monthpick { display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
 .xp-monthpick input { font: inherit; font-size: .88rem; font-weight: 600; color: var(--ink); border: 0; background: none; outline: none; }
-.xp-reports { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; }
-.xp-report { display: flex; flex-direction: column; gap: 12px; }
+.xp-report { display: flex; flex-direction: column; gap: 14px; max-width: 920px; }
 .xp-report-head { display: flex; align-items: center; gap: 12px; }
 .xp-report-head .ap-tile-icon { margin: 0; flex-shrink: 0; }
 .xp-report-head h2 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1.3rem; }
@@ -912,9 +913,13 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-report-figures dt { font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
 .xp-report-figures dd { margin: 2px 0 0; font-weight: 800; font-size: 1.05rem; }
 .xp-report-figures dd.is-neg { color: var(--err); }
-.xp-report-btn { align-self: flex-start; margin-top: auto; }
-.xp-report-file { font-size: .74rem; color: var(--ink-soft); }
-@media (max-width: 860px) { .xp-reports { grid-template-columns: 1fr; } }
+.xp-report-sub { margin: 4px 0 0; font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.xp-report-sections { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.xp-report-sections li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.xp-report-sections li > svg { flex-shrink: 0; margin-top: 2px; color: var(--gold-600); }
+.xp-report-sections strong { display: block; font-size: .9rem; }
+.xp-report-sections span { display: block; font-size: .82rem; color: var(--ink-soft); }
+.xp-report-btn { align-self: flex-start; }
 @media (max-width: 560px) { .xp-report-btn { align-self: stretch; } .xp-monthpick { width: 100%; justify-content: space-between; } }
 
 /* A field with a note under it (e.g. "Not in the list…", "5/10") mustn't push the field next to it down:
@@ -927,8 +932,8 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-cardlink::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
 .xp-trip a:not(.xp-cardlink), .xp-trip button, .xp-rowlink a:not(.xp-cardlink) { position: relative; z-index: 2; }
 .xp-trip { cursor: pointer; transition: box-shadow .2s, border-color .2s, transform .2s; }
-.xp-trip:hover { border-color: rgba(201,162,74,.45); transform: translateY(-1px); }
-.xp-trip:hover .xp-tripno { color: var(--gold-600); }
+.xp-trip:hover { border-color: var(--phase-soft); border-left-color: var(--phase-light); transform: translateY(-1px); }
+.xp-trip:hover .xp-tripno { color: var(--phase-ink); }
 .xp-cardlink:focus-visible { outline: none; }
 .xp-trip:has(.xp-cardlink:focus-visible), .xp-rowlink:has(.xp-cardlink:focus-visible) { outline: 2px solid var(--gold-500); outline-offset: 2px; }
 .xp-rowlink { border-radius: 12px; transition: background .15s; }
@@ -1009,3 +1014,18 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
   .xp-headside { margin-left: 0; justify-content: flex-start; width: 100%; }
   .xp-headrow.is-editing .xp-headside { padding-top: 0; }
 }
+
+/* Booking form: "+ New vehicle" / "+ New driver" beside the field's name, and the small window it opens */
+.xp-fieldhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; line-height: 1.3; }
+.xp-addlink { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; font: inherit; line-height: inherit; font-weight: 700; color: var(--gold-600); cursor: pointer; }
+.xp-addlink svg { flex-shrink: 0; }
+.xp-addlink:hover { text-decoration: underline; }
+.xp-addlink:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 3px; border-radius: 4px; }
+.xp-modal-backdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(5,13,34,.55); backdrop-filter: blur(4px); animation: ap-flyout .15s ease-out; }
+.xp-modal { width: min(440px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 22px; box-shadow: 0 24px 60px rgba(5,13,34,.3); }
+.xp-modal h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-family: var(--serif); font-weight: 400; font-size: 1.4rem; }
+.xp-modal h2 svg { color: var(--gold-600); }
+.xp-modal-note { margin: 0 0 18px; font-size: .86rem; color: var(--ink-soft); }
+.xp-modal .ap-alert { margin: 0 0 14px; }
+.xp-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+@media (max-width: 560px) { .xp-modal-actions .ap-btn { flex: 1; justify-content: center; } }

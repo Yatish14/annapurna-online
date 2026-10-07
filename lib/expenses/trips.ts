@@ -131,7 +131,7 @@ export function profitWhenPaid(t: Pick<Trip, "total_amount" | "driver_amount" | 
   return t.total_amount - (t.driver_amount ?? 0) - t.fuel - t.repairs;
 }
 
-/** "Vijayawada, AP → Hyderabad, Telangana", or for a round trip "Vijayawada → Araku → back" */
+/** "Vijayawada → Hyderabad", or for a round trip "Vijayawada → Araku → Vijayawada" */
 export function routeText(t: Pick<Trip, "pickup_city" | "drop_city" | "round_trip" | "dest_city">): string {
   return t.round_trip ? `${t.pickup_city} → ${t.dest_city} → ${t.pickup_city}` : `${t.pickup_city} → ${t.drop_city}`;
 }
@@ -209,7 +209,7 @@ const VIEW_ORDER: Record<TripView, string> = {
 const likeEscape = (s: string) => s.replace(/[\\%_]/g, "\\$&");
 
 /**
- * One page of bookings. A search ("VB-1004", "1004", a customer, driver or vehicle name, or part of
+ * One page of bookings. A search ("VB-0004", "0004", a customer, driver, vehicle or referrer name, or any part of
  * a mobile number) looks through every booking, whatever the tab.
  */
 export async function listTrips(
@@ -232,10 +232,14 @@ export async function listTrips(
       `t.customer_name ILIKE ${like}`,
       `d.name ILIKE ${like}`,
       `v.name ILIKE ${like}`,
+      `t.referrer_name ILIKE ${like}`,
     ];
-    if (digits.length >= 3) {
+    // Any digits typed on their own ("06", "98490 12345", "+91 …") are also looked for in mobile numbers.
+    // Not for "VB-0001" (a booking number) or text with letters ("Ravi 2").
+    const numberOnly = /^[\d\s+()-]+$/.test(text);
+    if (digits.length >= 1 && numberOnly) {
       const phone = param(`%${digits}%`);
-      matches.push(`t.customer_phone LIKE ${phone}`, `d.phone LIKE ${phone}`);
+      matches.push(`t.customer_phone LIKE ${phone}`, `d.phone LIKE ${phone}`, `t.referrer_phone LIKE ${phone}`);
     }
     where = `(${matches.join(" OR ")})`;
   } else {
@@ -303,6 +307,7 @@ export async function createTrip(
   input: TripInput,
   readings: Pick<TripReadings, "odometerStart" | "totalAmount" | "driverAmount">,
   advance: { amount: number; method: PaymentMethod } | null,
+  fuel: { amount: number; litres: number | null; spentOn: string } | null,
   by: string,
 ): Promise<SaveResult> {
   try {
@@ -316,13 +321,16 @@ export async function createTrip(
        ), adv AS (
          INSERT INTO trip_payments (trip_id, party, amount, method, paid_at, note, created_by)
          SELECT id, 'customer', $21, $22, now(), 'Advance', $20 FROM t WHERE $21::numeric IS NOT NULL
+       ), fuel AS (
+         INSERT INTO vehicle_expenses (vehicle_id, trip_id, kind, amount, spent_on, litres, created_by)
+         SELECT $1, id, 'fuel', $23, $24::date, $25::numeric, $20 FROM t WHERE $23::numeric IS NOT NULL
        )
        SELECT trip_no FROM t`,
       [
         input.vehicleId, input.driverId, input.customerName, input.customerPhone, input.startDate, input.endDate,
         input.pickupState, input.pickupCity, input.dropState, input.dropCity, input.roundTrip, input.destState, input.destCity,
         input.referrerName, input.referrerPhone, input.notes, readings.odometerStart, readings.totalAmount, readings.driverAmount,
-        by, advance?.amount ?? null, advance?.method ?? "cash",
+        by, advance?.amount ?? null, advance?.method ?? "cash", fuel?.amount ?? null, fuel?.spentOn ?? null, fuel?.litres ?? null,
       ],
     );
     return { ok: true, trip_no: row.trip_no };

@@ -2,7 +2,7 @@ import Link from "next/link";
 import Icon from "@/components/admin/Icon";
 import SubmitButton from "@/components/admin/SubmitButton";
 
-/** "Available", "On trip · VB-1004" or "Switched off" */
+/** "Available", "On trip · VB-0004" or "Switched off" */
 export function FleetStatus({ active, onTrip }: { active: boolean; onTrip: string | null }) {
   if (!active) return <span className="xp-state is-off">Switched off</span>;
   if (onTrip)

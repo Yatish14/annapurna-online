@@ -112,16 +112,27 @@ async function save(sql: string, params: unknown[]): Promise<Saved> {
   }
 }
 
-export function createVehicle(name: string, by: string): Promise<Saved> {
-  return save(`INSERT INTO vehicles (name, created_by) VALUES ($1, $2) RETURNING id`, [name, by]);
+/** The new row's id, or "exists" when the name (or mobile number) is already taken */
+async function insert(sql: string, params: unknown[]): Promise<number | "exists"> {
+  try {
+    const [row] = await query<{ id: number }>(sql, params);
+    return row.id;
+  } catch (err) {
+    if (dbErrorCode(err) === UNIQUE_VIOLATION) return "exists";
+    throw err;
+  }
+}
+
+export function createVehicle(name: string, by: string): Promise<number | "exists"> {
+  return insert(`INSERT INTO vehicles (name, created_by) VALUES ($1, $2) RETURNING id::int AS id`, [name, by]);
 }
 
 export function renameVehicle(id: number, name: string, by: string): Promise<Saved> {
   return save(`UPDATE vehicles SET name = $2, updated_at = now(), updated_by = $3 WHERE id = $1 RETURNING id`, [id, name, by]);
 }
 
-export function createDriver(d: { name: string; phone: string }, by: string): Promise<Saved> {
-  return save(`INSERT INTO drivers (name, phone, created_by) VALUES ($1, $2, $3) RETURNING id`, [d.name, d.phone, by]);
+export function createDriver(d: { name: string; phone: string }, by: string): Promise<number | "exists"> {
+  return insert(`INSERT INTO drivers (name, phone, created_by) VALUES ($1, $2, $3) RETURNING id::int AS id`, [d.name, d.phone, by]);
 }
 
 export function updateDriver(id: number, d: { name: string; phone: string }, by: string): Promise<Saved> {

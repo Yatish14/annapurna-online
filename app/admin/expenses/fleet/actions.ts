@@ -137,6 +137,33 @@ export async function driverStatus(fd: FormData) {
   done(back, active ? "driver-on" : "driver-off", driver.name);
 }
 
+// ---------- Added from the booking form (stays on the form) ----------
+
+export type QuickAdd<T> = { ok: true; item: T } | { ok: false; error: string; field: "name" | "phone" };
+
+export async function quickAddVehicle(fd: FormData): Promise<QuickAdd<{ id: number; name: string; active: true }>> {
+  const user = await requireUser("manageExpenses");
+  const vehicle = name(fd);
+  if (vehicle.length < 2 || vehicle.length > 60) return { ok: false, error: "Enter the vehicle's name (2 to 60 letters).", field: "name" };
+  const id = await createVehicle(vehicle, user.name);
+  if (id === "exists") return { ok: false, error: `A vehicle called “${vehicle}” already exists. Choose it from the list.`, field: "name" };
+  await logActivity(user, "vehicle.created", vehicle, "Car");
+  revalidatePath("/admin/expenses", "layout");
+  return { ok: true, item: { id, name: vehicle, active: true } };
+}
+
+export async function quickAddDriver(fd: FormData): Promise<QuickAdd<{ id: number; name: string; phone: string; active: true }>> {
+  const user = await requireUser("manageExpenses");
+  const driver = readDriver(fd);
+  if (driver === "name") return { ok: false, error: "Enter the driver's name (2 to 60 letters).", field: "name" };
+  if (driver === "phone") return { ok: false, error: "Enter a valid 10-digit mobile number.", field: "phone" };
+  const id = await createDriver(driver, user.name);
+  if (id === "exists") return { ok: false, error: "A driver with this mobile number already exists. Choose them from the list.", field: "phone" };
+  await logActivity(user, "driver.created", who(driver));
+  revalidatePath("/admin/expenses", "layout");
+  return { ok: true, item: { id, ...driver, active: true } };
+}
+
 // ---------- Loan (EMI) and insurance ----------
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;

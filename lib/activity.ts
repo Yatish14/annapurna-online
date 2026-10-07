@@ -113,7 +113,7 @@ export async function listActivity(
 
 export type TargetActivityRow = ActivityRow & { at_ist: string };
 
-/** Everything recorded about one item, e.g. a booking ("VB-1004"), oldest first */
+/** Everything recorded about one item, e.g. a booking ("VB-0004"), oldest first */
 export async function listTargetActivity(module: ActivityModule, target: string, limit = 100): Promise<TargetActivityRow[]> {
   return query<TargetActivityRow>(
     `SELECT id::int AS id,

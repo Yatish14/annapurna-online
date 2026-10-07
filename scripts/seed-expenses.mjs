@@ -105,6 +105,18 @@ await db.exec(schemaSql);
 
 // ---------- Remove earlier samples (safe to re-run) ----------
 await db.query(`DELETE FROM activity_log WHERE module = 'expenses' AND details LIKE $1`, [`%· ${SAMPLE_TAG}`]);
+// Also changes made by hand to sample bookings, and to sample vehicles and drivers that are about to go
+// (ones kept because real bookings use them keep their history)
+await db.query(
+  `DELETE FROM activity_log WHERE module = 'expenses' AND target IN (
+     SELECT trip_no FROM trips WHERE is_sample
+     UNION SELECT v.name FROM vehicles v WHERE v.is_sample
+       AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.vehicle_id = v.id AND NOT t.is_sample)
+       AND NOT EXISTS (SELECT 1 FROM vehicle_expenses e WHERE e.vehicle_id = v.id AND NOT e.is_sample
+                         AND (e.trip_id IS NULL OR e.trip_id NOT IN (SELECT id FROM trips WHERE is_sample)))
+     UNION SELECT d.name || ' (' || d.phone || ')' FROM drivers d WHERE d.is_sample
+       AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.driver_id = d.id AND NOT t.is_sample))`,
+);
 await db.query(
   `DELETE FROM trip_payments WHERE is_sample OR trip_id IN (SELECT id FROM trips WHERE is_sample)`,
 );
@@ -120,9 +132,9 @@ await db.query(
    RETURNING id`,
 );
 await db.query(`DELETE FROM drivers d WHERE is_sample AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.driver_id = d.id)`);
-// With no bookings left, numbering starts again at VB-1001
-const [{ n }] = await db.query(`SELECT count(*)::int AS n FROM trips`);
-if (n === 0) await db.query(`SELECT setval('trip_no_seq', 1001, false)`);
+// Numbering carries on from the last booking left (VB-0001 when there are none), so removed samples don't use up numbers
+const [{ last }] = await db.query(`SELECT max(substring(trip_no FROM '[0-9]+$')::bigint)::int AS last FROM trips`);
+await db.query(`SELECT setval('trip_no_seq', $1, $2)`, [last ?? 1, last !== null]);
 
 if (process.argv.includes("--clear")) {
   const [{ left }] = await db.query(`SELECT count(*)::int AS left FROM vehicles WHERE is_sample`);
@@ -285,7 +297,7 @@ for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
     ],
   );
   counts.trips++;
-  const routeText = roundTrip ? `${route.p[1]} → ${route.to[1]} → back` : `${route.p[1]} → ${route.d[1]}`;
+  const routeText = roundTrip ? `${route.p[1]} → ${route.to[1]} → ${route.p[1]} (round trip)` : `${route.p[1]} → ${route.d[1]}`;
   await log(at(created, "11:00"), "trip.created", trip.trip_no,
     [`${customer} (${phone})`, `${v.name} with ${driverName}`, routeText, total !== null ? `Total ${rupees(total)}` : null].filter(Boolean).join(" · "));
 
