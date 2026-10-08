@@ -165,7 +165,9 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
   - EMI and insurance payments count as vehicle costs: in Money out, each vehicle's monthly profit, and the reports (not in a single booking's profit).
 - **Clashes:** a vehicle can't have two bookings on the same days (the database refuses it too). A driver who is already on another booking gets a warning, and you can save anyway.
 - **On the booking's page:**
-  - odometer readings at start and end (km travelled is worked out), the total from the customer and the amount for the driver
+  - odometer readings at start and end (km travelled is worked out), or with **Enter km directly** switched on, just the km travelled; plus the total from the customer and the amount for the driver
+  - **Expense statement (PDF):** a one-page PDF for the customer from Annapurna Graphics and Internet, with the total, each payment received (date and how it was paid) and the balance to pay, or "Fully paid". It's called an expense statement, never an invoice or bill (no GST registration), and only shows amounts: no vehicle, driver, route or payment notes. It appears once the total is entered, anyone signed in can download it, and each download is recorded in Activity. The text uses Noto Sans (`assets/fonts`, SIL Open Font License) so the ₹ sign prints.
+  - **Send balance on WhatsApp:** opens a WhatsApp chat with the customer and a ready message from Annapurna Graphics and Internet with the total, paid and balance to pay (only the amounts: it doesn't mention travels or car hire). When fully paid, it says thank you instead.
   - customer payments and payments to the driver, each with its amount, method (cash, UPI, bank, other), date and time, and who recorded it
   - fuel (amount, litres) and repairs or servicing such as engine oil (what was done, amount, shop name, state and city)
   - its full history from the activity log

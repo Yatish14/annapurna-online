@@ -1029,3 +1029,31 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-modal .ap-alert { margin: 0 0 14px; }
 .xp-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 @media (max-width: 560px) { .xp-modal-actions .ap-btn { flex: 1; justify-content: center; } }
+
+/* Booking page: "Enter km directly" switch in the readings form */
+.xp-readings .xp-kmswitch { grid-column: 1 / -1; margin: 0 0 14px; }
+.xp-readings .xp-kmfield { grid-column: 1 / -1; }
+.xp-walink { display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 10px; border-radius: 999px; background: #e7f6ec; color: #11743b !important; font-size: .8rem; font-weight: 700; text-decoration: none; }
+.xp-walink:hover { background: #d3efdc; }
+
+/* New booking form, "Money, fuel and km": four payment fields in one row, then Fuel and Kilometres side by side */
+.xp-section .xp-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.xp-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 36px; margin-top: 4px; }
+.xp-subhead-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 10px; }
+.xp-subhead-row .xp-subhead { margin: 0; }
+.xp-miniswitch { position: relative; display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; font-weight: 700; color: var(--ink-soft); cursor: pointer; }
+.xp-miniswitch input { position: absolute; opacity: 0; pointer-events: none; }
+.xp-miniswitch .xp-switch-track { width: 34px; height: 20px; }
+.xp-miniswitch .xp-switch-track::after { top: 2px; left: 2px; width: 16px; height: 16px; }
+.xp-miniswitch input:checked + .xp-switch-track { background: linear-gradient(135deg, var(--gold-300), var(--gold-500)); }
+.xp-miniswitch input:checked + .xp-switch-track::after { transform: translateX(14px); }
+.xp-miniswitch input:focus-visible + .xp-switch-track { outline: 2px solid var(--navy-800); outline-offset: 2px; }
+.xp-miniswitch:has(input:checked) { color: var(--ink); }
+@media (max-width: 1100px) { .xp-section .xp-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .xp-pair { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .xp-section .xp-grid-4 { grid-template-columns: 1fr; } }
+.xp-subhead-row { min-height: 22px; }
+/* Fuel amount + litres and the two odometer readings are short numbers: side by side even on phones */
+.xp-pair .xp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+/* WhatsApp button beside the "Booking details" title (wraps under it on narrow phones) */
+.ap-panel-head:has(> .xp-walink) { flex-wrap: wrap; }
+.ap-panel-head > .xp-walink { margin-top: 0; padding: 6px 12px; flex-shrink: 0; }

@@ -7,6 +7,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import SubmitButton from "@/components/admin/SubmitButton";
 import Expenses from "@/components/expenses/Expenses";
 import Payments from "@/components/expenses/Payments";
+import ReadingsForm from "@/components/expenses/ReadingsForm";
 import { TripBadges } from "@/components/expenses/TripCard";
 import { listTargetActivity } from "@/lib/activity";
 import { can, requireUser } from "@/lib/auth";
@@ -24,9 +25,10 @@ import {
   routeText,
   tripExpenses,
 } from "@/lib/expenses/trips";
+import { customerWhatsAppLink } from "@/lib/expenses/whatsapp";
 import { formatPhone } from "@/lib/format";
 import { readParams, type SearchParams } from "../../../filters";
-import { changeTripStatus, saveReadings } from "../actions";
+import { changeTripStatus } from "../actions";
 
 type Params = Promise<{ tripNo: string }>;
 
@@ -84,6 +86,16 @@ export default async function TripPage({ params, searchParams }: { params: Param
       </Link>
       <PageHeader eyebrow="Expense Tracker · Booking" title={trip.trip_no} subtitle={`${trip.customer_name} · ${routeText(trip)} · ${fmtRange(trip.start_date, trip.end_date)}`}>
         <TripBadges trip={trip} />
+        {active && trip.total_amount !== null && (
+          <a
+            href={`/admin/expenses/bookings/${trip.trip_no}/statement`}
+            download={`expense-statement-${trip.trip_no}.pdf`}
+            className="ap-btn ap-btn-ghost ap-btn-sm"
+            title="A PDF for the customer with the total, payments received and balance to pay"
+          >
+            <Icon name="download" size={14} /> Expense statement (PDF)
+          </a>
+        )}
         {canManage && (
           <div className="ap-actions">
             {active && (
@@ -122,6 +134,17 @@ export default async function TripPage({ params, searchParams }: { params: Param
           <section className="ap-panel">
             <div className="ap-panel-head">
               <h2>Booking details</h2>
+              {active && (
+                <a
+                  href={customerWhatsAppLink(trip)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="xp-walink"
+                  title="Opens WhatsApp with a message to the customer about the amount to pay"
+                >
+                  <Icon name="whatsapp" size={14} /> {balanceOf(trip) > 0 ? "Send balance on WhatsApp" : "Message on WhatsApp"}
+                </a>
+              )}
             </div>
             <dl className="ap-facts xp-facts">
               <div>
@@ -195,6 +218,12 @@ export default async function TripPage({ params, searchParams }: { params: Param
                 <dt>Distance</dt>
                 <dd>
                   {km !== null ? `${formatNumber(km)} km` : <span className="ap-muted">Not entered</span>}
+                  {trip.km_direct !== null && trip.odometer_start === null && (
+                    <>
+                      <br />
+                      <span className="ap-muted">Entered directly</span>
+                    </>
+                  )}
                   {trip.odometer_start !== null && (
                     <>
                       <br />
@@ -228,29 +257,16 @@ export default async function TripPage({ params, searchParams }: { params: Param
               <div className="ap-panel-head">
                 <h2>Readings and amounts</h2>
               </div>
-              <form action={saveReadings} className="xp-readings">
-                <input type="hidden" name="id" value={trip.id} />
-                <label className="ap-field">
-                  <span>Odometer at start (km)</span>
-                  <input type="number" name="odometer_start" inputMode="numeric" min="0" max="9999999" step="1" defaultValue={trip.odometer_start ?? ""} />
-                </label>
-                <label className="ap-field">
-                  <span>Odometer at end (km)</span>
-                  <input type="number" name="odometer_end" inputMode="numeric" min="0" max="9999999" step="1" defaultValue={trip.odometer_end ?? ""} />
-                </label>
-                <label className="ap-field">
-                  <span>Total from customer (₹)</span>
-                  <input type="number" name="total_amount" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={trip.total_amount ?? ""} />
-                </label>
-                <label className="ap-field">
-                  <span>Amount for the driver (₹)</span>
-                  <input type="number" name="driver_amount" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={trip.driver_amount ?? ""} />
-                </label>
-                <SubmitButton className="ap-btn ap-btn-gold">
-                  <Icon name="check" size={15} /> Save
-                </SubmitButton>
-              </form>
-              <p className="ap-hint">Km travelled is worked out from the two odometer readings.</p>
+              {/* Keyed on the saved values so the form starts fresh after each save */}
+              <ReadingsForm
+                key={[trip.odometer_start, trip.odometer_end, trip.km_direct, trip.total_amount, trip.driver_amount].join("|")}
+                tripId={trip.id}
+                odometerStart={trip.odometer_start}
+                odometerEnd={trip.odometer_end}
+                kmDirect={trip.km_direct}
+                totalAmount={trip.total_amount}
+                driverAmount={trip.driver_amount}
+              />
             </section>
           )}
         </div>

@@ -5,6 +5,10 @@ const noIndex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
 const nextConfig: NextConfig = {
   // PGlite (local dev database) ships WASM files and must not be bundled
   serverExternalPackages: ["@electric-sql/pglite"],
+  // The expense statement PDF reads its font files from assets/fonts at run time
+  outputFileTracingIncludes: {
+    "/admin/expenses/bookings/**": ["./assets/fonts/**/*"],
+  },
   async headers() {
     return [
       { source: "/login", headers: noIndex },

@@ -358,3 +358,6 @@ ALTER TABLE vehicle_expenses ADD COLUMN IF NOT EXISTS period date;
 -- One EMI payment per vehicle per month (a removed one doesn't count)
 CREATE UNIQUE INDEX IF NOT EXISTS vehicle_expenses_emi_month ON vehicle_expenses (vehicle_id, period)
   WHERE kind = 'emi' AND deleted_at IS NULL;
+
+-- Km travelled typed in directly, for bookings without odometer readings (used only when there are no readings)
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS km_direct int CHECK (km_direct BETWEEN 0 AND 999999);

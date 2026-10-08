@@ -43,6 +43,7 @@ const ACTION_MODULES = {
   "expense.emi_paid": "expenses",
   "expense.insurance_paid": "expenses",
   "report.downloaded": "expenses",
+  "trip.statement_downloaded": "expenses",
   "user.created": "users",
   "user.deleted": "users",
   "user.password_reset": "users",

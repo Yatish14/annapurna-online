@@ -34,6 +34,8 @@ export type Trip = {
   referrer_phone: string | null;
   odometer_start: number | null;
   odometer_end: number | null;
+  /** Km typed in directly (only when there are no odometer readings) */
+  km_direct: number | null;
   total_amount: number | null;
   driver_amount: number | null;
   notes: string | null;
@@ -76,14 +78,16 @@ export type TripInput = {
 export type TripReadings = {
   odometerStart: number | null;
   odometerEnd: number | null;
+  kmDirect: number | null;
   totalAmount: number | null;
   driverAmount: number | null;
 };
 
 // ---------- Derived figures ----------
 
-export function kmOf(t: Pick<Trip, "odometer_start" | "odometer_end">): number | null {
-  return t.odometer_start !== null && t.odometer_end !== null ? t.odometer_end - t.odometer_start : null;
+/** Km travelled: from the odometer readings, or as typed in directly */
+export function kmOf(t: Pick<Trip, "odometer_start" | "odometer_end"> & { km_direct?: number | null }): number | null {
+  return t.odometer_start !== null && t.odometer_end !== null ? t.odometer_end - t.odometer_start : (t.km_direct ?? null);
 }
 
 export function payState(t: Pick<Trip, "total_amount" | "received">): PayState {
@@ -145,7 +149,7 @@ const TRIP_COLUMNS = `
          t.driver_id::int AS driver_id, d.name AS driver_name, d.phone AS driver_phone,
          t.customer_name, t.customer_phone, t.start_date::text AS start_date, t.end_date::text AS end_date,
          t.pickup_state, t.pickup_city, t.drop_state, t.drop_city, t.round_trip, t.dest_state, t.dest_city,
-         t.referrer_name, t.referrer_phone, t.odometer_start, t.odometer_end,
+         t.referrer_name, t.referrer_phone, t.odometer_start, t.odometer_end, t.km_direct,
          t.total_amount::float8 AS total_amount, t.driver_amount::float8 AS driver_amount, t.notes, t.status, t.is_sample,
          CASE WHEN t.status = 'cancelled' THEN 'cancelled'
               WHEN t.start_date > ${TODAY} THEN 'upcoming'
@@ -305,7 +309,7 @@ export type SaveResult = { ok: true; trip_no: string } | { ok: false; reason: "v
 /** New booking, with the advance (if any) recorded as the first customer payment */
 export async function createTrip(
   input: TripInput,
-  readings: Pick<TripReadings, "odometerStart" | "totalAmount" | "driverAmount">,
+  readings: Pick<TripReadings, "odometerStart" | "odometerEnd" | "kmDirect" | "totalAmount" | "driverAmount">,
   advance: { amount: number; method: PaymentMethod } | null,
   fuel: { amount: number; litres: number | null; spentOn: string } | null,
   by: string,
@@ -315,8 +319,9 @@ export async function createTrip(
       `WITH t AS (
          INSERT INTO trips (vehicle_id, driver_id, customer_name, customer_phone, start_date, end_date,
                             pickup_state, pickup_city, drop_state, drop_city, round_trip, dest_state, dest_city,
-                            referrer_name, referrer_phone, notes, odometer_start, total_amount, driver_amount, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                            referrer_name, referrer_phone, notes, odometer_start, total_amount, driver_amount, created_by,
+                            odometer_end, km_direct)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $26, $27)
          RETURNING id, trip_no
        ), adv AS (
          INSERT INTO trip_payments (trip_id, party, amount, method, paid_at, note, created_by)
@@ -331,6 +336,7 @@ export async function createTrip(
         input.pickupState, input.pickupCity, input.dropState, input.dropCity, input.roundTrip, input.destState, input.destCity,
         input.referrerName, input.referrerPhone, input.notes, readings.odometerStart, readings.totalAmount, readings.driverAmount,
         by, advance?.amount ?? null, advance?.method ?? "cash", fuel?.amount ?? null, fuel?.spentOn ?? null, fuel?.litres ?? null,
+        readings.odometerEnd, readings.kmDirect,
       ],
     );
     return { ok: true, trip_no: row.trip_no };
@@ -402,7 +408,7 @@ export async function updateTrip(id: number, input: TripInput, by: string): Prom
   return { ok: true, trip_no: before.trip_no, changes };
 }
 
-/** Odometer readings and agreed amounts; returns what changed (empty when nothing did) */
+/** Odometer readings (or km typed in instead) and agreed amounts; returns what changed (empty when nothing did) */
 export async function updateReadings(id: number, r: TripReadings, by: string): Promise<{ trip_no: string; changes: string[] } | null> {
   const before = await getTripById(id);
   if (!before) return null;
@@ -412,17 +418,18 @@ export async function updateReadings(id: number, r: TripReadings, by: string): P
     from !== to && changes.push(`${label}: ${num(from, unit)} → ${num(to, unit)}`);
   add("Odometer at start", before.odometer_start, r.odometerStart, "km");
   add("Odometer at end", before.odometer_end, r.odometerEnd, "km");
+  add("Km entered", before.km_direct, r.kmDirect, "km");
   add("Total from customer", before.total_amount, r.totalAmount, "rs");
   add("Driver amount", before.driver_amount, r.driverAmount, "rs");
   if (changes.length === 0) return { trip_no: before.trip_no, changes };
-  const km = kmOf({ odometer_start: r.odometerStart, odometer_end: r.odometerEnd });
-  if (km !== null && before.odometer_end !== r.odometerEnd) changes.push(`${formatNumber(km)} km travelled`);
+  const km = kmOf({ odometer_start: r.odometerStart, odometer_end: r.odometerEnd, km_direct: r.kmDirect });
+  if (km !== null && km !== kmOf(before) && r.kmDirect === null) changes.push(`${formatNumber(km)} km travelled`);
 
   await query(
-    `UPDATE trips SET odometer_start = $2, odometer_end = $3, total_amount = $4, driver_amount = $5,
-            updated_at = now(), updated_by = $6
+    `UPDATE trips SET odometer_start = $2, odometer_end = $3, km_direct = $4, total_amount = $5, driver_amount = $6,
+            updated_at = now(), updated_by = $7
      WHERE id = $1`,
-    [id, r.odometerStart, r.odometerEnd, r.totalAmount, r.driverAmount, by],
+    [id, r.odometerStart, r.odometerEnd, r.kmDirect, r.totalAmount, r.driverAmount, by],
   );
   return { trip_no: before.trip_no, changes };
 }
@@ -718,7 +725,7 @@ export async function driverSummary(driverId: number): Promise<DriverSummary> {
   const [row] = await query<DriverSummary>(
     `SELECT count(*)::int AS bookings,
             coalesce(sum(t.end_date - t.start_date + 1), 0)::int AS days,
-            coalesce(sum(t.odometer_end - t.odometer_start) FILTER (WHERE t.odometer_end IS NOT NULL), 0)::int AS km,
+            coalesce(sum(coalesce(t.odometer_end - t.odometer_start, t.km_direct)), 0)::int AS km,
             coalesce(sum(t.driver_amount), 0)::float8 AS earned,
             coalesce(sum(pay.driver_paid), 0)::float8 AS paid,
             coalesce(sum(greatest(coalesce(t.driver_amount, 0) - pay.driver_paid, 0)), 0)::float8 AS owed

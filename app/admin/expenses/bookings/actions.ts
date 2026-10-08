@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/activity";
 import { isValidMobile, normalizeMobile, requireUser } from "@/lib/auth";
 import { diffDays, isIsoDate, parseLocalIST, todayIST } from "@/lib/dates";
 import { fleetChoices } from "@/lib/expenses/fleet";
-import { formatRupees, isPaymentMethod, parseAmount, parseWhole, PAYMENT_METHODS } from "@/lib/expenses/money";
+import { formatNumber, formatRupees, isPaymentMethod, parseAmount, parseWhole, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { cleanPlace, isState } from "@/lib/expenses/places";
 import {
   addExpense,
@@ -16,6 +16,7 @@ import {
   expenseText,
   findClash,
   getTripById,
+  kmOf,
   paymentText,
   removeExpense,
   removePayment,
@@ -53,6 +54,8 @@ type Parsed =
       ok: true;
       input: TripInput;
       odometerStart: number | null;
+      odometerEnd: number | null;
+      kmDirect: number | null;
       totalAmount: number | null;
       driverAmount: number | null;
       advance: { amount: number; method: keyof typeof PAYMENT_METHODS } | null;
@@ -117,10 +120,19 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
     pickupState, pickupCity, dropState, dropCity, roundTrip, destState, destCity,
     referrerName, referrerPhone, notes,
   };
-  if (!isNew) return { ok: true, input, odometerStart: null, totalAmount: null, driverAmount: null, advance: null, fuel: null };
+  if (!isNew) return { ok: true, input, odometerStart: null, odometerEnd: null, kmDirect: null, totalAmount: null, driverAmount: null, advance: null, fuel: null };
 
-  const odometerStart = parseWhole(fd.get("odometer_start"));
+  // Km: the two odometer readings, or typed in directly
+  const direct = fd.get("km_mode") === "direct";
+  const odometerStart = direct ? null : parseWhole(fd.get("odometer_start"));
   if (odometerStart === "invalid") return fail("odometer_start", "The odometer reading should be a whole number of km.");
+  const odometerEnd = direct ? null : parseWhole(fd.get("odometer_end"));
+  if (odometerEnd === "invalid") return fail("odometer_end", "The odometer reading should be a whole number of km.");
+  if (odometerEnd !== null && odometerStart === null) return fail("odometer_start", "Enter the odometer reading at the start as well as at the end.");
+  if (odometerEnd !== null && odometerStart !== null && odometerEnd < odometerStart)
+    return fail("odometer_end", "The odometer reading at the end can't be lower than at the start.");
+  const kmDirect = direct ? parseWhole(fd.get("km_direct")) : null;
+  if (kmDirect === "invalid" || (kmDirect !== null && kmDirect > 999999)) return fail("km_direct", "Enter the km travelled as a whole number, like 340.");
   const totalAmount = parseAmount(fd.get("total_amount"));
   if (totalAmount === "invalid") return fail("total_amount", "Enter the total as an amount in rupees, like 12000.");
   const driverAmount = parseAmount(fd.get("driver_amount"));
@@ -142,6 +154,8 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
     ok: true,
     input,
     odometerStart,
+    odometerEnd,
+    kmDirect,
     totalAmount,
     driverAmount,
     advance: advanceAmount !== null ? { amount: advanceAmount, method: isPaymentMethod(method) ? method : "cash" } : null,
@@ -192,11 +206,13 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
     const route = input.roundTrip
       ? `${input.pickupCity} → ${input.destCity} → ${input.pickupCity} (round trip)`
       : `${input.pickupCity} → ${input.dropCity}`;
+    const km = kmOf({ odometer_start: parsed.odometerStart, odometer_end: parsed.odometerEnd, km_direct: parsed.kmDirect });
     await logActivity(
       user,
       "trip.created",
       result.trip_no,
       [`${input.customerName} (${input.customerPhone})`, `${vehicle.name} with ${driver.name}`, route,
+        km !== null ? `${formatNumber(km)} km` : null,
         parsed.totalAmount !== null ? `Total ${formatRupees(parsed.totalAmount)}` : null].filter(Boolean).join(" · "),
     );
     if (parsed.advance) await logActivity(user, "payment.received", result.trip_no, `${paymentText(parsed.advance)} · Advance`);
@@ -229,16 +245,20 @@ export async function saveReadings(fd: FormData) {
   if (!trip) redirect("/admin/expenses/bookings?flash=not-found");
   const back = tripPath(trip.trip_no);
 
-  const odometerStart = parseWhole(fd.get("odometer_start"));
-  const odometerEnd = parseWhole(fd.get("odometer_end"));
+  // Either the two odometer readings, or the km typed in directly (saving one clears the other)
+  const direct = fd.get("km_mode") === "direct";
+  const odometerStart = direct ? null : parseWhole(fd.get("odometer_start"));
+  const odometerEnd = direct ? null : parseWhole(fd.get("odometer_end"));
+  const kmDirect = direct ? parseWhole(fd.get("km_direct")) : null;
   const totalAmount = parseAmount(fd.get("total_amount"));
   const driverAmount = parseAmount(fd.get("driver_amount"));
   if (odometerStart === "invalid" || odometerEnd === "invalid") redirect(withFlash(back, "odometer-invalid") + "#readings");
+  if (kmDirect === "invalid" || (kmDirect !== null && kmDirect > 999999)) redirect(withFlash(back, "km-invalid") + "#readings");
   if (totalAmount === "invalid" || driverAmount === "invalid") redirect(withFlash(back, "amount-invalid") + "#readings");
   if (odometerEnd !== null && odometerStart === null) redirect(withFlash(back, "odometer-start-missing") + "#readings");
   if (odometerEnd !== null && odometerStart !== null && odometerEnd < odometerStart) redirect(withFlash(back, "odometer-order") + "#readings");
 
-  const result = await updateReadings(trip.id, { odometerStart, odometerEnd, totalAmount, driverAmount }, user.name);
+  const result = await updateReadings(trip.id, { odometerStart, odometerEnd, kmDirect, totalAmount, driverAmount }, user.name);
   if (!result) redirect("/admin/expenses/bookings?flash=not-found");
   if (result.changes.length) await logActivity(user, "trip.readings_updated", result.trip_no, result.changes.join(" · "));
   refresh();

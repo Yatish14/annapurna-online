@@ -45,6 +45,7 @@ const FLASH: Record<string, { tone: Tone; text: (d: string) => string }> = {
   "odometer-invalid": { tone: "error", text: () => "Odometer readings should be whole numbers of km, like 45120." },
   "odometer-start-missing": { tone: "error", text: () => "Enter the odometer reading at the start as well as at the end." },
   "odometer-order": { tone: "error", text: () => "The odometer reading at the end can't be lower than at the start." },
+  "km-invalid": { tone: "error", text: () => "Enter the km travelled as a whole number, like 340." },
   "repair-what": { tone: "error", text: () => "Say what was repaired, like “Engine oil change” or “Front tyre”." },
   "shop-city": { tone: "error", text: () => "Choose or type the city of the shop, or clear the state." },
   "emi-saved": { tone: "ok", text: (d) => `Loan (EMI) details of ${d} saved.` },

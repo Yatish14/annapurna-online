@@ -28,6 +28,10 @@ export type TripFormValues = {
   referrer_phone: string;
   notes: string;
   odometer_start: string;
+  odometer_end: string;
+  /** Km typed in instead of the odometer readings */
+  km_direct_on: boolean;
+  km_direct: string;
   total_amount: string;
   advance_amount: string;
   advance_method: string;
@@ -54,6 +58,9 @@ export const EMPTY_TRIP: TripFormValues = {
   referrer_phone: "",
   notes: "",
   odometer_start: "",
+  odometer_end: "",
+  km_direct_on: false,
+  km_direct: "",
   total_amount: "",
   advance_amount: "",
   advance_method: "cash",
@@ -75,6 +82,13 @@ type Props = {
 function withAdded<T extends { id: number; name: string }>(list: T[], added: T[]): T[] {
   const fresh = added.filter((a) => !list.some((x) => x.id === a.id));
   return [...list, ...fresh].sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
+}
+
+/** Km from the two readings while typing (null until both are there and in order) */
+function tripKm(v: Pick<TripFormValues, "odometer_start" | "odometer_end">): number | null {
+  if (!v.odometer_start || !v.odometer_end) return null;
+  const km = Number(v.odometer_end) - Number(v.odometer_start);
+  return Number.isFinite(km) && km >= 0 ? km : null;
 }
 
 const dayCount = (start: string, end: string) =>
@@ -359,11 +373,12 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
         {isNew && (
           <section className="ap-panel xp-section">
             <h2>
-              <Icon name="rupee" size={18} /> Money, fuel and odometer <small>optional, can be filled in later</small>
+              <Icon name="rupee" size={18} /> Money, fuel and km <small>optional, can be filled in later</small>
             </h2>
+            <p className="xp-subhead">Payment</p>
             <div className="xp-grid xp-grid-4">
               <label className="ap-field">
-                <span>Total to collect from customer (₹)</span>
+                <span>Total from customer (₹)</span>
                 <input
                   type="number"
                   name="total_amount"
@@ -377,7 +392,7 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
                 />
               </label>
               <label className="ap-field">
-                <span>Advance paid by customer (₹)</span>
+                <span>Advance received (₹)</span>
                 <input
                   type="number"
                   name="advance_amount"
@@ -400,7 +415,7 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
                 />
               </label>
               <label className="ap-field">
-                <span>Amount for the driver (₹)</span>
+                <span>Driver amount (₹)</span>
                 <input
                   type="number"
                   name="driver_amount"
@@ -413,49 +428,109 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
                   onChange={(e) => set("driver_amount", e.target.value)}
                 />
               </label>
-              <label className="ap-field">
-                <span>Fuel filled (₹)</span>
-                <input
-                  type="number"
-                  name="fuel_amount"
-                  inputMode="decimal"
-                  min="0.01"
-                  max="10000000"
-                  step="0.01"
-                  placeholder="e.g. 3000"
-                  required={Boolean(v.fuel_litres)}
-                  value={v.fuel_amount}
-                  onChange={(e) => set("fuel_amount", e.target.value)}
-                />
-              </label>
-              <label className="ap-field">
-                <span>Fuel litres</span>
-                <input
-                  type="number"
-                  name="fuel_litres"
-                  inputMode="decimal"
-                  min="0.01"
-                  max="9999"
-                  step="0.01"
-                  placeholder="e.g. 32.5 (optional)"
-                  value={v.fuel_litres}
-                  onChange={(e) => set("fuel_litres", e.target.value)}
-                />
-              </label>
-              <label className="ap-field">
-                <span>Odometer at start (km)</span>
-                <input
-                  type="number"
-                  name="odometer_start"
-                  inputMode="numeric"
-                  min="0"
-                  max="9999999"
-                  step="1"
-                  placeholder="e.g. 45120"
-                  value={v.odometer_start}
-                  onChange={(e) => set("odometer_start", e.target.value)}
-                />
-              </label>
+            </div>
+
+            <div className="xp-pair">
+              <div>
+                <div className="xp-subhead-row">
+                  <p className="xp-subhead">Fuel</p>
+                </div>
+                <div className="xp-grid">
+                  <label className="ap-field">
+                    <span>Fuel amount (₹)</span>
+                    <input
+                      type="number"
+                      name="fuel_amount"
+                      inputMode="decimal"
+                      min="0.01"
+                      max="10000000"
+                      step="0.01"
+                      placeholder="e.g. 3000"
+                      required={Boolean(v.fuel_litres)}
+                      value={v.fuel_amount}
+                      onChange={(e) => set("fuel_amount", e.target.value)}
+                    />
+                  </label>
+                  <label className="ap-field">
+                    <span>Litres</span>
+                    <input
+                      type="number"
+                      name="fuel_litres"
+                      inputMode="decimal"
+                      min="0.01"
+                      max="9999"
+                      step="0.01"
+                      placeholder="e.g. 32.5"
+                      value={v.fuel_litres}
+                      onChange={(e) => set("fuel_litres", e.target.value)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                {/* Km: the two odometer readings, or typed in directly (same as on the booking's page) */}
+                <div className="xp-subhead-row">
+                  <p className="xp-subhead">Kilometres</p>
+                  <label className="xp-miniswitch">
+                    <input type="checkbox" checked={v.km_direct_on} onChange={(e) => set("km_direct_on", e.target.checked)} />
+                    <span className="xp-switch-track" aria-hidden="true" />
+                    Enter km directly
+                  </label>
+                </div>
+                <input type="hidden" name="km_mode" value={v.km_direct_on ? "direct" : "odometer"} />
+                <div className="xp-grid">
+                  {v.km_direct_on ? (
+                    <label className="ap-field">
+                      <span>Km travelled</span>
+                      <input
+                        type="number"
+                        name="km_direct"
+                        inputMode="numeric"
+                        min="0"
+                        max="999999"
+                        step="1"
+                        placeholder="e.g. 340"
+                        value={v.km_direct}
+                        onChange={(e) => set("km_direct", e.target.value)}
+                      />
+                    </label>
+                  ) : (
+                    <>
+                      <label className="ap-field">
+                        <span>Odometer at start</span>
+                        <input
+                          type="number"
+                          name="odometer_start"
+                          inputMode="numeric"
+                          min="0"
+                          max="9999999"
+                          step="1"
+                          placeholder="e.g. 45120"
+                          required={Boolean(v.odometer_end)}
+                          value={v.odometer_start}
+                          onChange={(e) => set("odometer_start", e.target.value)}
+                        />
+                      </label>
+                      <label className="ap-field">
+                        <span>Odometer at end</span>
+                        <input
+                          type="number"
+                          name="odometer_end"
+                          inputMode="numeric"
+                          min={v.odometer_start || "0"}
+                          max="9999999"
+                          step="1"
+                          placeholder="e.g. 45460"
+                          value={v.odometer_end}
+                          onChange={(e) => set("odometer_end", e.target.value)}
+                        />
+                        <span className="mob-msg">{tripKm(v) !== null ? `${tripKm(v)} km travelled` : ""}</span>
+                      </label>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
         )}

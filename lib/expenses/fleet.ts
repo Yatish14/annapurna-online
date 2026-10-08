@@ -42,8 +42,8 @@ const VEHICLE_COLUMNS = `
   v.id::int AS id, v.name, v.kind, v.active, v.created_by, v.is_sample,
   to_char(v.created_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY') AS created_ist,
   (SELECT count(*)::int FROM trips t WHERE t.vehicle_id = v.id AND t.status = 'booked') AS trips,
-  (SELECT coalesce(sum(t.odometer_end - t.odometer_start), 0)::int FROM trips t
-     WHERE t.vehicle_id = v.id AND t.status = 'booked' AND t.odometer_end IS NOT NULL) AS km,
+  (SELECT coalesce(sum(coalesce(t.odometer_end - t.odometer_start, t.km_direct)), 0)::int FROM trips t
+     WHERE t.vehicle_id = v.id AND t.status = 'booked') AS km,
   (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
      WHERE e.vehicle_id = v.id AND e.kind = 'fuel' AND e.deleted_at IS NULL) AS fuel,
   (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
