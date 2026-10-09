@@ -4,7 +4,7 @@ import LinkPending from "@/components/admin/LinkPending";
 import PageHeader from "@/components/admin/PageHeader";
 import { requireUser } from "@/lib/auth";
 import { formatRupees } from "@/lib/expenses/money";
-import { loadMonth, makeReport, monthLabel, type ReportType } from "@/lib/expenses/reports";
+import { loadMonth, makeReport, monthLabel, workbookName, type ReportType } from "@/lib/expenses/reports";
 import { parseMonth, readParams, type SearchParams } from "../../filters";
 
 export const metadata = { title: "Reports · Expense Tracker" };
@@ -40,7 +40,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
       <PageHeader
         eyebrow="Expense Tracker"
         title="Reports"
-        subtitle="The month's bookings, drivers and repairs as CSV files, ready to open in Excel or Google Sheets."
+        subtitle="The month's bookings, drivers and repairs, all three in one Excel file or each as a CSV file."
       >
         <nav className="ap-cal-nav" aria-label="Month">
           <Link href={`/admin/expenses/reports?month=${shiftMonth(month, -1)}`} aria-label="Previous month" scroll={false}>
@@ -61,6 +61,24 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
           </button>
         </form>
       </PageHeader>
+
+      <section className="ap-panel xp-allreports" id="report-all">
+        <span className="ap-tile-icon is-gold">
+          <Icon name="download" size={20} />
+        </span>
+        <div>
+          <h2>All three reports in one file</h2>
+          <span className="ap-muted">{workbookName(month)}</span>
+          <p>An Excel file with a sheet each for bookings, drivers and repairs. Opens in Excel and Google Sheets.</p>
+        </div>
+        <a
+          className="ap-btn ap-btn-gold xp-report-btn"
+          href={`/admin/expenses/reports/download?month=${month}&type=all`}
+          download={workbookName(month)}
+        >
+          <Icon name="download" size={16} /> Download Excel (3 sheets)
+        </a>
+      </section>
 
       <section className="xp-reportgrid" aria-label="Reports">
         {REPORTS.map((r) => {
@@ -86,11 +104,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                 ))}
               </dl>
               <a
-                className="ap-btn ap-btn-gold xp-report-btn"
+                className="ap-btn ap-btn-ghost xp-report-btn"
                 href={`/admin/expenses/reports/download?month=${month}&type=${report.type}`}
                 download={report.filename}
               >
-                <Icon name="download" size={16} /> Download {report.title.toLowerCase()}
+                <Icon name="download" size={16} /> Only this report (CSV)
               </a>
             </article>
           );

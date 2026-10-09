@@ -1056,6 +1056,13 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-reportgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 22px; align-items: start; }
 .xp-reportgrid .xp-report { height: calc(100% - 22px); }
 .xp-reportgrid .xp-report-btn { margin-top: auto; }
+.xp-allreports { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.xp-allreports .ap-tile-icon { margin: 0; flex-shrink: 0; }
+.xp-allreports > div { flex: 1; min-width: 220px; }
+.xp-allreports h2 { margin: 0 0 2px; font-family: var(--serif); font-weight: 400; font-size: 1.3rem; }
+.xp-allreports > div > .ap-muted { display: block; font-size: .82rem; }
+.xp-allreports p { margin: 6px 0 0; color: var(--ink-soft); font-size: .9rem; }
+@media (max-width: 560px) { .xp-allreports .xp-report-btn { width: 100%; } }
 
 /* Repairs and FASTag pages: vehicle filter */
 .xp-costpills { margin: 0 0 18px; }

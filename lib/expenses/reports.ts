@@ -1,4 +1,5 @@
 import type { CsvValue } from "../csv";
+import { toXlsx, type RowStyle } from "../xlsx";
 import { diffDays, MONTHS_LONG } from "../dates";
 import { PAYMENT_METHODS } from "./money";
 import {
@@ -24,7 +25,13 @@ import {
 
 export const monthLabel = (month: string) => `${MONTHS_LONG[Number(month.slice(5)) - 1]} ${month.slice(0, 4)}`;
 
-/** The CSV files on the Reports page */
+/** The month as file names show it: 2026-10 → Oct-2026 */
+const fileMonth = (month: string) => `${MONTHS_LONG[Number(month.slice(5)) - 1].slice(0, 3)}-${month.slice(0, 4)}`;
+
+/** The Excel file with all three reports: annapurna-reports-Oct-2026.xlsx */
+export const workbookName = (month: string) => `annapurna-reports-${fileMonth(month)}.xlsx`;
+
+/** The reports on the Reports page: each a CSV file, or all three as tabs of one Excel file */
 export const REPORT_TYPES = ["bookings", "drivers", "repairs"] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 export const isReportType = (v: unknown): v is ReportType => REPORT_TYPES.includes(v as ReportType);
@@ -187,7 +194,7 @@ function bookingsReport(d: MonthData): Report {
   return {
     type: "bookings",
     title: "Bookings report",
-    filename: `annapurna-bookings-${month}.csv`,
+    filename: `annapurna-bookings-${fileMonth(month)}.csv`,
     rows,
     highlights: [
       { label: "Bookings", value: booked.length, money: false },
@@ -257,7 +264,7 @@ function driversReport(d: MonthData): Report {
   return {
     type: "drivers",
     title: "Drivers report",
-    filename: `annapurna-drivers-${month}.csv`,
+    filename: `annapurna-drivers-${fileMonth(month)}.csv`,
     rows,
     highlights: [
       { label: "Drivers", value: drivers.length, money: false },
@@ -290,7 +297,7 @@ function repairsReport(d: MonthData): Report {
   return {
     type: "repairs",
     title: "Repairs report",
-    filename: `annapurna-repairs-${month}.csv`,
+    filename: `annapurna-repairs-${fileMonth(month)}.csv`,
     rows,
     highlights: [
       { label: "Repairs", value: counted.length, money: false },
@@ -313,4 +320,28 @@ export function makeReport(type: ReportType, data: MonthData): Report {
 
 export async function buildReport(type: ReportType, month: string): Promise<Report> {
   return makeReport(type, await loadMonth(month));
+}
+
+/** How each line of a report looks in Excel: the title, section headings, shaded column headers and bold totals */
+function rowStyles(rows: CsvValue[][]): (row: CsvValue[], index: number) => RowStyle {
+  const filled = (row: CsvValue[] | undefined) => (row ?? []).filter((v) => v !== null && v !== undefined && v !== "").length;
+  const isHeading = (row: CsvValue[] | undefined) => filled(row) === 1 && /^[A-Z]{2,}(?=[ (]|$)/.test(String(row?.[0] ?? ""));
+  return (row, i) => {
+    if (i === 0) return "title";
+    if (row[0] === "SUMMARY" || (filled(row) > 1 && isHeading(rows[i - 1]))) return "header";
+    if (isHeading(row)) return "heading";
+    if (typeof row[0] === "string" && row[0].startsWith("Total")) return "total";
+    return "plain";
+  };
+}
+
+/** All three reports as tabs (Bookings, Drivers, Repairs) of one Excel file */
+export async function buildWorkbook(month: string): Promise<{ filename: string; data: Uint8Array; contents: string }> {
+  const data = await loadMonth(month);
+  const reports = REPORT_TYPES.map((type) => makeReport(type, data));
+  return {
+    filename: workbookName(month),
+    data: toXlsx(reports.map((r) => ({ name: r.title.replace(/ report$/, ""), rows: r.rows, rowStyle: rowStyles(r.rows) }))),
+    contents: reports.map((r) => r.contents).join("; "),
+  };
 }

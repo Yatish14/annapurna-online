@@ -18,7 +18,7 @@ Website, printout uploads (Annapurna Graphics and Internet), an expense tracker 
 | `/admin/expenses/fastag` | Expense Tracker → FASTag: a month's FASTag recharges over every vehicle (or one), and **Add recharge** |
 | `/admin/expenses/emi` | Expense Tracker → EMI & insurance: every vehicle's loan and policy, reminders, **Mark EMI paid** and **Renew policy** |
 | `/admin/expenses/fleet` | Expense Tracker → Vehicles & drivers. Each vehicle has its own page (rename, switch off, loan/EMI, insurance, fuel, repairs, FASTag, bookings); each driver too (`/admin/expenses/fleet/drivers/…`: edit, switch off, earned, paid, still to pay, payments, bookings) |
-| `/admin/expenses/reports` | Expense Tracker → Reports: download a month's bookings, drivers or repairs report as CSV |
+| `/admin/expenses/reports` | Expense Tracker → Reports: download a month's bookings, drivers and repairs reports as one Excel file (a sheet each) or each as CSV |
 | `/admin/expenses/activity` | Expense Tracker → Activity (admins and the super admin only) |
 | `/admin/cars` | Car Bookings (hidden from the sidebar: only legal with yellow-plate cars; pages kept, see `components/admin/Sidebar.tsx`) → Overview: counts, enquiries needing attention, fleet status, upcoming trips |
 | `/admin/cars/bookings` | Car Bookings → all enquiries and bookings, with filters and actions |
@@ -183,7 +183,7 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 - **Profit:** on money actually received. A booking: received from the customer − driver amount − fuel − other expenses. A vehicle for the month also takes off repairs, FASTag, EMI and insurance. The driver amount is the agreed one, even before it's paid. While a balance is still due, the booking page also shows the profit once fully paid (total instead of received), and the bookings report has both columns. Per vehicle and month: received for bookings starting in the month − their driver amounts − fuel, other booking expenses, repairs, FASTag, EMI and insurance paid in the month.
 - **Removing entries:** a payment, fuel, repair, FASTag recharge, EMI or premium entered by mistake can be removed. It stays on the page crossed out, with who removed it and when.
 - **Booking numbers:** VB-0001, VB-0002, … (VB-10000 after VB-9999)
-- **Reports:** pick a month and download CSV files (open in Excel or Google Sheets):
+- **Reports:** pick a month and download all three as one Excel file (a sheet each for bookings, drivers and repairs), or any one of them as a CSV file:
   - *Bookings report*: every booking starting in the month, with amounts, fuel, other expenses and profit, and each toll, parking or other expense listed
   - *Drivers report*: each driver's bookings, days, km, agreed amount, paid and still to pay; their bookings one by one; payments made to drivers in the month
   - *Repairs report*: every repair in the month and each vehicle's total
