@@ -15,7 +15,14 @@ type Props = {
   /** Page numbers under each list */
   emiFooter?: React.ReactNode;
   insuranceFooter?: React.ReactNode;
+  /** Sent from the EMI & insurance page: come back there after saving */
+  from?: "emi";
+  /** Heading above the two panels (the EMI & insurance page shows one pair per vehicle) */
+  heading?: React.ReactNode;
 };
+
+/** Tells the server action which page to return to */
+const From = ({ from }: { from?: "emi" }) => (from ? <input type="hidden" name="from" value={from} /> : null);
 
 /** A year after a date, minus a day: a policy from 1 Oct 2026 runs to 30 Sep 2027 */
 function yearLater(iso: string): string {
@@ -25,7 +32,7 @@ function yearLater(iso: string): string {
 }
 
 /** Payments list (EMIs or premiums), with removing for mistakes */
-function PaidList({ entries, canManage, label }: { entries: Expense[]; canManage: boolean; label: (e: Expense) => React.ReactNode }) {
+function PaidList({ entries, canManage, label, from }: { entries: Expense[]; canManage: boolean; label: (e: Expense) => React.ReactNode; from?: "emi" }) {
   return (
     <ul className="xp-ledger">
       {entries.map((e) => (
@@ -51,7 +58,7 @@ function PaidList({ entries, canManage, label }: { entries: Expense[]; canManage
           {canManage && !e.deleted_ist && (
             <form action={deleteExpense}>
               <input type="hidden" name="id" value={e.id} />
-              <input type="hidden" name="from" value="vehicle" />
+              <input type="hidden" name="from" value={from ?? "vehicle"} />
               <SubmitButton
                 className="ap-btn ap-btn-ghost ap-btn-sm xp-remove"
                 title="Remove this payment (entered by mistake)"
@@ -68,10 +75,11 @@ function PaidList({ entries, canManage, label }: { entries: Expense[]; canManage
   );
 }
 
-function EmiForm({ f, submitLabel }: { f: VehicleFinance; submitLabel: string }) {
+function EmiForm({ f, submitLabel, from }: { f: VehicleFinance; submitLabel: string; from?: "emi" }) {
   return (
     <form action={saveEmiAction} className="xp-adder-form">
       <input type="hidden" name="id" value={f.id} />
+      <From from={from} />
       <label className="ap-field">
         <span>Bank or finance company</span>
         <input name="lender" required minLength={2} maxLength={80} defaultValue={f.emi_lender ?? ""} placeholder="e.g. HDFC Bank" />
@@ -99,13 +107,14 @@ function EmiForm({ f, submitLabel }: { f: VehicleFinance; submitLabel: string })
   );
 }
 
-function InsuranceForm({ f, renew }: { f: VehicleFinance; renew: boolean }) {
+function InsuranceForm({ f, renew, back }: { f: VehicleFinance; renew: boolean; back?: "emi" }) {
   const today = todayIST();
   const from = renew && f.insurance_to ? addDays(f.insurance_to, 1) : (f.insurance_from ?? "");
   const to = renew && from ? yearLater(from) : (f.insurance_to ?? "");
   return (
     <form action={saveInsuranceAction} className="xp-adder-form">
       <input type="hidden" name="id" value={f.id} />
+      <From from={back} />
       <label className="ap-field">
         <span>Insurance company</span>
         <input name="company" required minLength={2} maxLength={80} defaultValue={f.insurance_company ?? ""} placeholder="e.g. ICICI Lombard" />
@@ -148,7 +157,8 @@ function InsuranceForm({ f, renew }: { f: VehicleFinance; renew: boolean }) {
   );
 }
 
-export default function VehicleFinancePanels({ finance: f, emiEntries, insuranceEntries, canManage, emiFooter, insuranceFooter }: Props) {
+export default function VehicleFinancePanels(props: Props) {
+  const { finance: f, emiEntries, insuranceEntries, canManage, emiFooter, insuranceFooter, from, heading } = props;
   const today = todayIST();
   const emi = emiStatus(f, today);
   const ins = insuranceStatus(f, today);
@@ -175,8 +185,10 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
           : { cls: "is-late", text: `Expired ${fmtLong(f.insurance_to!)}` };
 
   return (
+    <>
+    {heading}
     <div className="xp-detail">
-      <section className="ap-panel xp-money" id="emi">
+      <section className="ap-panel xp-money" id={from ? undefined : "emi"}>
         <div className="ap-panel-head">
           <h2>
             <Icon name="wallet" size={18} /> Loan / EMI
@@ -218,6 +230,7 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
           <PaidList
             entries={emiEntries}
             canManage={canManage}
+            from={from}
             label={(e) => <span className="ap-chip">For {e.period ? monthText(e.period) : "—"}</span>}
           />
         )}
@@ -232,6 +245,7 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
                 </summary>
                 <form action={payEmiAction} className="xp-adder-form">
                   <input type="hidden" name="id" value={f.id} />
+                  <From from={from} />
                   <label className="ap-field">
                     <span>EMI for the month</span>
                     <input type="month" name="month" required min={f.emi_start!} max={f.emi_end!} defaultValue={emi.nextMonth} />
@@ -258,10 +272,11 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
               <summary className="ap-btn ap-btn-ghost ap-btn-sm">
                 <Icon name={emi.state === "none" ? "plus" : "edit"} size={14} /> {emi.state === "none" ? "Add loan details" : "Edit loan details"}
               </summary>
-              <EmiForm f={f} submitLabel={emi.state === "none" ? "Save loan details" : "Save changes"} />
+              <EmiForm f={f} from={from} submitLabel={emi.state === "none" ? "Save loan details" : "Save changes"} />
               {emi.state !== "none" && (
                 <form action={saveEmiAction} className="xp-remove-details">
                   <input type="hidden" name="id" value={f.id} />
+                  <From from={from} />
                   <input type="hidden" name="action" value="remove" />
                   <SubmitButton
                     className="ap-btn ap-btn-danger ap-btn-sm"
@@ -276,7 +291,7 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
         )}
       </section>
 
-      <section className="ap-panel xp-money" id="insurance">
+      <section className="ap-panel xp-money" id={from ? undefined : "insurance"}>
         <div className="ap-panel-head">
           <h2>
             <Icon name="shield" size={18} /> Insurance
@@ -313,6 +328,7 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
           <PaidList
             entries={insuranceEntries}
             canManage={canManage}
+            from={from}
             label={(e) => <span className="xp-ledger-what">{e.description}</span>}
           />
         )}
@@ -325,17 +341,18 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
                 <summary className="ap-btn ap-btn-gold ap-btn-sm">
                   <Icon name="undo" size={14} /> Renew policy
                 </summary>
-                <InsuranceForm f={f} renew />
+                <InsuranceForm f={f} renew back={from} />
               </details>
             )}
             <details className="xp-adder">
               <summary className="ap-btn ap-btn-ghost ap-btn-sm">
                 <Icon name={ins.state === "none" ? "plus" : "edit"} size={14} /> {ins.state === "none" ? "Add insurance" : "Edit details"}
               </summary>
-              <InsuranceForm f={f} renew={false} />
+              <InsuranceForm f={f} renew={false} back={from} />
               {ins.state !== "none" && (
                 <form action={saveInsuranceAction} className="xp-remove-details">
                   <input type="hidden" name="id" value={f.id} />
+                  <From from={from} />
                   <input type="hidden" name="action" value="remove" />
                   <SubmitButton
                     className="ap-btn ap-btn-danger ap-btn-sm"
@@ -350,5 +367,6 @@ export default function VehicleFinancePanels({ finance: f, emiEntries, insurance
         )}
       </section>
     </div>
+    </>
   );
 }

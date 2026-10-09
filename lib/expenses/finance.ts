@@ -45,6 +45,13 @@ export async function getFinance(vehicleId: number): Promise<VehicleFinance | nu
   return row ?? null;
 }
 
+/** Every vehicle in use, plus switched-off ones that still have a loan or policy on record */
+export async function listFinance(): Promise<VehicleFinance[]> {
+  return query<VehicleFinance>(
+    `${FINANCE_SELECT} WHERE v.active OR v.emi_amount IS NOT NULL OR v.insurance_to IS NOT NULL ORDER BY v.active DESC, lower(v.name)`,
+  );
+}
+
 // ---------- Months ----------
 
 export const monthText = (m: string) => `${MONTHS_LONG[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;

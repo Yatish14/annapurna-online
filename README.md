@@ -13,9 +13,12 @@ Website, printout uploads (Annapurna Graphics and Internet), an expense tracker 
 | `/admin/print/qr` | Printout → QR poster for the counter (print it or download the QR code) |
 | `/admin/print/activity` | Printout → Activity (admins and the super admin only) |
 | `/admin/expenses` | Expense Tracker → Overview: money in and out for a month, what customers still owe, what drivers are still owed, figures per vehicle |
-| `/admin/expenses/bookings` | Expense Tracker → Bookings: list with tabs and search; **New booking**; each booking's page has payments, fuel, repairs and its history |
-| `/admin/expenses/fleet` | Expense Tracker → Vehicles & drivers. Each vehicle has its own page (rename, switch off, loan/EMI, insurance, fuel, repairs, bookings); each driver too (`/admin/expenses/fleet/drivers/…`: edit, switch off, earned, paid, still to pay, payments, bookings) |
-| `/admin/expenses/reports` | Expense Tracker → Reports: download a month's bookings, payments, fuel & repairs, or vehicle summary as CSV |
+| `/admin/expenses/bookings` | Expense Tracker → Bookings: list with tabs and search; **New booking**; each booking's page has payments, fuel, other expenses (tolls, parking…) and its history |
+| `/admin/expenses/repairs` | Expense Tracker → Repairs: a month's repairs and servicing over every vehicle (or one), each vehicle's total, and **Add repair** |
+| `/admin/expenses/fastag` | Expense Tracker → FASTag: a month's FASTag recharges over every vehicle (or one), and **Add recharge** |
+| `/admin/expenses/emi` | Expense Tracker → EMI & insurance: every vehicle's loan and policy, reminders, **Mark EMI paid** and **Renew policy** |
+| `/admin/expenses/fleet` | Expense Tracker → Vehicles & drivers. Each vehicle has its own page (rename, switch off, loan/EMI, insurance, fuel, repairs, FASTag, bookings); each driver too (`/admin/expenses/fleet/drivers/…`: edit, switch off, earned, paid, still to pay, payments, bookings) |
+| `/admin/expenses/reports` | Expense Tracker → Reports: download a month's bookings, drivers or repairs report as CSV |
 | `/admin/expenses/activity` | Expense Tracker → Activity (admins and the super admin only) |
 | `/admin/cars` | Car Bookings (hidden from the sidebar: only legal with yellow-plate cars; pages kept, see `components/admin/Sidebar.tsx`) → Overview: counts, enquiries needing attention, fleet status, upcoming trips |
 | `/admin/cars/bookings` | Car Bookings → all enquiries and bookings, with filters and actions |
@@ -158,25 +161,34 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 
 - **Vehicles & drivers:** add vehicles (a name, cars only for now) and drivers (name and mobile number) on the list; open one to edit it, switch it off or delete it. One that already has bookings can't be deleted, only switched off: it disappears from new bookings and keeps its history. A driver's page shows what they earned, were paid and are still owed, with each payment and booking.
 - **New booking:** customer name and mobile, vehicle, driver, start and end date, pickup state and city, drop state and city, and who referred the customer (optional). For a **round trip** the drop is the pickup city, and the form asks where the vehicle went instead. The city list depends on the state; a place that isn't in the list can be typed in. The total, advance, driver's amount and starting odometer can be entered now or later.
-- **Loan (EMI) and insurance**, on each vehicle's page (Vehicles & drivers → the vehicle):
+- **Loan (EMI) and insurance**, on the **EMI & insurance** page (all vehicles) and on each vehicle's page:
   - *Loan:* bank or finance company, EMI amount, due day, first and last EMI month. **Mark EMI paid** records a month's EMI (one per month); the page shows EMIs paid, left and still to pay, and whether this month's is paid, due or overdue.
   - *Insurance:* company, policy number, premium, valid from/to. **Renew policy** fills in the next year's dates and records the premium as paid.
   - The Overview shows **reminders** for this month's unpaid EMIs and for insurance that has expired or expires within 30 days.
-  - EMI and insurance payments count as vehicle costs: in Money out, each vehicle's monthly profit, and the reports (not in a single booking's profit).
+  - EMI and insurance payments count as vehicle costs: in Money out and each vehicle's monthly profit on the Overview (not in a single booking's profit).
 - **Clashes:** a vehicle can't have two bookings on the same days (the database refuses it too). A driver who is already on another booking gets a warning, and you can save anyway.
 - **On the booking's page:**
   - odometer readings at start and end (km travelled is worked out), or with **Enter km directly** switched on, just the km travelled; plus the total from the customer and the amount for the driver
   - **Expense statement (PDF):** a one-page PDF for the customer from Annapurna Graphics and Internet, with the total, each payment received (date and how it was paid) and the balance to pay, or "Fully paid". It's called an expense statement, never an invoice or bill (no GST registration), and only shows amounts: no vehicle, driver, route or payment notes. It appears once the total is entered, anyone signed in can download it, and each download is recorded in Activity. The text uses Noto Sans (`assets/fonts`, SIL Open Font License) so the ₹ sign prints.
   - **Send balance on WhatsApp:** opens a WhatsApp chat with the customer and a ready message from Annapurna Graphics and Internet with the total, paid and balance to pay (only the amounts: it doesn't mention travels or car hire). When fully paid, it says thank you instead.
   - customer payments and payments to the driver, each with its amount, method (cash, UPI, bank, other), date and time, and who recorded it
-  - fuel (amount, litres) and repairs or servicing such as engine oil (what was done, amount, shop name, state and city)
+  - fuel filled for the trip (amount, litres)
+  - **other expenses** such as tolls, parking, permits or the driver's food: choose the name from the list (Toll, Parking, State permit / entry tax, Driver food, Driver room, Car wash, Fine / challan, plus names typed on earlier bookings) or type a new one, with the amount, date and a note
   - its full history from the activity log
+- **Repairs and FASTag** belong to the vehicle, not a booking. Add them on the **Repairs** and **FASTag** pages (choose the vehicle) or on the vehicle's page:
+  - repairs or servicing such as engine oil: what was done, amount, date, shop name, state and city
+  - FASTag recharges: amount, date, the FASTag bank or app
+  - Both pages show one month at a time (‹ › to move), filter by vehicle, and each vehicle's total.
 - **Payment status:** *Paid*, *Partly paid* or *Payment due* is worked out from the total and the payments, never typed in.
-- **Profit:** on money actually received: received from the customer − driver amount − fuel − repairs (per vehicle and month, also − EMI − insurance). The driver amount is the agreed one, even before it's paid. While a balance is still due, the booking page also shows the profit once fully paid (total instead of received), and the bookings report has both columns. Per vehicle and month: received for bookings starting in the month − their driver amounts − fuel, repairs, EMI and insurance paid in the month.
-- **Removing entries:** a payment, fuel, repair, EMI or premium entered by mistake can be removed. It stays on the page crossed out, with who removed it and when.
+- **Profit:** on money actually received. A booking: received from the customer − driver amount − fuel − other expenses. A vehicle for the month also takes off repairs, FASTag, EMI and insurance. The driver amount is the agreed one, even before it's paid. While a balance is still due, the booking page also shows the profit once fully paid (total instead of received), and the bookings report has both columns. Per vehicle and month: received for bookings starting in the month − their driver amounts − fuel, other booking expenses, repairs, FASTag, EMI and insurance paid in the month.
+- **Removing entries:** a payment, fuel, repair, FASTag recharge, EMI or premium entered by mistake can be removed. It stays on the page crossed out, with who removed it and when.
 - **Booking numbers:** VB-0001, VB-0002, … (VB-10000 after VB-9999)
-- **Reports:** pick a month and download CSV files (open in Excel or Google Sheets): bookings starting in the month, payments made in the month, vehicle costs (fuel, repairs, EMI, insurance) paid in the month, and a per-vehicle summary. Amounts are plain numbers in rupees. Each download is recorded in Activity.
-- **Sample data:** `npm run db:seed-expenses` adds 3 vehicles, 3 drivers and 25 bookings with payments, fuel and repairs (dates around today, marked with a *Sample* badge). `npm run db:seed-expenses -- --clear` removes them; booking numbers then carry on from the last booking left (VB-0001 when none are left), so removed samples don't use up numbers.
+- **Reports:** pick a month and download CSV files (open in Excel or Google Sheets):
+  - *Bookings report*: every booking starting in the month, with amounts, fuel, other expenses and profit, and each toll, parking or other expense listed
+  - *Drivers report*: each driver's bookings, days, km, agreed amount, paid and still to pay; their bookings one by one; payments made to drivers in the month
+  - *Repairs report*: every repair in the month and each vehicle's total
+  - Amounts are plain numbers in rupees. Each download is recorded in Activity.
+- **Sample data:** `npm run db:seed-expenses` adds 3 vehicles, 3 drivers and 25 bookings with payments, fuel, repairs and FASTag recharges (dates around today, marked with a *Sample* badge). `npm run db:seed-expenses -- --clear` removes them; booking numbers then carry on from the last booking left (VB-0001 when none are left), so removed samples don't use up numbers.
 - **Cities:** the list of states and cities is `lib/expenses/india-places.json`, built by `node scripts/india-places.mjs` from the [countries-states-cities database](https://github.com/dr5hn/countries-states-cities-database) (Open Database License, free for commercial use with this credit).
 
 ## Users & roles
@@ -256,7 +268,7 @@ lib/
   print/orders.ts                print orders, upload slots, limits
   print/storage.ts               Vercel Blob or local folder
   print/qr.ts                    counter QR code with the logo
-  expenses/trips.ts              Expense Tracker bookings, payments, fuel and repairs
+  expenses/trips.ts              Expense Tracker bookings, payments and vehicle costs (fuel, repairs, FASTag, EMI, insurance)
   expenses/fleet.ts              vehicles and drivers
   expenses/overview.ts           monthly figures and amounts owed
   expenses/places.ts             Indian states (cities in india-places.json)

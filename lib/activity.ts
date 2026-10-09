@@ -39,6 +39,8 @@ const ACTION_MODULES = {
   "payment.removed": "expenses",
   "expense.fuel_added": "expenses",
   "expense.repair_added": "expenses",
+  "expense.fastag_added": "expenses",
+  "expense.other_added": "expenses",
   "expense.removed": "expenses",
   "expense.emi_paid": "expenses",
   "expense.insurance_paid": "expenses",

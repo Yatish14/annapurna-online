@@ -2,9 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { logActivity } from "@/lib/activity";
 import { currentUser } from "@/lib/auth";
 import { toCsv } from "@/lib/csv";
-import { buildMonthlyReport, monthLabel } from "@/lib/expenses/reports";
+import { buildReport, isReportType, monthLabel } from "@/lib/expenses/reports";
 
-/** /admin/expenses/reports/download?month=2026-10 → the month's report as a CSV file (signed-in users only) */
+/**
+ * /admin/expenses/reports/download?month=2026-10&type=drivers → that report as a CSV file (signed-in users only).
+ * Types: bookings, drivers, repairs.
+ */
 export async function GET(req: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
@@ -13,15 +16,13 @@ export async function GET(req: NextRequest) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     return new NextResponse("Unknown month.", { status: 400 });
   }
+  const type = req.nextUrl.searchParams.get("type");
+  if (!isReportType(type)) {
+    return new NextResponse("Unknown report.", { status: 400 });
+  }
 
-  const report = await buildMonthlyReport(month);
-  const { bookings, payments, costs } = report.counts;
-  await logActivity(
-    user,
-    "report.downloaded",
-    monthLabel(month),
-    `Monthly report · ${bookings} booking${bookings === 1 ? "" : "s"}, ${payments} payment${payments === 1 ? "" : "s"}, ${costs} cost${costs === 1 ? "" : "s"}`,
-  );
+  const report = await buildReport(type, month);
+  await logActivity(user, "report.downloaded", monthLabel(month), `${report.title} · ${report.contents}`);
 
   return new NextResponse(toCsv(report.rows), {
     headers: {

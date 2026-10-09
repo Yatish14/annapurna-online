@@ -19,7 +19,7 @@ export default async function NewTripPage() {
       <PageHeader
         eyebrow="Expense Tracker"
         title="New booking"
-        subtitle="Kilometres, payments, fuel and repairs can be added on the booking's page afterwards."
+        subtitle="Kilometres, payments and fuel can also be added on the booking's page afterwards."
       />
       <TripForm initial={EMPTY_TRIP} vehicles={vehicles} drivers={drivers} cancelHref="/admin/expenses/bookings" />
     </main>

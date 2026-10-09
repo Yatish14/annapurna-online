@@ -300,7 +300,7 @@ CREATE TABLE IF NOT EXISTS trip_payments (
 CREATE INDEX IF NOT EXISTS trip_payments_trip_idx ON trip_payments (trip_id, paid_at);
 
 -- Running costs of a vehicle: fuel filled, and repairs or servicing (engine oil, tyres…).
--- trip_id is set when the cost belongs to a booking.
+-- trip_id is set when fuel was filled for a booking.
 CREATE TABLE IF NOT EXISTS vehicle_expenses (
   id          bigserial PRIMARY KEY,
   vehicle_id  bigint NOT NULL REFERENCES vehicles (id),
@@ -351,9 +351,9 @@ ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_premium numeric(12, 2) C
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_from date;
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_to date;
 
--- EMI and insurance payments are vehicle costs too; an EMI payment says which month it's for
+-- EMI and insurance payments, and FASTag recharges, are vehicle costs too; an EMI payment says which month it's for
 ALTER TABLE vehicle_expenses DROP CONSTRAINT IF EXISTS vehicle_expenses_kind_check;
-ALTER TABLE vehicle_expenses ADD CONSTRAINT vehicle_expenses_kind_check CHECK (kind IN ('fuel', 'repair', 'emi', 'insurance'));
+ALTER TABLE vehicle_expenses ADD CONSTRAINT vehicle_expenses_kind_check CHECK (kind IN ('fuel', 'repair', 'emi', 'insurance', 'fastag', 'other'));
 ALTER TABLE vehicle_expenses ADD COLUMN IF NOT EXISTS period date;
 -- One EMI payment per vehicle per month (a removed one doesn't count)
 CREATE UNIQUE INDEX IF NOT EXISTS vehicle_expenses_emi_month ON vehicle_expenses (vehicle_id, period)
@@ -361,3 +361,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS vehicle_expenses_emi_month ON vehicle_expenses
 
 -- Km travelled typed in directly, for bookings without odometer readings (used only when there are no readings)
 ALTER TABLE trips ADD COLUMN IF NOT EXISTS km_direct int CHECK (km_direct BETWEEN 0 AND 999999);
+
+-- Fuel and a booking's other expenses (tolls, parking… named in description) belong to a booking;
+-- repairs, FASTag, EMI and insurance belong to the vehicle alone
+UPDATE vehicle_expenses SET trip_id = NULL WHERE kind NOT IN ('fuel', 'other') AND trip_id IS NOT NULL;
+ALTER TABLE vehicle_expenses DROP CONSTRAINT IF EXISTS vehicle_expenses_trip_fuel_only;
+ALTER TABLE vehicle_expenses DROP CONSTRAINT IF EXISTS vehicle_expenses_trip_kinds;
+ALTER TABLE vehicle_expenses ADD CONSTRAINT vehicle_expenses_trip_kinds CHECK (
+  (trip_id IS NULL OR kind IN ('fuel', 'other')) AND (kind <> 'other' OR (trip_id IS NOT NULL AND description IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS vehicle_expenses_kind_idx ON vehicle_expenses (kind, spent_on DESC);

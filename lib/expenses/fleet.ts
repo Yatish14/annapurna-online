@@ -13,7 +13,10 @@ export type Vehicle = {
   trips: number;
   km: number;
   fuel: number;
+  /** Other expenses of its bookings: tolls, parking… */
+  other: number;
   repairs: number;
+  fastag: number;
   /** Booking number if the vehicle is out on a trip today */
   on_trip: string | null;
   /** Anything recorded against it; vehicles without history can be deleted outright */
@@ -47,7 +50,11 @@ const VEHICLE_COLUMNS = `
   (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
      WHERE e.vehicle_id = v.id AND e.kind = 'fuel' AND e.deleted_at IS NULL) AS fuel,
   (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
+     WHERE e.vehicle_id = v.id AND e.kind = 'other' AND e.deleted_at IS NULL) AS other,
+  (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
      WHERE e.vehicle_id = v.id AND e.kind = 'repair' AND e.deleted_at IS NULL) AS repairs,
+  (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
+     WHERE e.vehicle_id = v.id AND e.kind = 'fastag' AND e.deleted_at IS NULL) AS fastag,
   (SELECT t.trip_no FROM trips t WHERE t.vehicle_id = v.id AND t.status = 'booked'
      AND ${TODAY} BETWEEN t.start_date AND t.end_date LIMIT 1) AS on_trip,
   (EXISTS (SELECT 1 FROM trips t WHERE t.vehicle_id = v.id)

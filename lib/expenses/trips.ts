@@ -47,8 +47,10 @@ export type Trip = {
   received: number;
   /** Paid to the driver so far */
   driver_paid: number;
+  /** Fuel filled for this booking (repairs, FASTag, EMI and insurance belong to the vehicle, not a booking) */
   fuel: number;
-  repairs: number;
+  /** The booking's other expenses: tolls, parking… */
+  other: number;
   created_ist: string;
   created_by: string | null;
   updated_ist: string | null;
@@ -122,17 +124,18 @@ export function driverOwed(t: Pick<Trip, "driver_amount" | "driver_paid">): numb
 
 /**
  * What the booking has earned so far, on money actually received:
- * received from the customer − driver amount − fuel − repairs.
+ * received from the customer − driver amount − fuel − other expenses (tolls, parking…).
  * The driver amount is the agreed one (not only what's paid yet), so an unpaid driver doesn't inflate it.
+ * Repairs, FASTag, EMI and insurance are the vehicle's costs: they count in the vehicle's profit, not a booking's.
  */
-export function profitOf(t: Pick<Trip, "received" | "driver_amount" | "fuel" | "repairs">): number {
-  return t.received - (t.driver_amount ?? 0) - t.fuel - t.repairs;
+export function profitOf(t: Pick<Trip, "received" | "driver_amount" | "fuel" | "other">): number {
+  return t.received - (t.driver_amount ?? 0) - t.fuel - t.other;
 }
 
 /** The profit once the customer pays the full total (null until the total is entered) */
-export function profitWhenPaid(t: Pick<Trip, "total_amount" | "driver_amount" | "fuel" | "repairs">): number | null {
+export function profitWhenPaid(t: Pick<Trip, "total_amount" | "driver_amount" | "fuel" | "other">): number | null {
   if (t.total_amount === null) return null;
-  return t.total_amount - (t.driver_amount ?? 0) - t.fuel - t.repairs;
+  return t.total_amount - (t.driver_amount ?? 0) - t.fuel - t.other;
 }
 
 /** "Vijayawada → Hyderabad", or for a round trip "Vijayawada → Araku → Vijayawada" */
@@ -155,11 +158,11 @@ const TRIP_COLUMNS = `
               WHEN t.start_date > ${TODAY} THEN 'upcoming'
               WHEN t.end_date < ${TODAY} THEN 'completed'
               ELSE 'ongoing' END AS phase,
-         pay.received, pay.driver_paid, cost.fuel, cost.repairs, t.created_by, t.updated_by,
+         pay.received, pay.driver_paid, cost.fuel, cost.other, t.created_by, t.updated_by,
          to_char(t.created_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY, HH12:MI AM') AS created_ist,
          to_char(t.updated_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY, HH12:MI AM') AS updated_ist`;
 
-/** Bookings with their vehicle, driver, payment totals (pay.*) and fuel and repair totals (cost.*) */
+/** Bookings with their vehicle, driver, payment totals (pay.*) and fuel and other expense totals (cost.*) */
 const TRIP_FROM = `
   FROM trips t
   JOIN vehicles v ON v.id = t.vehicle_id
@@ -171,7 +174,7 @@ const TRIP_FROM = `
   ) pay
   CROSS JOIN LATERAL (
     SELECT coalesce(sum(e.amount) FILTER (WHERE e.kind = 'fuel'), 0)::float8 AS fuel,
-           coalesce(sum(e.amount) FILTER (WHERE e.kind = 'repair'), 0)::float8 AS repairs
+           coalesce(sum(e.amount) FILTER (WHERE e.kind = 'other'), 0)::float8 AS other
     FROM vehicle_expenses e WHERE e.trip_id = t.id AND e.deleted_at IS NULL
   ) cost`;
 
@@ -375,7 +378,7 @@ export type UpdateResult =
   | { ok: false; reason: "missing" }
   | { ok: false; reason: "vehicle-busy"; clash: Clash | null };
 
-/** Saves edited booking details. Fuel and repair costs of the booking move with it to a new vehicle. */
+/** Saves edited booking details. Its fuel and other expenses move with it to a new vehicle. */
 export async function updateTrip(id: number, input: TripInput, by: string): Promise<UpdateResult> {
   const before = await getTripById(id);
   if (!before) return { ok: false, reason: "missing" };
@@ -524,11 +527,18 @@ export function paymentText(p: { amount: number; method: PaymentMethod; note?: s
   return [formatRupees(p.amount), PAYMENT_METHODS[p.method], p.note].filter(Boolean).join(" · ");
 }
 
-// ---------- Vehicle costs: fuel, repairs, EMI and insurance payments ----------
+// ---------- Costs: fuel and other expenses of a booking; repairs, FASTag, EMI and insurance of a vehicle ----------
 
-export type ExpenseKind = "fuel" | "repair" | "emi" | "insurance";
+export type ExpenseKind = "fuel" | "other" | "repair" | "fastag" | "emi" | "insurance";
 
-export const EXPENSE_LABELS: Record<ExpenseKind, string> = { fuel: "Fuel", repair: "Repair", emi: "EMI", insurance: "Insurance" };
+export const EXPENSE_LABELS: Record<ExpenseKind, string> = {
+  fuel: "Fuel",
+  other: "Other expense",
+  repair: "Repair",
+  fastag: "FASTag",
+  emi: "EMI",
+  insurance: "Insurance",
+};
 
 export type Expense = {
   id: number;
@@ -584,6 +594,63 @@ export async function vehicleExpenses(
   return { expenses, total, sum };
 }
 
+/** Total of one kind of cost for one vehicle in a month */
+export type VehicleCostTotal = { vehicle_id: number; vehicle_name: string; entries: number; amount: number };
+
+/**
+ * One page of repairs or FASTag recharges over every vehicle (or one), dated in a month ("YYYY-MM"), newest first,
+ * with the month's total and each vehicle's share. Removed entries are listed but not counted.
+ */
+export async function listCosts(
+  kind: ExpenseKind,
+  { month, vehicleId = null, page = 1, pageSize = 10 }: { month: string; vehicleId?: number | null; page?: number; pageSize?: number },
+): Promise<{ expenses: Expense[]; total: number; sum: number; byVehicle: VehicleCostTotal[] }> {
+  const where = `e.kind = $1 AND e.spent_on >= $2::date AND e.spent_on < ($2::date + interval '1 month')::date`;
+  const params = [kind, `${month}-01`];
+  const [[{ total, sum }], byVehicle] = await Promise.all([
+    query<{ total: number; sum: number }>(
+      `SELECT count(*)::int AS total, coalesce(sum(e.amount) FILTER (WHERE e.deleted_at IS NULL), 0)::float8 AS sum
+       FROM vehicle_expenses e WHERE ${where} AND ($3::bigint IS NULL OR e.vehicle_id = $3)`,
+      [...params, vehicleId],
+    ),
+    query<VehicleCostTotal>(
+      `SELECT v.id::int AS vehicle_id, v.name AS vehicle_name, count(*)::int AS entries, sum(e.amount)::float8 AS amount
+       FROM vehicle_expenses e JOIN vehicles v ON v.id = e.vehicle_id
+       WHERE ${where} AND e.deleted_at IS NULL
+       GROUP BY v.id, v.name ORDER BY sum(e.amount) DESC, lower(v.name)`,
+      params,
+    ),
+  ]);
+  const expenses = await query<Expense>(
+    `${EXPENSE_SELECT} WHERE ${where} AND ($3::bigint IS NULL OR e.vehicle_id = $3)
+     ORDER BY e.spent_on DESC, e.id DESC LIMIT $4 OFFSET $5`,
+    [...params, vehicleId, pageSize, (Math.max(1, page) - 1) * pageSize],
+  );
+  return { expenses, total, sum, byVehicle };
+}
+
+/** Suggested names for a booking's other expenses (any other name can be typed in) */
+export const OTHER_EXPENSE_NAMES = [
+  "Toll",
+  "Parking",
+  "State permit / entry tax",
+  "Driver food",
+  "Driver room",
+  "Car wash",
+  "Fine / challan",
+] as const;
+
+/** The suggested names, then names typed in on earlier bookings (most used first) */
+export async function otherExpenseNames(): Promise<string[]> {
+  const used = await query<{ name: string }>(
+    `SELECT min(description) AS name FROM vehicle_expenses
+     WHERE kind = 'other' AND description IS NOT NULL AND deleted_at IS NULL
+     GROUP BY lower(description) ORDER BY count(*) DESC, lower(min(description)) LIMIT 30`,
+  );
+  const known = new Set<string>(OTHER_EXPENSE_NAMES.map((n) => n.toLowerCase()));
+  return [...OTHER_EXPENSE_NAMES, ...used.map((u) => u.name).filter((n) => !known.has(n.toLowerCase()))];
+}
+
 export type ExpenseInput = {
   kind: ExpenseKind;
   amount: number;
@@ -599,7 +666,7 @@ export type ExpenseInput = {
 };
 
 /**
- * Adds fuel or a repair, either to a booking (the booking's vehicle is used) or to a vehicle directly.
+ * Adds a cost, either fuel to a booking (the booking's vehicle is used) or any cost to a vehicle directly.
  * Returns the booking number or vehicle name for the activity log, or null if it no longer exists.
  */
 export async function addExpense(
@@ -639,7 +706,10 @@ export async function removeExpense(id: number, by: string): Promise<Expense | n
   return expense ?? null;
 }
 
-/** "₹3,500 · 35 L", "₹2,400 · Engine oil change · Sai Motors, Guntur", "₹18,500 · EMI for October 2026 · HDFC Bank" */
+/**
+ * "₹3,500 · 35 L", "₹2,400 · Engine oil change · Sai Motors, Guntur", "₹1,000 · FASTag recharge · Paytm",
+ * "₹18,500 · EMI for October 2026 · HDFC Bank"
+ */
 export function expenseText(
   e: Pick<Expense, "kind" | "amount" | "litres" | "description" | "shop_name" | "shop_city" | "shop_state" | "note"> & { period?: string | null },
 ): string {
@@ -652,7 +722,11 @@ export function expenseText(
         ? [formatRupees(e.amount), month ? `EMI for ${month}` : "EMI", e.description, e.note]
         : e.kind === "insurance"
           ? [formatRupees(e.amount), "Insurance premium", e.description, e.note]
-          : [formatRupees(e.amount), e.description, [e.shop_name, place].filter(Boolean).join(", ") || null, e.note];
+          : e.kind === "fastag"
+            ? [formatRupees(e.amount), "FASTag recharge", e.description, e.note]
+            : e.kind === "other"
+              ? [formatRupees(e.amount), e.description, e.note]
+            : [formatRupees(e.amount), e.description, [e.shop_name, place].filter(Boolean).join(", ") || null, e.note];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -660,6 +734,7 @@ export function expenseText(
 
 const MONTH_START = `$1::date`;
 const MONTH_END = `($1::date + interval '1 month')::date`;
+const IN_MONTH_START = `b.start_date >= ${MONTH_START} AND b.start_date < ${MONTH_END}`;
 
 /** Every booking (cancelled too) starting in the month ("YYYY-MM"), by date */
 export async function tripsStartingIn(month: string): Promise<Trip[]> {
@@ -700,11 +775,21 @@ export async function paymentsIn(month: string): Promise<PaymentRow[]> {
   );
 }
 
-/** Every fuel and repair entry (removed ones too) dated in the month */
-export async function expensesIn(month: string): Promise<Expense[]> {
+/** Other expenses (removed ones too) of the bookings starting in the month, booking by booking */
+export async function otherExpensesForMonth(month: string): Promise<Expense[]> {
   return query<Expense>(
-    `${EXPENSE_SELECT} WHERE e.spent_on >= ${MONTH_START} AND e.spent_on < ${MONTH_END} ORDER BY e.spent_on, e.id`,
+    `${EXPENSE_SELECT} WHERE e.kind = 'other' AND t.start_date >= ${MONTH_START} AND t.start_date < ${MONTH_END}
+     ORDER BY t.start_date, t.id, e.spent_on, e.id`,
     [`${month}-01`],
+  );
+}
+
+/** Every vehicle cost (removed ones too) dated in the month; only one kind when given */
+export async function expensesIn(month: string, kind: ExpenseKind | null = null): Promise<Expense[]> {
+  return query<Expense>(
+    `${EXPENSE_SELECT} WHERE e.spent_on >= ${MONTH_START} AND e.spent_on < ${MONTH_END} AND ($2::text IS NULL OR e.kind = $2)
+     ORDER BY e.spent_on, e.id`,
+    [`${month}-01`, kind],
   );
 }
 
@@ -738,6 +823,57 @@ export async function driverSummary(driverId: number): Promise<DriverSummary> {
     [driverId],
   );
   return row;
+}
+
+/** A driver's figures for one month */
+export type DriverMonth = {
+  id: number;
+  name: string;
+  phone: string;
+  active: boolean;
+  /** Bookings starting in the month (not cancelled), their days, km and agreed driver amounts */
+  bookings: number;
+  days: number;
+  km: number;
+  earned: number;
+  /** Paid so far for those bookings, and still to pay for them */
+  paidForMonth: number;
+  owedForMonth: number;
+  /** Payments made to the driver during the month, for any booking */
+  paidInMonth: number;
+  /** Still to pay over all bookings, any month */
+  owedAll: number;
+};
+
+/** Every driver in use, plus switched-off drivers who drove or were paid in the month ("YYYY-MM") */
+export async function driversMonth(month: string): Promise<DriverMonth[]> {
+  const rows = await query<DriverMonth>(
+    `WITH b AS (
+       SELECT t.id, t.driver_id, t.start_date, t.end_date, t.driver_amount,
+              coalesce(t.odometer_end - t.odometer_start, t.km_direct) AS km,
+              (SELECT coalesce(sum(p.amount), 0) FROM trip_payments p
+               WHERE p.trip_id = t.id AND p.party = 'driver' AND p.deleted_at IS NULL) AS paid
+       FROM trips t WHERE t.status = 'booked'
+     )
+     SELECT d.id::int AS id, d.name, d.phone, d.active,
+            count(b.id) FILTER (WHERE ${IN_MONTH_START})::int AS bookings,
+            coalesce(sum(b.end_date - b.start_date + 1) FILTER (WHERE ${IN_MONTH_START}), 0)::int AS days,
+            coalesce(sum(b.km) FILTER (WHERE ${IN_MONTH_START}), 0)::int AS km,
+            coalesce(sum(b.driver_amount) FILTER (WHERE ${IN_MONTH_START}), 0)::float8 AS earned,
+            coalesce(sum(b.paid) FILTER (WHERE ${IN_MONTH_START}), 0)::float8 AS "paidForMonth",
+            coalesce(sum(greatest(coalesce(b.driver_amount, 0) - b.paid, 0)) FILTER (WHERE ${IN_MONTH_START}), 0)::float8 AS "owedForMonth",
+            (SELECT coalesce(sum(p.amount), 0)::float8 FROM trip_payments p JOIN trips t ON t.id = p.trip_id
+             WHERE t.driver_id = d.id AND p.party = 'driver' AND p.deleted_at IS NULL
+               AND (p.paid_at AT TIME ZONE 'Asia/Kolkata')::date >= ${MONTH_START}
+               AND (p.paid_at AT TIME ZONE 'Asia/Kolkata')::date < ${MONTH_END}) AS "paidInMonth",
+            coalesce(sum(greatest(coalesce(b.driver_amount, 0) - b.paid, 0)), 0)::float8 AS "owedAll"
+     FROM drivers d
+     LEFT JOIN b ON b.driver_id = d.id
+     GROUP BY d.id
+     ORDER BY d.active DESC, lower(d.name)`,
+    [`${month}-01`],
+  );
+  return rows.filter((d) => d.active || d.bookings || d.paidInMonth);
 }
 
 /** One page of a driver's bookings, newest first */

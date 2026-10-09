@@ -4,7 +4,7 @@ import { query } from "../db";
  * Figures for one month ("YYYY-MM"):
  * - bookings, km, billed and driver amounts: bookings starting in the month
  * - received and paid to drivers: payments made in the month
- * - fuel, repairs, EMI and insurance: payments dated in the month
+ * - fuel, other booking expenses (tolls, parking…), repairs, FASTag, EMI and insurance: payments dated in the month
  */
 export type MonthSummary = {
   bookings: number;
@@ -14,7 +14,10 @@ export type MonthSummary = {
   received: number;
   driverPaid: number;
   fuel: number;
+  /** Bookings' other expenses: tolls, parking… */
+  other: number;
   repairs: number;
+  fastag: number;
   emi: number;
   insurance: number;
 };
@@ -30,14 +33,22 @@ export type VehicleMonth = {
   received: number;
   driverAmount: number;
   fuel: number;
+  /** Bookings' other expenses: tolls, parking… */
+  other: number;
   repairs: number;
+  fastag: number;
   emi: number;
   insurance: number;
 };
 
-/** A vehicle's profit for the month, on money actually received: received − driver amounts − fuel − repairs − EMI − insurance */
-export function vehicleProfit(v: Pick<VehicleMonth, "received" | "driverAmount" | "fuel" | "repairs" | "emi" | "insurance">): number {
-  return v.received - v.driverAmount - v.fuel - v.repairs - v.emi - v.insurance;
+/**
+ * A vehicle's profit for the month, on money actually received:
+ * received − driver amounts − fuel − other booking expenses − repairs − FASTag − EMI − insurance
+ */
+export function vehicleProfit(
+  v: Pick<VehicleMonth, "received" | "driverAmount" | "fuel" | "other" | "repairs" | "fastag" | "emi" | "insurance">,
+): number {
+  return v.received - v.driverAmount - v.fuel - v.other - v.repairs - v.fastag - v.emi - v.insurance;
 }
 
 /** Money still to come in from customers, and still to be paid to drivers, over all bookings */
@@ -61,7 +72,11 @@ export async function monthSummary(month: string): Promise<MonthSummary> {
        (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
           WHERE e.kind = 'fuel' AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}) AS fuel,
        (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
+          WHERE e.kind = 'other' AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}) AS other,
+       (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
           WHERE e.kind = 'repair' AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}) AS repairs,
+       (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
+          WHERE e.kind = 'fastag' AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}) AS fastag,
        (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
           WHERE e.kind = 'emi' AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}) AS emi,
        (SELECT coalesce(sum(e.amount), 0)::float8 FROM vehicle_expenses e
@@ -78,7 +93,7 @@ export async function vehiclesMonth(month: string): Promise<VehicleMonth[]> {
        coalesce(tr.bookings, 0)::int AS bookings, coalesce(tr.km, 0)::int AS km,
        coalesce(tr.billed, 0)::float8 AS billed, coalesce(tr.received, 0)::float8 AS received,
        coalesce(tr.driver_amount, 0)::float8 AS "driverAmount",
-       coalesce(ex.fuel, 0)::float8 AS fuel, coalesce(ex.repairs, 0)::float8 AS repairs,
+       coalesce(ex.fuel, 0)::float8 AS fuel, coalesce(ex.other, 0)::float8 AS other, coalesce(ex.repairs, 0)::float8 AS repairs, coalesce(ex.fastag, 0)::float8 AS fastag,
        coalesce(ex.emi, 0)::float8 AS emi, coalesce(ex.insurance, 0)::float8 AS insurance
      FROM vehicles v
      LEFT JOIN LATERAL (
@@ -90,13 +105,14 @@ export async function vehiclesMonth(month: string): Promise<VehicleMonth[]> {
      ) tr ON true
      LEFT JOIN LATERAL (
        SELECT sum(e.amount) FILTER (WHERE e.kind = 'fuel') AS fuel, sum(e.amount) FILTER (WHERE e.kind = 'repair') AS repairs,
+              sum(e.amount) FILTER (WHERE e.kind = 'fastag') AS fastag, sum(e.amount) FILTER (WHERE e.kind = 'other') AS other,
               sum(e.amount) FILTER (WHERE e.kind = 'emi') AS emi, sum(e.amount) FILTER (WHERE e.kind = 'insurance') AS insurance
        FROM vehicle_expenses e WHERE e.vehicle_id = v.id AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}
      ) ex ON true
      ORDER BY v.active DESC, lower(v.name)`,
     [`${month}-01`],
   );
-  return rows.filter((v) => v.active || v.bookings || v.fuel || v.repairs || v.emi || v.insurance);
+  return rows.filter((v) => v.active || v.bookings || v.fuel || v.other || v.repairs || v.fastag || v.emi || v.insurance);
 }
 
 export async function outstanding(): Promise<Outstanding> {

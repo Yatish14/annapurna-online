@@ -1,5 +1,5 @@
 // Adds sample Expense Tracker data (vehicles with loans and insurance, drivers, bookings, payments, fuel,
-// repairs, EMIs and their activity)
+// tolls and other booking expenses, repairs, FASTag recharges, EMIs and their activity)
 // so every page and report has something to show:
 //   npm run db:seed-expenses              add / refresh the samples
 //   npm run db:seed-expenses -- --clear   remove them again
@@ -100,6 +100,17 @@ const VEHICLE_REPAIRS = [
   [0, -10, 1200, "Wheel alignment and balancing", "Sri Sai Wheel Care", "Andhra Pradesh", "Vijayawada"],
 ];
 
+// FASTag recharges: vehicle, days from today, amount, bank or app
+const VEHICLE_FASTAG = [
+  [0, -72, 1000, "Paytm"],
+  [1, -64, 1500, "ICICI FASTag"],
+  [2, -41, 1000, "Paytm"],
+  [0, -34, 2000, "Paytm"],
+  [1, -16, 1000, "ICICI FASTag"],
+  [2, -13, 1500, "Paytm"],
+  [0, -3, 1000, "Paytm"],
+];
+
 const db = await connect();
 await db.exec(schemaSql);
 
@@ -176,7 +187,7 @@ for (const [name, phone] of DRIVERS) {
   await log(at(-90, "10:05"), "driver.created", `${name} (${phone})`);
 }
 
-const counts = { trips: 0, payments: 0, fuel: 0, repairs: 0, emi: 0, insurance: 0 };
+const counts = { trips: 0, payments: 0, fuel: 0, other: 0, repairs: 0, fastag: 0, emi: 0, insurance: 0 };
 
 // ---------- Loans (EMI) and insurance ----------
 const thisMonth = todayIST.slice(0, 7);
@@ -317,19 +328,24 @@ for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
     await log(when, party === "driver" ? "payment.driver_paid" : "payment.received", trip.trip_no,
       [rupees(amount), label, note, party === "driver" ? `to ${driverName}` : null].filter(Boolean).join(" · "));
   }
+  // Fuel and other expenses (tolls, parking) belong to the booking; a repair on the way belongs to the vehicle only
   async function spend(kind, amount, when, fields) {
     await db.query(
       `INSERT INTO vehicle_expenses (vehicle_id, trip_id, kind, amount, spent_on, litres, description, shop_name, shop_state, shop_city,
                                      created_at, created_by, is_sample)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true)`,
-      [vehicleIds[vi], trip.id, kind, amount, when.slice(0, 10), fields.litres ?? null, fields.description ?? null,
+      [vehicleIds[vi], kind === "fuel" || kind === "other" ? trip.id : null, kind, amount, when.slice(0, 10), fields.litres ?? null, fields.description ?? null,
         fields.shop ?? null, fields.state ?? null, fields.city ?? null, when, actor.name],
     );
-    counts[kind === "fuel" ? "fuel" : "repairs"]++;
-    const details = kind === "fuel"
-      ? `${rupees(amount)} · ${fields.litres} L · ${v.name}`
-      : `${rupees(amount)} · ${fields.description}${fields.shop ? ` · ${fields.shop}, ${fields.city}, ${fields.state}` : ""} · ${v.name}`;
-    await log(when, kind === "fuel" ? "expense.fuel_added" : "expense.repair_added", trip.trip_no, details);
+    counts[kind === "repair" ? "repairs" : kind]++;
+    if (kind === "fuel") {
+      await log(when, "expense.fuel_added", trip.trip_no, `${rupees(amount)} · ${fields.litres} L · ${v.name}`);
+    } else if (kind === "other") {
+      await log(when, "expense.other_added", trip.trip_no, `${rupees(amount)} · ${fields.description} · ${v.name}`);
+    } else {
+      await log(when, "expense.repair_added", v.name,
+        `${rupees(amount)} · ${fields.description}${fields.shop ? ` · ${fields.shop}, ${fields.city}, ${fields.state}` : ""}`);
+    }
   }
 
   // Customer: an advance when booking (not for every upcoming booking), the rest after the trip
@@ -346,6 +362,15 @@ for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
       const rest = litres - first;
       await spend("fuel", Math.round(rest * v.fuelPrice), at(offset + Math.floor(days / 2), "13:40"), { litres: rest });
     }
+  }
+  // Tolls on long trips, parking in the big cities
+  if (phase === "completed" || phase === "ongoing") {
+    if (route.km >= 300) await spend("other", roundTo(route.km * 1.4, 5), at(offset, "09:40"), { description: "Toll" });
+    const city = (route.to ?? route.d)[1];
+    if (["Hyderabad", "Bengaluru", "Chennai", "Visakhapatnam"].includes(city)) {
+      await spend("other", 100 * days, at(offset, "15:10"), { description: "Parking" });
+    }
+    if (route.to?.[0] === "Karnataka") await spend("other", 1500, at(offset, "11:30"), { description: "State permit / entry tax" });
   }
   if (extra.acRepair) {
     await spend("repair", 1800, at(offset, "17:30"), { description: "AC gas refill", shop: "Cool Car AC Works", state: "Telangana", city: "Hyderabad" });
@@ -377,9 +402,19 @@ for (const [vi, offset, amount, description, shop, state, city] of VEHICLE_REPAI
   await log(at(offset, "18:00"), "expense.repair_added", VEHICLES[vi].name, `${rupees(amount)} · ${description} · ${shop}, ${city}, ${state}`);
 }
 
+for (const [vi, offset, amount, app] of VEHICLE_FASTAG) {
+  await db.query(
+    `INSERT INTO vehicle_expenses (vehicle_id, kind, amount, spent_on, description, created_at, created_by, is_sample)
+     VALUES ($1, 'fastag', $2, $3, $4, $5, $6, true)`,
+    [vehicleIds[vi], amount, day(offset), app, at(offset, "08:30"), actor.name],
+  );
+  counts.fastag++;
+  await log(at(offset, "08:30"), "expense.fastag_added", VEHICLES[vi].name, `${rupees(amount)} · FASTag recharge · ${app}`);
+}
+
 console.log(
   `✓ Added ${VEHICLES.length} vehicles, ${DRIVERS.length} drivers, ${counts.trips} bookings, ${counts.payments} payments, ` +
-    `${counts.fuel} fuel, ${counts.repairs} repair, ${counts.emi} EMI and ${counts.insurance} insurance entries (marked as samples).`,
+    `${counts.fuel} fuel, ${counts.other} toll/parking, ${counts.repairs} repair, ${counts.fastag} FASTag, ${counts.emi} EMI and ${counts.insurance} insurance entries (marked as samples).`,
 );
 console.log("  Remove them with: npm run db:seed-expenses -- --clear");
 await db.close();

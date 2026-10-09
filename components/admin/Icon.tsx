@@ -190,6 +190,20 @@ const PATHS = {
       <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
     </>
   ),
+  /** A booking's other expenses: a receipt */
+  receipt: (
+    <>
+      <path d="M5 3h14v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21z" />
+      <path d="M9 8h6M9 12h6M9 16h3" />
+    </>
+  ),
+  /** FASTag: a toll tag */
+  tag: (
+    <>
+      <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <circle cx="7" cy="7" r="1.5" />
+    </>
+  ),
 };
 
 export type IconName = keyof typeof PATHS;

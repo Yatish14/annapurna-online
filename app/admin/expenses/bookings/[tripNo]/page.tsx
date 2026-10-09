@@ -20,6 +20,7 @@ import {
   getTrip,
   kmOf,
   listPayments,
+  otherExpenseNames,
   profitOf,
   profitWhenPaid,
   routeText,
@@ -43,10 +44,11 @@ export default async function TripPage({ params, searchParams }: { params: Param
   const trip = await getTrip(decodeURIComponent(tripNo));
   if (!trip) notFound();
 
-  const [query, payments, expenses, history] = await Promise.all([
+  const [query, payments, expenses, names, history] = await Promise.all([
     readParams(searchParams),
     listPayments(trip.id),
     tripExpenses(trip.id),
+    otherExpenseNames(),
     can(user, "viewActivity") ? listTargetActivity("expenses", trip.trip_no) : Promise.resolve(null),
   ]);
   const days = diffDays(trip.start_date, trip.end_date) + 1;
@@ -67,14 +69,14 @@ export default async function TripPage({ params, searchParams }: { params: Param
       tone: "plum",
     },
     { label: "Fuel", value: formatRupees(trip.fuel), tone: "gold" },
-    { label: "Repairs", value: formatRupees(trip.repairs), tone: "gold" },
+    { label: "Other expenses", value: formatRupees(trip.other), sub: "Tolls, parking…", tone: "gold" },
     {
       label: "Profit",
       value: formatRupees(profit),
       sub:
         whenPaid !== null && whenPaid !== profit && active
           ? `${formatRupees(whenPaid)} once fully paid`
-          : "Received − driver − fuel − repairs",
+          : "Received − driver − fuel − other",
       tone: profit < 0 ? "red" : "green",
     },
   ];
@@ -269,6 +271,15 @@ export default async function TripPage({ params, searchParams }: { params: Param
               />
             </section>
           )}
+          <Expenses
+            kind="other"
+            names={names}
+            entries={expenses.filter((e) => e.kind === "other")}
+            target={{ tripId: trip.id, vehicleId: trip.vehicle_id }}
+            canManage={canManage}
+            canAdd={active}
+            today={todayIST()}
+          />
         </div>
 
         <div className="xp-col">
@@ -290,26 +301,16 @@ export default async function TripPage({ params, searchParams }: { params: Param
             canManage={canManage}
             now={nowLocalIST()}
           />
+          {/* Fuel and other expenses belong to a booking; repairs, FASTag, EMI and insurance are the vehicle's costs */}
+          <Expenses
+            kind="fuel"
+            entries={expenses.filter((e) => e.kind === "fuel")}
+            target={{ tripId: trip.id, vehicleId: trip.vehicle_id }}
+            canManage={canManage}
+            canAdd={active}
+            today={todayIST()}
+          />
         </div>
-      </div>
-
-      <div className="xp-detail">
-        <Expenses
-          kind="fuel"
-          entries={expenses.filter((e) => e.kind === "fuel")}
-          target={{ tripId: trip.id, vehicleId: trip.vehicle_id }}
-          canManage={canManage}
-          canAdd={active}
-          today={todayIST()}
-        />
-        <Expenses
-          kind="repair"
-          entries={expenses.filter((e) => e.kind === "repair")}
-          target={{ tripId: trip.id, vehicleId: trip.vehicle_id }}
-          canManage={canManage}
-          canAdd={active}
-          today={todayIST()}
-        />
       </div>
 
       {history && (

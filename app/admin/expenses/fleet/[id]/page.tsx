@@ -30,13 +30,14 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
   const vehicle = await getVehicle(Number((await params).id));
   if (!vehicle) notFound();
   const query = await readParams(searchParams);
-  // Each list has its own page number in the URL (?fuel=2&repairs=1&emi=1&insurance=1)
-  const LISTS = ["fuel", "repairs", "emi", "insurance"] as const;
+  // Each list has its own page number in the URL (?fuel=2&repairs=1&fastag=1&emi=1&insurance=1)
+  const LISTS = ["fuel", "repairs", "fastag", "emi", "insurance"] as const;
   const pages = Object.fromEntries(LISTS.map((k) => [k, parsePage(query.get(k))])) as Record<(typeof LISTS)[number], number>;
 
-  const [fuel, repairs, emi, insurance, finance, trips] = await Promise.all([
+  const [fuel, repairs, fastag, emi, insurance, finance, trips] = await Promise.all([
     vehicleExpenses(vehicle.id, "fuel", { page: pages.fuel, pageSize: PAGE_SIZE }),
     vehicleExpenses(vehicle.id, "repair", { page: pages.repairs, pageSize: PAGE_SIZE }),
+    vehicleExpenses(vehicle.id, "fastag", { page: pages.fastag, pageSize: PAGE_SIZE }),
     vehicleExpenses(vehicle.id, "emi", { page: pages.emi, pageSize: PAGE_SIZE }),
     vehicleExpenses(vehicle.id, "insurance", { page: pages.insurance, pageSize: PAGE_SIZE }),
     getFinance(vehicle.id),
@@ -57,7 +58,9 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
     { label: "Bookings", value: String(vehicle.trips) },
     { label: "Km travelled", value: formatNumber(vehicle.km) },
     { label: "Fuel", value: formatRupees(vehicle.fuel) },
+    { label: "Tolls & other", value: formatRupees(vehicle.other) },
     { label: "Repairs", value: formatRupees(vehicle.repairs) },
+    { label: "FASTag", value: formatRupees(vehicle.fastag) },
     { label: "EMI paid", value: formatRupees(finance.emi_paid_total) },
     { label: "Insurance paid", value: formatRupees(finance.insurance_paid_total) },
   ];
@@ -72,7 +75,7 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
         key={vehicle.name}
         eyebrow="Expense Tracker · Vehicle"
         title={vehicle.name}
-        subtitle="Loan, insurance, fuel and repairs. Fuel and repairs include costs added on its bookings and costs added to the vehicle directly."
+        subtitle="Loan, insurance, fuel, repairs and FASTag. Fuel includes what was filled on its bookings and what was added to the vehicle directly."
         id={vehicle.id}
         fields={[{ name: "name", label: "Vehicle name", value: vehicle.name }]}
         action={editVehicle}
@@ -144,13 +147,29 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
           canManage={canManage}
           canAdd={true}
           today={todayIST()}
-          showTrip
           footer={
             <Pagination
               page={pages.repairs}
               totalPages={pageCount(repairs.total)}
               href={(n) => href("repairs", n)}
               summary={`${repairs.total} repairs`}
+            />
+          }
+        />
+        <Expenses
+          kind="fastag"
+          entries={fastag.expenses}
+          sum={fastag.sum}
+          target={{ vehicleId: vehicle.id }}
+          canManage={canManage}
+          canAdd={true}
+          today={todayIST()}
+          footer={
+            <Pagination
+              page={pages.fastag}
+              totalPages={pageCount(fastag.total)}
+              href={(n) => href("fastag", n)}
+              summary={`${fastag.total} recharges`}
             />
           }
         />

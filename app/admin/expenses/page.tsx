@@ -54,7 +54,7 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
     listDrivers(),
     reminders(),
   ]);
-  const moneyOut = summary.driverPaid + summary.fuel + summary.repairs + summary.emi + summary.insurance;
+  const moneyOut = summary.driverPaid + summary.fuel + summary.other + summary.repairs + summary.fastag + summary.emi + summary.insurance;
   const driversToPay = drivers.filter((d) => d.owed > 0);
   // Upcoming bookings in the next two weeks only
   const soon = addDays(todayIST(), 14);
@@ -62,7 +62,7 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
 
   const tiles = [
     { label: "Money in", value: formatRupees(summary.received), sub: "Received from customers", icon: "rupee" as const, tone: "green" },
-    { label: "Money out", value: formatRupees(moneyOut), sub: "Drivers + fuel + repairs + EMI + insurance", icon: "wallet" as const, tone: "plum" },
+    { label: "Money out", value: formatRupees(moneyOut), sub: "Drivers, fuel, tolls & other, repairs, FASTag, EMI, insurance", icon: "wallet" as const, tone: "plum" },
     {
       label: "Net",
       value: formatRupees(summary.received - moneyOut),
@@ -193,7 +193,9 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
                   <th>Received</th>
                   <th>Driver</th>
                   <th>Fuel</th>
+                  <th>Other</th>
                   <th>Repairs</th>
+                  <th>FASTag</th>
                   <th>EMI</th>
                   <th>Insurance</th>
                   <th>Profit</th>
@@ -214,7 +216,9 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
                       <td data-label="Received">{formatRupees(v.received)}</td>
                       <td data-label="Driver">{formatRupees(v.driverAmount)}</td>
                       <td data-label="Fuel">{formatRupees(v.fuel)}</td>
+                      <td data-label="Other">{formatRupees(v.other)}</td>
                       <td data-label="Repairs">{formatRupees(v.repairs)}</td>
+                      <td data-label="FASTag">{formatRupees(v.fastag)}</td>
                       <td data-label="EMI">{formatRupees(v.emi)}</td>
                       <td data-label="Insurance">{formatRupees(v.insurance)}</td>
                       <td data-label="Profit" className={profit < 0 ? "is-neg" : "is-pos"}>
@@ -228,9 +232,9 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
           </div>
         )}
         <p className="ap-hint">
-          Profit is on money actually received: received − driver amount − fuel − repairs − EMI − insurance. Billed, received and
-          driver amounts count bookings that start in the month (received = paid so far); fuel, repairs, EMI and insurance count
-          the date they were paid.
+          Profit is on money actually received: received − driver amount − fuel − other booking expenses (tolls, parking…) −
+          repairs − FASTag − EMI − insurance. Billed, received and driver amounts count bookings that start in the month (received
+          = paid so far); the costs count the date they were paid.
         </p>
       </section>
 

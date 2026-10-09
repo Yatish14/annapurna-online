@@ -44,6 +44,8 @@ const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (tar
   "payment.removed": { icon: "trash", tone: "red", text: (t) => <>removed a payment from <b>{t}</b></> },
   "expense.fuel_added": { icon: "fuel", tone: "gold", text: (t) => <>added fuel for <b>{t}</b></> },
   "expense.repair_added": { icon: "wrench", tone: "gold", text: (t) => <>added a repair for <b>{t}</b></> },
+  "expense.fastag_added": { icon: "tag", tone: "gold", text: (t) => <>added a FASTag recharge for <b>{t}</b></> },
+  "expense.other_added": { icon: "receipt", tone: "gold", text: (t) => <>added an expense to <b>{t}</b></> },
   "expense.removed": { icon: "trash", tone: "red", text: (t) => <>removed a cost entry from <b>{t}</b></> },
   "report.downloaded": { icon: "download", tone: "navy", text: (t) => <>downloaded a report for <b>{t}</b></> },
   "trip.statement_downloaded": { icon: "download", tone: "navy", text: (t) => <>downloaded the expense statement for <b>{t}</b></> },

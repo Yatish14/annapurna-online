@@ -29,9 +29,12 @@ import {
 } from "@/lib/expenses/trips";
 import { withFlash } from "../../filters";
 
-const EXPENSE_ANCHORS = { fuel: "#fuel", repair: "#repairs", emi: "#emi", insurance: "#insurance" } as const;
+const EXPENSE_ANCHORS = { fuel: "#fuel", other: "#other-expenses", repair: "#repairs", fastag: "#fastag", emi: "#emi", insurance: "#insurance" } as const;
 const tripPath = (tripNo: string) => `/admin/expenses/bookings/${tripNo}`;
 const vehiclePath = (id: number) => `/admin/expenses/fleet/${id}`;
+/** The Repairs, FASTag and EMI & insurance pages, opened on the month of the entry */
+const COST_PAGES = { repairs: "/admin/expenses/repairs", fastag: "/admin/expenses/fastag", emi: "/admin/expenses/emi" } as const;
+const costPage = (from: FormDataEntryValue | null) => (from === "repairs" || from === "fastag" || from === "emi" ? COST_PAGES[from] : null);
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").replace(/\s+/g, " ").trim();
 const optional = (fd: FormData, key: string, max: number) => text(fd, key).slice(0, max) || null;
 
@@ -327,21 +330,35 @@ export async function deletePayment(fd: FormData) {
   redirect(withFlash(tripPath(removed.trip_no), "payment-removed") + (removed.party === "driver" ? "#driver-payments" : "#customer-payments"));
 }
 
-// ---------- Fuel and repairs ----------
+// ---------- Fuel and other expenses of a booking; repairs and FASTag recharges of a vehicle ----------
+
+const FLASH_ADDED = { fuel: "fuel-added", other: "other-added", repair: "repair-added", fastag: "fastag-added" } as const;
+const ACTIVITY_ADDED = {
+  fuel: "expense.fuel_added",
+  other: "expense.other_added",
+  repair: "expense.repair_added",
+  fastag: "expense.fastag_added",
+} as const;
 
 export async function recordExpense(fd: FormData) {
   const user = await requireUser("manageExpenses");
-  const kind = fd.get("kind") === "repair" ? "repair" : "fuel";
-  const tripId = fd.get("trip_id") ? Number(fd.get("trip_id")) : null;
+  const kindRaw = fd.get("kind");
+  const kind = kindRaw === "repair" || kindRaw === "fastag" || kindRaw === "other" ? kindRaw : "fuel";
+  // Only fuel and other expenses go on a booking: repairs and FASTag belong to the vehicle
+  const tripId = (kind === "fuel" || kind === "other") && fd.get("trip_id") ? Number(fd.get("trip_id")) : null;
   const vehicleId = Number(fd.get("vehicle_id"));
   const trip = tripId !== null ? await getTripById(tripId) : null;
   if (tripId !== null && !trip) redirect("/admin/expenses/bookings?flash=not-found");
-  const back = trip ? tripPath(trip.trip_no) : vehiclePath(vehicleId);
-  const anchor = kind === "fuel" ? "#fuel" : "#repairs";
+  // Other expenses (tolls, parking…) only exist on a booking
+  if (kind === "other" && !trip) redirect("/admin/expenses/bookings?flash=not-found");
+  const page = costPage(fd.get("from"));
+  const anchor = EXPENSE_ANCHORS[kind];
+  const spentOn = text(fd, "spent_on");
+  const back = trip ? tripPath(trip.trip_no) : page ? (isIsoDate(spentOn) ? `${page}?month=${spentOn.slice(0, 7)}` : page) : vehiclePath(vehicleId);
+  if (!trip && (!Number.isSafeInteger(vehicleId) || vehicleId <= 0)) redirect(withFlash(back, "vehicle-missing") + anchor);
 
   const amount = parseAmount(fd.get("amount"), { allowZero: false });
   if (amount === null || amount === "invalid") redirect(withFlash(back, "amount-invalid") + anchor);
-  const spentOn = text(fd, "spent_on");
   if (!isIsoDate(spentOn) || spentOn < "2020-01-01" || spentOn > "2099-12-31") redirect(withFlash(back, "date-invalid") + anchor);
 
   const input: ExpenseInput = { kind, amount, spentOn, litres: null, description: null, shopName: null, shopState: null, shopCity: null, note: optional(fd, "note", 200) };
@@ -349,6 +366,11 @@ export async function recordExpense(fd: FormData) {
     const litres = parseAmount(fd.get("litres"), { allowZero: false });
     if (litres === "invalid" || (litres !== null && litres > 9999)) redirect(withFlash(back, "litres-invalid") + anchor);
     input.litres = litres;
+  } else if (kind === "fastag") {
+    input.description = optional(fd, "description", 80);
+  } else if (kind === "other") {
+    input.description = optional(fd, "description", 60);
+    if (!input.description || input.description.length < 2) redirect(withFlash(back, "expense-what") + anchor);
   } else {
     input.description = optional(fd, "description", 120);
     if (!input.description || input.description.length < 2) redirect(withFlash(back, "repair-what") + anchor);
@@ -368,10 +390,10 @@ export async function recordExpense(fd: FormData) {
     kind, amount, litres: input.litres, description: input.description, shop_name: input.shopName,
     shop_city: input.shopCity, shop_state: input.shopState, note: input.note,
   });
-  await logActivity(user, kind === "fuel" ? "expense.fuel_added" : "expense.repair_added", saved.trip_no ?? saved.vehicle_name,
+  await logActivity(user, ACTIVITY_ADDED[kind], saved.trip_no ?? saved.vehicle_name,
     saved.trip_no ? `${details} · ${saved.vehicle_name}` : details);
   refresh();
-  redirect(withFlash(back, kind === "fuel" ? "fuel-added" : "repair-added", saved.vehicle_name) + anchor);
+  redirect(withFlash(back, FLASH_ADDED[kind], saved.vehicle_name) + anchor);
 }
 
 export async function deleteExpense(fd: FormData) {
@@ -381,6 +403,11 @@ export async function deleteExpense(fd: FormData) {
   await logActivity(user, "expense.removed", removed.trip_no ?? removed.vehicle_name,
     `${EXPENSE_LABELS[removed.kind]} · ${expenseText(removed)}${removed.trip_no ? ` · ${removed.vehicle_name}` : ""}`);
   refresh();
-  const back = fd.get("from") === "vehicle" || !removed.trip_no ? vehiclePath(removed.vehicle_id) : tripPath(removed.trip_no);
+  const page = costPage(fd.get("from"));
+  const back = page
+    ? `${page}?month=${removed.spent_on.slice(0, 7)}`
+    : fd.get("from") === "vehicle" || !removed.trip_no
+      ? vehiclePath(removed.vehicle_id)
+      : tripPath(removed.trip_no);
   redirect(withFlash(back, "expense-removed") + EXPENSE_ANCHORS[removed.kind]);
 }

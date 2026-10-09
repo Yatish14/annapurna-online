@@ -168,8 +168,10 @@ export async function quickAddDriver(fd: FormData): Promise<QuickAdd<{ id: numbe
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-function backTo(id: number, flash: string, anchor: string, detail?: string): never {
+/** Back to the vehicle's page, or to the EMI & insurance page when the form was sent from there */
+function backTo(fd: FormData, id: number, flash: string, anchor: string, detail?: string): never {
   revalidatePath("/admin/expenses", "layout");
+  if (fd.get("from") === "emi") redirect(withFlash("/admin/expenses/emi", flash, detail) + `#vehicle-${id}`);
   redirect(withFlash(vehiclePath(id), flash, detail) + anchor);
 }
 
@@ -187,13 +189,13 @@ export async function saveEmiAction(fd: FormData) {
     const valid =
       typeof amount === "number" && lender.length >= 2 && Number.isInteger(day) && day >= 1 && day <= 31 &&
       MONTH.test(start) && MONTH.test(end) && end >= start && start >= "2000-01" && end <= "2099-12";
-    if (!valid) backTo(id, "emi-invalid", "#emi");
+    if (!valid) backTo(fd, id, "emi-invalid", "#emi");
     emi = { amount: amount as number, lender, day, start, end };
   }
   const saved = await saveEmi(id, emi, user.name);
   if (!saved) redirect(withFlash(BACK, "not-found"));
   if (saved.changes.length) await logActivity(user, "vehicle.emi_updated", saved.name, saved.changes.join(" · "));
-  backTo(id, !saved.changes.length ? "trip-unchanged" : emi ? "emi-saved" : "emi-removed", "#emi", saved.name);
+  backTo(fd, id, !saved.changes.length ? "trip-unchanged" : emi ? "emi-saved" : "emi-removed", "#emi", saved.name);
 }
 
 /** Record an EMI as paid for a month */
@@ -206,7 +208,7 @@ export async function payEmiAction(fd: FormData) {
   const amount = parseAmount(fd.get("amount"), { allowZero: false });
   const paidOn = String(fd.get("paid_on") ?? "");
   if (!MONTH.test(month) || typeof amount !== "number" || !isIsoDate(paidOn) || paidOn < "2000-01-01" || paidOn > todayIST()) {
-    backTo(id, "emi-pay-invalid", "#emi");
+    backTo(fd, id, "emi-pay-invalid", "#emi");
   }
   const note = String(fd.get("note") ?? "").replace(/\s+/g, " ").trim().slice(0, 200) || null;
   const input = {
@@ -216,11 +218,11 @@ export async function payEmiAction(fd: FormData) {
   try {
     if (!(await addExpense({ vehicleId: id }, input, user.name))) redirect(withFlash(BACK, "not-found"));
   } catch (err) {
-    if (dbErrorCode(err) === "23505") backTo(id, "emi-already-paid", "#emi", monthText(month));
+    if (dbErrorCode(err) === "23505") backTo(fd, id, "emi-already-paid", "#emi", monthText(month));
     throw err;
   }
   await logActivity(user, "expense.emi_paid", finance.name, expenseText({ ...input, shop_name: null, shop_city: null, shop_state: null }));
-  backTo(id, "emi-paid", "#emi", monthText(month));
+  backTo(fd, id, "emi-paid", "#emi", monthText(month));
 }
 
 /** Save the insurance policy (or remove it); when renewing, also record the premium as paid */
@@ -235,12 +237,12 @@ export async function saveInsuranceAction(fd: FormData) {
     const from = String(fd.get("from") ?? "");
     const to = String(fd.get("to") ?? "");
     const valid = company.length >= 2 && typeof premium === "number" && isIsoDate(from) && isIsoDate(to) && to > from && from >= "2000-01-01" && to <= "2099-12-31";
-    if (!valid) backTo(id, "insurance-invalid", "#insurance");
+    if (!valid) backTo(fd, id, "insurance-invalid", "#insurance");
     ins = { company, policy, premium: premium as number, from, to };
   }
   const recordPayment = ins !== null && fd.get("record_payment") === "1";
   const paidOn = String(fd.get("paid_on") ?? "");
-  if (recordPayment && (!isIsoDate(paidOn) || paidOn < "2000-01-01" || paidOn > todayIST())) backTo(id, "insurance-invalid", "#insurance");
+  if (recordPayment && (!isIsoDate(paidOn) || paidOn < "2000-01-01" || paidOn > todayIST())) backTo(fd, id, "insurance-invalid", "#insurance");
 
   const saved = await saveInsurance(id, ins, user.name);
   if (!saved) redirect(withFlash(BACK, "not-found"));
@@ -254,7 +256,7 @@ export async function saveInsuranceAction(fd: FormData) {
     };
     await addExpense({ vehicleId: id }, input, user.name);
     await logActivity(user, "expense.insurance_paid", saved.name, expenseText({ ...input, shop_name: null, shop_city: null, shop_state: null }));
-    backTo(id, "insurance-renewed", "#insurance", saved.name);
+    backTo(fd, id, "insurance-renewed", "#insurance", saved.name);
   }
-  backTo(id, !saved.changes.length ? "trip-unchanged" : ins ? "insurance-saved" : "insurance-removed", "#insurance", saved.name);
+  backTo(fd, id, !saved.changes.length ? "trip-unchanged" : ins ? "insurance-saved" : "insurance-removed", "#insurance", saved.name);
 }

@@ -902,7 +902,7 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 /* Expense Tracker: reports */
 .xp-monthpick { display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
 .xp-monthpick input { font: inherit; font-size: .88rem; font-weight: 600; color: var(--ink); border: 0; background: none; outline: none; }
-.xp-report { display: flex; flex-direction: column; gap: 14px; max-width: 920px; }
+.xp-report { display: flex; flex-direction: column; gap: 14px; }
 .xp-report-head { display: flex; align-items: center; gap: 12px; }
 .xp-report-head .ap-tile-icon { margin: 0; flex-shrink: 0; }
 .xp-report-head h2 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1.3rem; }
@@ -913,12 +913,6 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-report-figures dt { font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
 .xp-report-figures dd { margin: 2px 0 0; font-weight: 800; font-size: 1.05rem; }
 .xp-report-figures dd.is-neg { color: var(--err); }
-.xp-report-sub { margin: 4px 0 0; font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
-.xp-report-sections { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
-.xp-report-sections li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
-.xp-report-sections li > svg { flex-shrink: 0; margin-top: 2px; color: var(--gold-600); }
-.xp-report-sections strong { display: block; font-size: .9rem; }
-.xp-report-sections span { display: block; font-size: .82rem; color: var(--ink-soft); }
 .xp-report-btn { align-self: flex-start; }
 @media (max-width: 560px) { .xp-report-btn { align-self: stretch; } .xp-monthpick { width: 100%; justify-content: space-between; } }
 
@@ -1057,3 +1051,16 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 /* WhatsApp button beside the "Booking details" title (wraps under it on narrow phones) */
 .ap-panel-head:has(> .xp-walink) { flex-wrap: wrap; }
 .ap-panel-head > .xp-walink { margin-top: 0; padding: 6px 12px; flex-shrink: 0; }
+
+/* Expense Tracker: the Bookings, Drivers and Repairs reports, side by side */
+.xp-reportgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 22px; align-items: start; }
+.xp-reportgrid .xp-report { height: calc(100% - 22px); }
+.xp-reportgrid .xp-report-btn { margin-top: auto; }
+
+/* Repairs and FASTag pages: vehicle filter */
+.xp-costpills { margin: 0 0 18px; }
+
+/* EMI & insurance page: each vehicle's name above its loan and insurance panels */
+.xp-vehiclehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 12px; scroll-margin-top: 80px; }
+.xp-vehiclehead h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1.35rem; }
+.xp-vehiclehead h2 svg { color: var(--gold-600); }
