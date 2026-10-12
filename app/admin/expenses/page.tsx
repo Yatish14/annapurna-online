@@ -233,8 +233,8 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
         )}
         <p className="ap-hint">
           Profit is on money actually received: received − driver amount − fuel − other booking expenses (tolls, parking…) −
-          repairs − FASTag − EMI − insurance. Billed, received and driver amounts count bookings that start in the month (received
-          = paid so far); the costs count the date they were paid.
+          repairs − FASTag − EMI − insurance. Billed, received, driver amounts, fuel and tolls count bookings that start in the month
+          (received = paid so far); repairs, FASTag, EMI and insurance count in the month of the date entered on them.
         </p>
       </section>
 

@@ -902,19 +902,25 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 /* Expense Tracker: reports */
 .xp-monthpick { display: flex; align-items: center; gap: 6px; padding: 5px 5px 5px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
 .xp-monthpick input { font: inherit; font-size: .88rem; font-weight: 600; color: var(--ink); border: 0; background: none; outline: none; }
-.xp-report { display: flex; flex-direction: column; gap: 14px; }
-.xp-report-head { display: flex; align-items: center; gap: 12px; }
-.xp-report-head .ap-tile-icon { margin: 0; flex-shrink: 0; }
-.xp-report-head h2 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1.3rem; }
-.xp-report-head .ap-muted { font-size: .82rem; }
-.xp-report p { margin: 0; color: var(--ink-soft); font-size: .9rem; }
-.xp-report-figures { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
-.xp-report-figures div { flex: 1; min-width: 120px; padding: 10px 12px; border-radius: 12px; background: var(--ivory); }
-.xp-report-figures dt { font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-.xp-report-figures dd { margin: 2px 0 0; font-weight: 800; font-size: 1.05rem; }
-.xp-report-figures dd.is-neg { color: var(--err); }
-.xp-report-btn { align-self: flex-start; }
-@media (max-width: 560px) { .xp-report-btn { align-self: stretch; } .xp-monthpick { width: 100%; justify-content: space-between; } }
+/* Reports: one tab per report, each table as on screen and in the PDF */
+.xp-reportview .ap-tabs a { display: inline-flex; align-items: center; gap: 6px; }
+.xp-reporttitle { margin: 4px 0 16px; font-family: var(--serif); font-weight: 400; font-size: 1.5rem; }
+.xp-reporttitle span { color: var(--ink-soft); }
+@media (min-width: 701px) { .xp-reportview .xp-sumtiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.xp-rsection { margin-top: 26px; }
+.xp-rsection h3 { margin: 0 0 8px; font-size: 1.02rem; font-weight: 800; }
+.xp-rtable th.is-text, .xp-rtable td.is-text { text-align: left; }
+.xp-rtable tfoot th, .xp-rtable tfoot td { font-weight: 800; border-top: 2px solid var(--navy-900); }
+.xp-reportnotes { margin-top: 22px; }
+.xp-reportnotes p { margin: 3px 0; }
+@media (max-width: 560px) { .xp-report-pdf { width: 100%; } .xp-monthpick { width: 100%; justify-content: space-between; } }
+@media (max-width: 700px) {
+  .xp-rtable tfoot { display: block; }
+  .xp-rtable tfoot tr { border-top: 2px solid var(--navy-900); }
+  .xp-rtable tfoot th, .xp-rtable tfoot td { border: 0; }
+  .xp-rtable td.is-blank { display: none; }
+  .xp-rtable td.is-text { text-align: left; }
+}
 
 /* A field with a note under it (e.g. "Not in the list…", "5/10") mustn't push the field next to it down:
    fields sit at the top of their row instead of stretching to the tallest one */
@@ -1053,16 +1059,6 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .ap-panel-head > .xp-walink { margin-top: 0; padding: 6px 12px; flex-shrink: 0; }
 
 /* Expense Tracker: the Bookings, Drivers and Repairs reports, side by side */
-.xp-reportgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 22px; align-items: start; }
-.xp-reportgrid .xp-report { height: calc(100% - 22px); }
-.xp-reportgrid .xp-report-btn { margin-top: auto; }
-.xp-allreports { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.xp-allreports .ap-tile-icon { margin: 0; flex-shrink: 0; }
-.xp-allreports > div { flex: 1; min-width: 220px; }
-.xp-allreports h2 { margin: 0 0 2px; font-family: var(--serif); font-weight: 400; font-size: 1.3rem; }
-.xp-allreports > div > .ap-muted { display: block; font-size: .82rem; }
-.xp-allreports p { margin: 6px 0 0; color: var(--ink-soft); font-size: .9rem; }
-@media (max-width: 560px) { .xp-allreports .xp-report-btn { width: 100%; } }
 
 /* Repairs and FASTag pages: vehicle filter */
 .xp-costpills { margin: 0 0 18px; }

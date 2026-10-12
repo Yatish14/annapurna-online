@@ -3,8 +3,18 @@ import Icon, { type IconName } from "@/components/admin/Icon";
 import LinkPending from "@/components/admin/LinkPending";
 import PageHeader from "@/components/admin/PageHeader";
 import { requireUser } from "@/lib/auth";
-import { formatRupees } from "@/lib/expenses/money";
-import { loadMonth, makeReport, monthLabel, workbookName, type ReportType } from "@/lib/expenses/reports";
+import { formatNumber, formatRupees } from "@/lib/expenses/money";
+import {
+  buildReport,
+  cellText,
+  cellTone,
+  isReportTab,
+  monthLabel,
+  pdfName,
+  REPORT_TABS,
+  type ReportTab,
+  type Section,
+} from "@/lib/expenses/reports";
 import { parseMonth, readParams, type SearchParams } from "../../filters";
 
 export const metadata = { title: "Reports · Expense Tracker" };
@@ -12,46 +22,102 @@ export const metadata = { title: "Reports · Expense Tracker" };
 const shiftMonth = (m: string, by: number) =>
   new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5)) - 1 + by, 1)).toISOString().slice(0, 7);
 
-const REPORTS: { type: ReportType; icon: IconName; text: string }[] = [
-  {
-    type: "bookings",
-    icon: "bookings",
-    text: "Every booking starting in the month: customer, vehicle, driver, route, referrer, km, amounts, fuel, tolls and other expenses, and profit.",
-  },
-  {
-    type: "drivers",
-    icon: "steering",
-    text: "Each driver's bookings, days, km, agreed amount, paid and still to pay; their bookings one by one; and payments made to them.",
-  },
-  {
-    type: "repairs",
-    icon: "wrench",
-    text: "Every repair in the month with the vehicle, what was done, shop and place, plus each vehicle's total.",
-  },
-];
+const TABS: Record<ReportTab, { label: string; icon: IconName }> = {
+  bookings: { label: "Bookings", icon: "bookings" },
+  customers: { label: "Customers", icon: "users" },
+  drivers: { label: "Drivers", icon: "steering" },
+  vehicles: { label: "Vehicles", icon: "car" },
+};
+
+const reportHref = (tab: ReportTab, month: string) => `/admin/expenses/reports?tab=${tab}&month=${month}`;
+
+/** One table of the report; on phones each row becomes a card */
+function ReportTable({ section }: { section: Section }) {
+  const [first, ...rest] = section.columns;
+  const cellClass = (i: number, value: Parameters<typeof cellTone>[0]) => {
+    const column = section.columns[i];
+    const tone = cellTone(value, column);
+    return [column.kind === "text" ? "is-text" : "", tone === "neg" ? "is-neg" : tone === "pos" ? "is-pos" : ""].filter(Boolean).join(" ") || undefined;
+  };
+  return (
+    <section className="xp-rsection">
+      <h3>{section.title}</h3>
+      {section.rows.length === 0 ? (
+        <p className="ap-empty-sm">{section.empty}</p>
+      ) : (
+        <div className="xp-tablewrap">
+          <table className="xp-table xp-rtable">
+            <thead>
+              <tr>
+                {section.columns.map((c) => (
+                  <th key={c.label} className={c.kind === "text" ? "is-text" : undefined}>
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {section.rows.map((row, r) => (
+                <tr key={r}>
+                  <th scope="row">{row.href ? <Link href={row.href}>{cellText(row.cells[0], first)}</Link> : cellText(row.cells[0], first)}</th>
+                  {rest.map((c, i) => (
+                    <td key={c.label} data-label={c.label} className={cellClass(i + 1, row.cells[i + 1])}>
+                      <span className="xp-nowrap">{cellText(row.cells[i + 1], c)}</span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+            {section.total && (
+              <tfoot>
+                <tr>
+                  <th scope="row">{cellText(section.total[0], first)}</th>
+                  {rest.map((c, i) => {
+                    const value = section.total![i + 1];
+                    return value === "" ? (
+                      <td key={c.label} className="is-blank" />
+                    ) : (
+                      <td key={c.label} data-label={c.label} className={cellClass(i + 1, value)}>
+                        <span className="xp-nowrap">{cellText(value, c)}</span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default async function ReportsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireUser();
-  const month = parseMonth(await readParams(searchParams));
-  const data = await loadMonth(month);
+  const params = await readParams(searchParams);
+  const month = parseMonth(params);
+  const tabParam = params.get("tab");
+  const tab: ReportTab = isReportTab(tabParam) ? tabParam : "bookings";
+  const report = await buildReport(tab, month);
 
   return (
     <main className="ap-page">
       <PageHeader
         eyebrow="Expense Tracker"
         title="Reports"
-        subtitle="The month's bookings, drivers and repairs, all three in one Excel file or each as a CSV file."
+        subtitle="The month's bookings, customers, drivers and vehicles. Download any of them as a PDF."
       >
         <nav className="ap-cal-nav" aria-label="Month">
-          <Link href={`/admin/expenses/reports?month=${shiftMonth(month, -1)}`} aria-label="Previous month" scroll={false}>
+          <Link href={reportHref(tab, shiftMonth(month, -1))} aria-label="Previous month" scroll={false}>
             ‹<LinkPending />
           </Link>
           <strong>{monthLabel(month)}</strong>
-          <Link href={`/admin/expenses/reports?month=${shiftMonth(month, 1)}`} aria-label="Next month" scroll={false}>
+          <Link href={reportHref(tab, shiftMonth(month, 1))} aria-label="Next month" scroll={false}>
             ›<LinkPending />
           </Link>
         </nav>
         <form className="xp-monthpick" action="/admin/expenses/reports">
+          <input type="hidden" name="tab" value={tab} />
           <label className="sr-only" htmlFor="report-month">
             Month
           </label>
@@ -62,63 +128,49 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
         </form>
       </PageHeader>
 
-      <section className="ap-panel xp-allreports" id="report-all">
-        <span className="ap-tile-icon is-gold">
-          <Icon name="download" size={20} />
-        </span>
-        <div>
-          <h2>All three reports in one file</h2>
-          <span className="ap-muted">{workbookName(month)}</span>
-          <p>An Excel file with a sheet each for bookings, drivers and repairs. Opens in Excel and Google Sheets.</p>
+      <section className="ap-panel xp-reportview" id={`report-${tab}`}>
+        <div className="ap-toolbar">
+          <nav className="ap-tabs" aria-label="Report">
+            {REPORT_TABS.map((t) => (
+              <Link key={t} href={reportHref(t, month)} scroll={false} className={t === tab ? "is-active" : ""} aria-current={t === tab ? "page" : undefined}>
+                <Icon name={TABS[t].icon} size={15} /> {TABS[t].label}
+                <LinkPending />
+              </Link>
+            ))}
+          </nav>
+          <a
+            className="ap-btn ap-btn-gold xp-report-pdf"
+            href={`/admin/expenses/reports/pdf?month=${month}&tab=${tab}`}
+            download={pdfName(tab, month)}
+          >
+            <Icon name="download" size={16} /> Download PDF
+          </a>
         </div>
-        <a
-          className="ap-btn ap-btn-gold xp-report-btn"
-          href={`/admin/expenses/reports/download?month=${month}&type=all`}
-          download={workbookName(month)}
-        >
-          <Icon name="download" size={16} /> Download Excel (3 sheets)
-        </a>
-      </section>
 
-      <section className="xp-reportgrid" aria-label="Reports">
-        {REPORTS.map((r) => {
-          const report = makeReport(r.type, data);
-          return (
-            <article key={r.type} className="ap-panel xp-report" id={`report-${r.type}`}>
-              <div className="xp-report-head">
-                <span className="ap-tile-icon is-gold">
-                  <Icon name={r.icon} size={20} />
-                </span>
-                <div>
-                  <h2>{report.title}</h2>
-                  <span className="ap-muted">{report.filename}</span>
-                </div>
-              </div>
-              <p>{r.text}</p>
-              <dl className="xp-report-figures">
-                {report.highlights.map((h) => (
-                  <div key={h.label}>
-                    <dt>{h.label}</dt>
-                    <dd className={h.value < 0 ? "is-neg" : ""}>{h.money ? formatRupees(h.value) : h.value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <a
-                className="ap-btn ap-btn-ghost xp-report-btn"
-                href={`/admin/expenses/reports/download?month=${month}&type=${report.type}`}
-                download={report.filename}
-              >
-                <Icon name="download" size={16} /> Only this report (CSV)
-              </a>
-            </article>
-          );
-        })}
-      </section>
+        <h2 className="xp-reporttitle">
+          {report.title} <span>· {monthLabel(month)}</span>
+        </h2>
 
-      <p className="ap-hint">
-        Amounts are plain numbers in rupees, so the spreadsheet can add them up. Removed payments and repairs are listed (with who
-        removed them) but not counted in the totals. Every download is recorded in Activity.
-      </p>
+        <div className="xp-sumtiles">
+          {report.tiles.map((t) => (
+            <div key={t.label} className={`xp-sumtile is-${t.tone}`}>
+              <span>{t.label}</span>
+              <strong>{t.money ? formatRupees(t.value) : formatNumber(t.value)}</strong>
+              {t.sub && <small>{t.sub}</small>}
+            </div>
+          ))}
+        </div>
+
+        {report.sections.map((s) => (
+          <ReportTable key={s.title} section={s} />
+        ))}
+
+        <div className="ap-hint xp-reportnotes">
+          {report.notes.map((n) => (
+            <p key={n}>{n}</p>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

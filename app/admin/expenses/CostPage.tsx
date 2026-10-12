@@ -23,14 +23,12 @@ const PAGES = {
     title: "Repairs",
     subtitle: "Repairs and servicing of every vehicle: engine oil, tyres, AC and other work. They belong to the vehicle, not a booking.",
     noun: ["repair", "repairs"],
-    report: true,
   },
   fastag: {
     path: "/admin/expenses/fastag",
     title: "FASTag",
     subtitle: "FASTag recharges of every vehicle. They count as the vehicle's costs in the Overview and Reports.",
     noun: ["recharge", "recharges"],
-    report: false,
   },
 } as const;
 
@@ -144,15 +142,9 @@ export default async function CostPage({ kind, searchParams }: { kind: "repair" 
         <section className="ap-panel">
           <div className="ap-panel-head">
             <h2>By vehicle</h2>
-            {info.report ? (
-              <a className="ap-link" href={`/admin/expenses/reports/download?month=${month}&type=repairs`} download>
-                <Icon name="download" size={15} /> Repairs report
-              </a>
-            ) : (
-              <Link className="ap-link" href={`/admin/expenses/reports?month=${month}`}>
-                Reports <Icon name="arrow" size={15} />
-              </Link>
-            )}
+            <Link className="ap-link" href={`/admin/expenses/reports?tab=vehicles&month=${month}`}>
+              Vehicles report <Icon name="arrow" size={15} />
+            </Link>
           </div>
           {byVehicle.length === 0 ? (
             <p className="ap-empty-sm">Nothing in {monthLabel(month)}.</p>

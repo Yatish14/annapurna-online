@@ -1,25 +1,11 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import fontkit from "@pdf-lib/fontkit";
-import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
 import { BUSINESS } from "../config";
 import { daysText, diffDays, fmtLong, fmtRange, todayIST } from "../dates";
 import { formatPhone } from "../format";
 import { PRINT_SHOP } from "../print/files";
 import { formatRupees, PAYMENT_METHODS } from "./money";
+import { embedFonts, fit, GOLD, GREEN, INK, IVORY, LINE, NAVY, RED, SOFT } from "./pdf";
 import { balanceOf, type Payment, type Trip } from "./trips";
-
-// Noto Sans (SIL Open Font License, assets/fonts/OFL.txt): has the ₹ sign, which the built-in PDF fonts don't
-const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
-
-const NAVY = rgb(0.04, 0.09, 0.22);
-const INK = rgb(0.16, 0.19, 0.27);
-const SOFT = rgb(0.42, 0.45, 0.53);
-const GOLD = rgb(0.69, 0.54, 0.2);
-const LINE = rgb(0.88, 0.86, 0.81);
-const IVORY = rgb(0.98, 0.96, 0.92);
-const RED = rgb(0.71, 0.14, 0.09);
-const GREEN = rgb(0.06, 0.42, 0.31);
 
 const PAGE = { width: 595.28, height: 841.89, margin: 48 };
 
@@ -35,13 +21,7 @@ export type StatementTrip = Pick<
  */
 export async function buildStatementPdf(trip: StatementTrip, payments: Payment[], generatedAt: string): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  pdf.registerFontkit(fontkit);
-  const [regularBytes, boldBytes] = await Promise.all([
-    readFile(path.join(FONT_DIR, "NotoSans-Regular.ttf")),
-    readFile(path.join(FONT_DIR, "NotoSans-Bold.ttf")),
-  ]);
-  const regular = await pdf.embedFont(regularBytes);
-  const bold = await pdf.embedFont(boldBytes);
+  const { regular, bold } = await embedFonts(pdf);
   pdf.setTitle(`Expense statement ${trip.trip_no}`);
   pdf.setAuthor(PRINT_SHOP.name);
   pdf.setCreator(PRINT_SHOP.name);
@@ -159,12 +139,4 @@ function tableHeader(page: PDFPage, bold: PDFFont, y: number, left: number, righ
     page.drawText(s, { x, y, size: 8, font: bold, color: SOFT });
   });
   return y - 8;
-}
-
-/** Cuts text that doesn't fit the width, ending with "…" */
-function fit(s: string, font: PDFFont, size: number, width: number): string {
-  if (font.widthOfTextAtSize(s, size) <= width) return s;
-  let cut = s;
-  while (cut.length > 1 && font.widthOfTextAtSize(`${cut}…`, size) > width) cut = cut.slice(0, -1);
-  return `${cut.trimEnd()}…`;
 }

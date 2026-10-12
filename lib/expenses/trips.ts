@@ -753,37 +753,6 @@ export type PaymentRow = Payment & {
   driver_name: string;
 };
 
-/** Every payment (removed ones too) made in the month, by time */
-export async function paymentsIn(month: string): Promise<PaymentRow[]> {
-  return query<PaymentRow>(
-    `SELECT p.id::int AS id, p.party, p.amount::float8 AS amount, p.method, p.note, p.created_by, p.deleted_by,
-            to_char(p.paid_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') AS paid_date,
-            to_char(p.paid_at AT TIME ZONE 'Asia/Kolkata', 'HH24:MI') AS paid_time,
-            to_char(p.paid_at AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY, HH12:MI AM') AS paid_ist,
-            to_char(p.created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI') AS created_ist,
-            false AS late_entry,
-            to_char(p.deleted_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD HH24:MI') AS deleted_ist,
-            t.trip_no, t.customer_name, v.name AS vehicle_name, d.name AS driver_name
-     FROM trip_payments p
-     JOIN trips t ON t.id = p.trip_id
-     JOIN vehicles v ON v.id = t.vehicle_id
-     JOIN drivers d ON d.id = t.driver_id
-     WHERE (p.paid_at AT TIME ZONE 'Asia/Kolkata')::date >= ${MONTH_START}
-       AND (p.paid_at AT TIME ZONE 'Asia/Kolkata')::date < ${MONTH_END}
-     ORDER BY p.paid_at, p.id`,
-    [`${month}-01`],
-  );
-}
-
-/** Other expenses (removed ones too) of the bookings starting in the month, booking by booking */
-export async function otherExpensesForMonth(month: string): Promise<Expense[]> {
-  return query<Expense>(
-    `${EXPENSE_SELECT} WHERE e.kind = 'other' AND t.start_date >= ${MONTH_START} AND t.start_date < ${MONTH_END}
-     ORDER BY t.start_date, t.id, e.spent_on, e.id`,
-    [`${month}-01`],
-  );
-}
-
 /** Every vehicle cost (removed ones too) dated in the month; only one kind when given */
 export async function expensesIn(month: string, kind: ExpenseKind | null = null): Promise<Expense[]> {
   return query<Expense>(

@@ -86,7 +86,11 @@ export async function monthSummary(month: string): Promise<MonthSummary> {
   return row;
 }
 
-/** Each vehicle's figures for the month (switched-off vehicles only when they have any) */
+/**
+ * Each vehicle's figures for the month (switched-off vehicles only when they have any): its bookings starting in the
+ * month with their fuel and tolls, as the Bookings report counts them, and its repairs, FASTag, EMI and insurance dated
+ * in the month. So the Vehicles report's total profit equals the Bookings report's.
+ */
 export async function vehiclesMonth(month: string): Promise<VehicleMonth[]> {
   const rows = await query<VehicleMonth>(
     `SELECT v.id::int AS id, v.name, v.active,
@@ -107,7 +111,13 @@ export async function vehiclesMonth(month: string): Promise<VehicleMonth[]> {
        SELECT sum(e.amount) FILTER (WHERE e.kind = 'fuel') AS fuel, sum(e.amount) FILTER (WHERE e.kind = 'repair') AS repairs,
               sum(e.amount) FILTER (WHERE e.kind = 'fastag') AS fastag, sum(e.amount) FILTER (WHERE e.kind = 'other') AS other,
               sum(e.amount) FILTER (WHERE e.kind = 'emi') AS emi, sum(e.amount) FILTER (WHERE e.kind = 'insurance') AS insurance
-       FROM vehicle_expenses e WHERE e.vehicle_id = v.id AND e.deleted_at IS NULL AND ${IN_MONTH("e.spent_on")}
+       FROM vehicle_expenses e
+       LEFT JOIN trips t ON t.id = e.trip_id
+       WHERE e.vehicle_id = v.id AND e.deleted_at IS NULL
+         -- A booking's fuel and tolls count with the booking (the month it starts), as in the Bookings report;
+         -- the vehicle's own costs (repairs, FASTag, EMI, insurance) in the month of their date
+         AND CASE WHEN e.trip_id IS NOT NULL THEN t.status = 'booked' AND ${IN_MONTH("t.start_date")}
+                  ELSE ${IN_MONTH("e.spent_on")} END
      ) ex ON true
      ORDER BY v.active DESC, lower(v.name)`,
     [`${month}-01`],
