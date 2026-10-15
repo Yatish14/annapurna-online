@@ -18,7 +18,7 @@ Website, printout uploads (Annapurna Graphics and Internet), an expense tracker 
 | `/admin/expenses/fastag` | Expense Tracker → FASTag: a month's FASTag recharges over every vehicle (or one), and **Add recharge** |
 | `/admin/expenses/emi` | Expense Tracker → EMI & insurance: every vehicle's loan and policy, reminders, **Mark EMI paid** and **Renew policy** |
 | `/admin/expenses/fleet` | Expense Tracker → Vehicles & drivers. Each vehicle has its own page (rename, switch off, loan/EMI, insurance, fuel, repairs, FASTag, bookings); each driver too (`/admin/expenses/fleet/drivers/…`: edit, switch off, earned, paid, still to pay, payments, bookings) |
-| `/admin/expenses/reports` | Expense Tracker → Reports: a month's bookings, customers, drivers and vehicles reports in tabs, each downloadable as a PDF |
+| `/admin/expenses/reports` | Expense Tracker → Reports: a month's bookings, customers, drivers and vehicles reports in tabs (or all of them in the All tab), each downloadable as a PDF |
 | `/admin/expenses/activity` | Expense Tracker → Activity (admins and the super admin only) |
 | `/admin/cars` | Car Bookings (hidden from the sidebar: only legal with yellow-plate cars; pages kept, see `components/admin/Sidebar.tsx`) → Overview: counts, enquiries needing attention, fleet status, upcoming trips |
 | `/admin/cars/bookings` | Car Bookings → all enquiries and bookings, with filters and actions |
@@ -184,6 +184,7 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 - **Removing entries:** a payment, fuel, repair, FASTag recharge, EMI or premium entered by mistake can be removed. It stays on the page crossed out, with who removed it and when.
 - **Booking numbers:** VB-0001, VB-0002, … (VB-10000 after VB-9999)
 - **Reports:** pick a month and a tab; each report shows on the page and downloads as a PDF (landscape A4, like the customer expense statement):
+  - *All* (the first tab): every report below, one after another; its PDF has each report starting on a new page
   - *Bookings*: every booking starting in the month with where it went (city), total, received, balance, driver pay, fuel, other expenses and profit; the month's repairs, FASTag, EMI and insurance; and the total profit (bookings profit − those vehicle costs)
   - *Customers*: for each customer (matched by mobile number), their bookings in the month, what they were billed, what they have paid and what they still owe, with totals
   - *Drivers*: for each driver, their bookings and days in the month, the pay agreed, what we have paid them and what we still have to pay, with totals

@@ -913,6 +913,8 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-rtable tfoot th, .xp-rtable tfoot td { font-weight: 800; border-top: 2px solid var(--navy-900); }
 .xp-reportnotes { margin-top: 22px; }
 .xp-reportnotes p { margin: 3px 0; }
+/* The All tab: each report after the other, with a clear break between them */
+.xp-reportbody + .xp-reportbody { margin-top: 36px; padding-top: 28px; border-top: 2px solid var(--line); }
 @media (max-width: 560px) { .xp-report-pdf { width: 100%; } .xp-monthpick { width: 100%; justify-content: space-between; } }
 @media (max-width: 700px) {
   .xp-rtable tfoot { display: block; }

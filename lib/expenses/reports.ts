@@ -20,10 +20,9 @@ export const monthLabel = (month: string) => `${MONTHS_LONG[Number(month.slice(5
 /** The month as file names show it: 2026-10 → Oct-2026 */
 const fileMonth = (month: string) => `${MONTHS_LONG[Number(month.slice(5)) - 1].slice(0, 3)}-${month.slice(0, 4)}`;
 
-/** The tabs of the Reports page; each can be downloaded as a PDF */
+/** The reports; each has a tab on the Reports page and can be downloaded as a PDF */
 export const REPORT_TABS = ["bookings", "customers", "drivers", "vehicles"] as const;
 export type ReportTab = (typeof REPORT_TABS)[number];
-export const isReportTab = (v: unknown): v is ReportTab => REPORT_TABS.includes(v as ReportTab);
 export const REPORT_TITLES: Record<ReportTab, string> = {
   bookings: "Bookings report",
   customers: "Customers report",
@@ -31,8 +30,15 @@ export const REPORT_TITLES: Record<ReportTab, string> = {
   vehicles: "Vehicles report",
 };
 
-/** annapurna-bookings-report-Oct-2026.pdf */
-export const pdfName = (tab: ReportTab, month: string) => `annapurna-${tab}-report-${fileMonth(month)}.pdf`;
+/** What the Reports page can show: all the reports one after another (the first tab), or one of them */
+export const REPORT_VIEWS = ["all", ...REPORT_TABS] as const;
+export type ReportView = (typeof REPORT_VIEWS)[number];
+export const isReportView = (v: unknown): v is ReportView => REPORT_VIEWS.includes(v as ReportView);
+export const viewTitle = (view: ReportView) => (view === "all" ? "All reports" : REPORT_TITLES[view]);
+
+/** annapurna-bookings-report-Oct-2026.pdf, or annapurna-all-reports-Oct-2026.pdf */
+export const pdfName = (view: ReportView, month: string) =>
+  view === "all" ? `annapurna-all-reports-${fileMonth(month)}.pdf` : `annapurna-${view}-report-${fileMonth(month)}.pdf`;
 
 /** A table cell: text, an amount or count, or nothing ("—") */
 export type Cell = string | number | null;
@@ -403,6 +409,7 @@ const BUILDERS: Record<ReportTab, (month: string) => Promise<Report>> = {
   vehicles: vehiclesReport,
 };
 
-export function buildReport(tab: ReportTab, month: string): Promise<Report> {
-  return BUILDERS[tab](month);
+/** The reports a view shows: all four for "all", else the one */
+export function buildReports(view: ReportView, month: string): Promise<Report[]> {
+  return Promise.all((view === "all" ? REPORT_TABS : [view]).map((tab) => BUILDERS[tab](month)));
 }
