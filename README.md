@@ -139,6 +139,8 @@ The token on the API Setup page expires after 24 hours. To get a permanent one:
 
 Customers scan the QR code at the counter (**Printout → QR poster** in the dashboard), upload one or more files on `/print`, choose **colour or black & white, single or double-sided, pages** (not for photos) and **copies** for each file, and get an order number like **P-1042** to show at the counter.
 
+The QR code holds the short link `HTTPS://<site>/P`, which redirects to `/print`. It is a plain code (square corners, no logo, error correction M) and the link is in capitals, which QR codes store more compactly: fewer, bigger squares, so old and cheap phone cameras can read it too. Phones always show the link and wait for a tap before opening it; that can't be skipped.
+
 - **Accepted files:** PDF, Word, Excel, PowerPoint, OpenDocument, RTF, text/CSV and photos (JPG, PNG, WebP, GIF, BMP, HEIC, TIFF). ZIP and other archives, programs and web pages are refused. Up to 10 files of 25 MB each per order. The server also checks each file really is what its name says.
 - **Printing:** the **Print** button opens the browser's print dialog with the file exactly as uploaded, and shows the customer's options to choose in the dialog. PDFs, photos and text files print straight from the dashboard. Word, Excel, PowerPoint and iPhone (HEIC) photos are downloaded instead, to open and print in their app.
 - **Status:** an order becomes *Printed* once each file has been printed, then *Collected* when you mark it. The customer's confirmation page shows the current status.
@@ -269,7 +271,7 @@ lib/
   print/files.ts                 accepted file types, print options
   print/orders.ts                print orders, upload slots, limits
   print/storage.ts               Vercel Blob or local folder
-  print/qr.ts                    counter QR code with the logo
+  print/qr.ts                    counter QR code (plain, so old phones read it too)
   expenses/trips.ts              Expense Tracker bookings, payments and vehicle costs (fuel, repairs, FASTag, EMI, insurance)
   expenses/fleet.ts              vehicles and drivers
   expenses/overview.ts           monthly figures and amounts owed

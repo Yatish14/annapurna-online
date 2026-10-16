@@ -12,7 +12,9 @@ export const metadata = { title: "QR poster" };
 export default async function QrPosterPage() {
   await requireUser();
   const url = `${PRINT_SHOP.siteUrl}/print`;
-  const svg = qrSvg(url);
+  // The code holds a short link in capitals (/P redirects to /print): QR codes store capitals more compactly,
+  // so the code has fewer, bigger squares and more phones can read it
+  const svg = qrSvg(`${PRINT_SHOP.siteUrl}/P`.toUpperCase());
   const download = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
   return (
@@ -45,7 +47,7 @@ export default async function QrPosterPage() {
         <div className="ap-poster-qr" dangerouslySetInnerHTML={{ __html: svg }} />
         <ol className="ap-poster-steps">
           <li>
-            <b>1</b> Scan the code
+            <b>1</b> Scan with your phone camera or Google Lens
           </li>
           <li>
             <b>2</b> Upload & choose colour, sides, pages
@@ -54,7 +56,7 @@ export default async function QrPosterPage() {
             <b>3</b> Show your order number here
           </li>
         </ol>
-        <p className="ap-poster-url">{url.replace(/^https:\/\//, "")}</p>
+        <p className="ap-poster-url">Or open {url.replace(/^https:\/\//, "")}</p>
         <p className="ap-poster-foot">
           {PRINT_SHOP.name} · {BUSINESS.phoneDisplay}
         </p>

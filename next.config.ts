@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
       { source: "/admin/bookings", destination: "/admin/cars/bookings", permanent: false },
       { source: "/admin/calendar", destination: "/admin/cars/calendar", permanent: false },
       { source: "/admin/activity", destination: "/admin/cars/activity", permanent: false },
+      // The counter QR code holds the short link HTTPS://…/P (capitals keep the code small and easy to scan)
+      { source: "/P", destination: "/print", permanent: false },
     ];
   },
 };
