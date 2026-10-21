@@ -2,7 +2,6 @@ import { PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
 import { BUSINESS } from "../config";
 import { daysText, diffDays, fmtLong, fmtRange, todayIST } from "../dates";
 import { formatPhone } from "../format";
-import { PRINT_SHOP } from "../print/files";
 import { formatRupees, PAYMENT_METHODS } from "./money";
 import { embedFonts, fit, GOLD, GREEN, INK, IVORY, LINE, NAVY, RED, SOFT } from "./pdf";
 import { balanceOf, type Payment, type Trip } from "./trips";
@@ -17,14 +16,15 @@ export type StatementTrip = Pick<
 /**
  * A one-page PDF for the customer: what the expenses came to, the payments received and what is still
  * to pay. Called an "expense statement" (not an invoice or bill: there's no GST registration), and kept
- * to amounts: no mention of travels, car hire, the vehicle or the driver.
+ * to amounts: no mention of car hire, the vehicle or the driver. It comes from Annapurna Tours & Travels and
+ * leaves out our phone number and email.
  */
 export async function buildStatementPdf(trip: StatementTrip, payments: Payment[], generatedAt: string): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const { regular, bold } = await embedFonts(pdf);
   pdf.setTitle(`Expense statement ${trip.trip_no}`);
-  pdf.setAuthor(PRINT_SHOP.name);
-  pdf.setCreator(PRINT_SHOP.name);
+  pdf.setAuthor(BUSINESS.travelName);
+  pdf.setCreator(BUSINESS.travelName);
 
   const page = pdf.addPage([PAGE.width, PAGE.height]);
   const left = PAGE.margin;
@@ -38,10 +38,9 @@ export async function buildStatementPdf(trip: StatementTrip, payments: Payment[]
 
   // ---------- Header: who it's from, and the statement's reference ----------
   let y = PAGE.height - PAGE.margin - 8;
-  text(PRINT_SHOP.name, left, y, 19, bold, NAVY);
+  text(BUSINESS.travelName, left, y, 19, bold, NAVY);
   textRight("EXPENSE STATEMENT", right, y + 2, 11, bold, GOLD);
   y -= 18;
-  text(`Phone ${BUSINESS.phoneDisplay}  ·  ${BUSINESS.email}`, left, y, 9.5, regular, SOFT);
   textRight(`Ref. ${trip.trip_no}`, right, y, 9.5, regular, SOFT);
   y -= 14;
   textRight(`Date ${fmtLong(todayIST())}`, right, y, 9.5, regular, SOFT);
@@ -122,9 +121,8 @@ export async function buildStatementPdf(trip: StatementTrip, payments: Payment[]
 
   // ---------- Footer ----------
   text("Thank you!", left, boxTop - 22, 12, bold, NAVY);
-  text(`For any questions, call or WhatsApp ${BUSINESS.phoneDisplay}.`, left, boxTop - 40, 9.5, regular, SOFT);
   rule(PAGE.margin + 18);
-  text(`${PRINT_SHOP.name}  ·  Generated on ${generatedAt}`, left, PAGE.margin + 4, 8, regular, SOFT);
+  text(`${BUSINESS.travelName}  ·  Generated on ${generatedAt}`, left, PAGE.margin + 4, 8, regular, SOFT);
 
   return pdf.save();
 }
