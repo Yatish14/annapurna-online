@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { isValidMobile, normalizeMobile, requireUser } from "@/lib/auth";
-import { diffDays, isIsoDate, parseLocalIST, todayIST } from "@/lib/dates";
+import { diffDays, isIsoDate, nowLocalIST, parseLocalIST, todayIST } from "@/lib/dates";
 import { fleetChoices } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees, isPaymentMethod, parseAmount, parseWhole, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { cleanPlace, isState } from "@/lib/expenses/places";
@@ -123,7 +123,8 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
     pickupState, pickupCity, dropState, dropCity, roundTrip, destState, destCity,
     referrerName, referrerPhone, notes,
   };
-  if (!isNew) return { ok: true, input, odometerStart: null, odometerEnd: null, kmDirect: null, totalAmount: null, driverAmount: null, advance: null, fuel: null };
+  // Money, fuel and km: on a new booking the advance and fuel are its first payment and fuel entry;
+  // when editing they add another one (left empty, nothing is added)
 
   // Km: the two odometer readings, or typed in directly
   const direct = fd.get("km_mode") === "direct";
@@ -142,10 +143,12 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
   if (driverAmount === "invalid") return fail("driver_amount", "Enter the driver's amount in rupees, like 1500.");
   const advanceAmount = parseAmount(fd.get("advance_amount"), { allowZero: false });
   if (advanceAmount === "invalid") return fail("advance_amount", "Enter the advance in rupees, like 2000 (or leave it empty).");
-  if (advanceAmount !== null && totalAmount !== null && advanceAmount > totalAmount)
+  // (When editing, the payments already received count too: checked in saveTrip)
+  if (isNew && advanceAmount !== null && totalAmount !== null && advanceAmount > totalAmount)
     return fail("advance_amount", "The advance is more than the total. Check both amounts.");
   const method = String(fd.get("advance_method") ?? "cash");
-  // Fuel filled for the trip (optional): dated the start day, or today if the trip hasn't started yet
+  // Fuel filled for the trip (optional). A new booking's: dated the start day, or today if the trip hasn't started yet;
+  // fuel added while editing: today
   const fuelAmount = parseAmount(fd.get("fuel_amount"), { allowZero: false });
   if (fuelAmount === "invalid") return fail("fuel_amount", "Enter the fuel amount in rupees, like 3000 (or leave it empty).");
   const litres = parseAmount(fd.get("fuel_litres"), { allowZero: false });
@@ -162,7 +165,7 @@ function readTripForm(fd: FormData, isNew: boolean): Parsed {
     totalAmount,
     driverAmount,
     advance: advanceAmount !== null ? { amount: advanceAmount, method: isPaymentMethod(method) ? method : "cash" } : null,
-    fuel: fuelAmount !== null ? { amount: fuelAmount, litres, spentOn: startDate < today ? startDate : today } : null,
+    fuel: fuelAmount !== null ? { amount: fuelAmount, litres, spentOn: isNew && startDate < today ? startDate : today } : null,
   };
 }
 
@@ -227,6 +230,15 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
     redirect(withFlash(tripPath(result.trip_no), "trip-created", result.trip_no));
   }
 
+  // A payment added while editing: with what is already received, it can't go past the total
+  const received = before?.received ?? 0;
+  if (parsed.advance && parsed.totalAmount !== null && received + parsed.advance.amount > parsed.totalAmount) {
+    return {
+      error: `With this payment the customer would have paid ${formatRupees(received + parsed.advance.amount)}, more than the total of ${formatRupees(parsed.totalAmount)} (${formatRupees(received)} is received already). Check both amounts.`,
+      field: "advance_amount",
+    };
+  }
+
   const result = await updateTrip(id, input, user.name);
   if (!result.ok) {
     if (result.reason === "missing") return { error: "This booking no longer exists." };
@@ -236,8 +248,33 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
     };
   }
   if (result.changes.length) await logActivity(user, "trip.updated", result.trip_no, result.changes.join(" · "));
+
+  // Money, fuel and km, as on the booking's page: the readings and amounts, then any payment or fuel added
+  const readings = await updateReadings(
+    id,
+    { odometerStart: parsed.odometerStart, odometerEnd: parsed.odometerEnd, kmDirect: parsed.kmDirect, totalAmount: parsed.totalAmount, driverAmount: parsed.driverAmount },
+    user.name,
+  );
+  if (readings?.changes.length) await logActivity(user, "trip.readings_updated", result.trip_no, readings.changes.join(" · "));
+  if (parsed.advance) {
+    const paid = await addPayment(id, { party: "customer", ...parsed.advance, paidAt: nowLocalIST(), note: null }, user.name);
+    if (paid) await logActivity(user, "payment.received", result.trip_no, paymentText({ ...parsed.advance, note: null }));
+  }
+  if (parsed.fuel) {
+    const fuel: ExpenseInput = {
+      kind: "fuel", amount: parsed.fuel.amount, spentOn: parsed.fuel.spentOn, litres: parsed.fuel.litres,
+      description: null, shopName: null, shopState: null, shopCity: null, note: null,
+    };
+    const saved = await addExpense({ tripId: id }, fuel, user.name);
+    if (saved) {
+      const fuelText = expenseText({ kind: "fuel", amount: fuel.amount, litres: fuel.litres, description: null, shop_name: null, shop_city: null, shop_state: null, note: null });
+      await logActivity(user, "expense.fuel_added", result.trip_no, `${fuelText} · ${saved.vehicle_name}`);
+    }
+  }
+
+  const changed = result.changes.length > 0 || Boolean(readings?.changes.length) || parsed.advance !== null || parsed.fuel !== null;
   refresh();
-  redirect(withFlash(tripPath(result.trip_no), result.changes.length ? "trip-updated" : "trip-unchanged", result.trip_no));
+  redirect(withFlash(tripPath(result.trip_no), changed ? "trip-updated" : "trip-unchanged", result.trip_no));
 }
 
 // ---------- Readings and amounts ----------

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Icon from "@/components/admin/Icon";
 import PageHeader from "@/components/admin/PageHeader";
-import TripForm, { EMPTY_TRIP } from "@/components/expenses/TripForm";
+import TripForm from "@/components/expenses/TripForm";
+import { EMPTY_TRIP } from "@/components/expenses/tripFormValues";
 import { requireUser } from "@/lib/auth";
 import { fleetChoices } from "@/lib/expenses/fleet";
 import { getTrip } from "@/lib/expenses/trips";
@@ -29,10 +30,11 @@ export default async function EditTripPage({ params }: { params: Params }) {
       <PageHeader
         eyebrow="Expense Tracker"
         title={`Edit ${trip.trip_no}`}
-        subtitle="Readings, amounts, payments and costs are changed on the booking's page."
+        subtitle="Change the details, amounts and km, or add a payment or fuel. To correct or remove a payment or cost, use the booking's page."
       />
       <TripForm
         tripId={trip.id}
+        soFar={{ received: trip.received, fuel: trip.fuel }}
         initial={{
           ...EMPTY_TRIP,
           vehicle_id: String(trip.vehicle_id),
@@ -51,6 +53,13 @@ export default async function EditTripPage({ params }: { params: Params }) {
           referrer_name: trip.referrer_name ?? "",
           referrer_phone: trip.referrer_phone ?? "",
           notes: trip.notes ?? "",
+          // Money and km as saved (payments and fuel are added, not edited, here)
+          total_amount: trip.total_amount === null ? "" : String(trip.total_amount),
+          driver_amount: trip.driver_amount === null ? "" : String(trip.driver_amount),
+          odometer_start: trip.odometer_start === null ? "" : String(trip.odometer_start),
+          odometer_end: trip.odometer_end === null ? "" : String(trip.odometer_end),
+          km_direct_on: trip.km_direct !== null && trip.odometer_start === null,
+          km_direct: trip.km_direct === null ? "" : String(trip.km_direct),
         }}
         vehicles={vehicles}
         drivers={drivers}

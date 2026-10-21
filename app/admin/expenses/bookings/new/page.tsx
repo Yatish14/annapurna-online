@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Icon from "@/components/admin/Icon";
 import PageHeader from "@/components/admin/PageHeader";
-import TripForm, { EMPTY_TRIP } from "@/components/expenses/TripForm";
+import TripForm from "@/components/expenses/TripForm";
+import { EMPTY_TRIP } from "@/components/expenses/tripFormValues";
 import { requireUser } from "@/lib/auth";
 import { fleetChoices } from "@/lib/expenses/fleet";
 
