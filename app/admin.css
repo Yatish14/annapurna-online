@@ -913,6 +913,31 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-rtable tfoot th, .xp-rtable tfoot td { font-weight: 800; border-top: 2px solid var(--navy-900); }
 .xp-reportnotes { margin-top: 22px; }
 .xp-reportnotes p { margin: 3px 0; }
+/* Period filter (a driver's page): one segmented switch, then one control for the month or the dates */
+.xp-period { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-bottom: 8px; transition: opacity .15s; }
+.xp-period.is-pending { opacity: .6; }
+.xp-seg { display: inline-flex; padding: 4px; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow); }
+.xp-seg a { padding: 8px 16px; border-radius: 999px; font-size: .88rem; font-weight: 700; color: var(--ink-soft); text-decoration: none; white-space: nowrap; transition: background .15s, color .15s; }
+.xp-seg a:hover { color: var(--ink); background: var(--ivory); }
+.xp-seg a.is-active { background: var(--navy-900); color: #fff; }
+.xp-periodctl { display: inline-flex; align-items: center; gap: 2px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow); }
+.xp-periodstep { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 999px; color: var(--ink-soft); }
+.xp-periodstep:hover { background: var(--ivory); color: var(--ink); }
+/* The visible label; the real month/date input lies invisibly on top, so a tap opens the phone's own picker */
+.xp-periodpick { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-size: .9rem; font-weight: 700; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.xp-periodpick:hover { background: var(--ivory); }
+.xp-periodpick svg { color: var(--gold-600); flex-shrink: 0; }
+.xp-periodpick input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
+.xp-periodpick:focus-within { outline: 2px solid var(--gold-500); outline-offset: 1px; }
+.xp-periodto { color: var(--ink-soft); font-weight: 700; padding: 0 2px; }
+.xp-perioderror { flex-basis: 100%; margin: 0; color: var(--err); font-size: .85rem; font-weight: 700; }
+.xp-periodnote { margin: 0 0 16px; font-size: .85rem; }
+@media (max-width: 560px) {
+  .xp-seg, .xp-periodctl { width: 100%; }
+  .xp-seg a { flex: 1; text-align: center; padding: 8px 6px; }
+  .xp-periodctl { justify-content: space-between; }
+  .xp-periodpick { flex: 1; justify-content: center; padding: 8px 6px; font-size: .86rem; }
+}
 /* The All tab: each report after the other, with a clear break between them */
 .xp-reportbody + .xp-reportbody { margin-top: 36px; padding-top: 28px; border-top: 2px solid var(--line); }
 @media (max-width: 560px) { .xp-report-pdf { width: 100%; } .xp-monthpick { width: 100%; justify-content: space-between; } }

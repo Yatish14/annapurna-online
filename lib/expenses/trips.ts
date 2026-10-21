@@ -775,7 +775,16 @@ export type DriverSummary = {
   owed: number;
 };
 
-export async function driverSummary(driverId: number): Promise<DriverSummary> {
+/** Dates to filter by, inclusive ("YYYY-MM-DD"); null leaves that end open */
+export type DateRange = { from: string | null; to: string | null };
+const ALL_TIME: DateRange = { from: null, to: null };
+
+/** SQL: the date column is within $n (from) and $n+1 (to), either of which may be null */
+const inRange = (column: string, n: number) =>
+  `($${n}::date IS NULL OR ${column} >= $${n}::date) AND ($${n + 1}::date IS NULL OR ${column} <= $${n + 1}::date)`;
+
+/** A driver's totals over their bookings (not cancelled), those starting within the dates when given */
+export async function driverSummary(driverId: number, range: DateRange = ALL_TIME): Promise<DriverSummary> {
   const [row] = await query<DriverSummary>(
     `SELECT count(*)::int AS bookings,
             coalesce(sum(t.end_date - t.start_date + 1), 0)::int AS days,
@@ -788,8 +797,8 @@ export async function driverSummary(driverId: number): Promise<DriverSummary> {
        SELECT coalesce(sum(p.amount), 0) AS driver_paid FROM trip_payments p
        WHERE p.trip_id = t.id AND p.party = 'driver' AND p.deleted_at IS NULL
      ) pay
-     WHERE t.driver_id = $1 AND t.status = 'booked'`,
-    [driverId],
+     WHERE t.driver_id = $1 AND t.status = 'booked' AND ${inRange("t.start_date", 2)}`,
+    [driverId, range.from, range.to],
   );
   return row;
 }
@@ -848,34 +857,39 @@ export async function driversMonth(month: string): Promise<DriverMonth[]> {
 /** One page of a driver's bookings, newest first */
 export async function driverTrips(
   driverId: number,
-  { page = 1, pageSize = 10 }: { page?: number; pageSize?: number } = {},
+  { page = 1, pageSize = 10, range = ALL_TIME }: { page?: number; pageSize?: number; range?: DateRange } = {},
 ): Promise<{ trips: Trip[]; total: number }> {
-  const [{ total }] = await query<{ total: number }>(`SELECT count(*)::int AS total FROM trips WHERE driver_id = $1`, [driverId]);
+  const [{ total }] = await query<{ total: number }>(
+    `SELECT count(*)::int AS total FROM trips t WHERE t.driver_id = $1 AND ${inRange("t.start_date", 2)}`,
+    [driverId, range.from, range.to],
+  );
   const trips = await query<Trip>(
-    `${TRIP_SELECT} WHERE t.driver_id = $1 ORDER BY t.start_date DESC, t.id DESC LIMIT $2 OFFSET $3`,
-    [driverId, pageSize, (Math.max(1, page) - 1) * pageSize],
+    `${TRIP_SELECT} WHERE t.driver_id = $1 AND ${inRange("t.start_date", 4)} ORDER BY t.start_date DESC, t.id DESC LIMIT $2 OFFSET $3`,
+    [driverId, pageSize, (Math.max(1, page) - 1) * pageSize, range.from, range.to],
   );
   return { trips, total };
 }
 
 /** The driver's bookings that still have money to be paid to them, oldest first */
-export async function driverUnpaidTrips(driverId: number): Promise<Trip[]> {
+export async function driverUnpaidTrips(driverId: number, range: DateRange = ALL_TIME): Promise<Trip[]> {
   return query<Trip>(
     `${TRIP_SELECT} WHERE t.driver_id = $1 AND t.status = 'booked' AND t.driver_amount > pay.driver_paid
+       AND ${inRange("t.start_date", 2)}
      ORDER BY t.start_date, t.id`,
-    [driverId],
+    [driverId, range.from, range.to],
   );
 }
 
-/** One page of payments made to a driver (removed ones too), newest first */
+/** One page of payments made to a driver (removed ones too), newest first; with dates, those paid within them */
 export async function driverPayments(
   driverId: number,
-  { page = 1, pageSize = 10 }: { page?: number; pageSize?: number } = {},
-): Promise<{ payments: PaymentRow[]; total: number }> {
-  const [{ total }] = await query<{ total: number }>(
-    `SELECT count(*)::int AS total FROM trip_payments p JOIN trips t ON t.id = p.trip_id
-     WHERE t.driver_id = $1 AND p.party = 'driver'`,
-    [driverId],
+  { page = 1, pageSize = 10, range = ALL_TIME }: { page?: number; pageSize?: number; range?: DateRange } = {},
+): Promise<{ payments: PaymentRow[]; total: number; sum: number }> {
+  const [{ total, sum }] = await query<{ total: number; sum: number }>(
+    `SELECT count(*)::int AS total, coalesce(sum(p.amount) FILTER (WHERE p.deleted_at IS NULL), 0)::float8 AS sum
+     FROM trip_payments p JOIN trips t ON t.id = p.trip_id
+     WHERE t.driver_id = $1 AND p.party = 'driver' AND ${inRange("(p.paid_at AT TIME ZONE 'Asia/Kolkata')::date", 2)}`,
+    [driverId, range.from, range.to],
   );
   const payments = await query<PaymentRow>(
     `SELECT p.id::int AS id, p.party, p.amount::float8 AS amount, p.method, p.note, p.created_by, p.deleted_by,
@@ -890,10 +904,10 @@ export async function driverPayments(
      JOIN trips t ON t.id = p.trip_id
      JOIN vehicles v ON v.id = t.vehicle_id
      JOIN drivers d ON d.id = t.driver_id
-     WHERE t.driver_id = $1 AND p.party = 'driver'
+     WHERE t.driver_id = $1 AND p.party = 'driver' AND ${inRange("(p.paid_at AT TIME ZONE 'Asia/Kolkata')::date", 4)}
      ORDER BY p.paid_at DESC, p.id DESC
      LIMIT $2 OFFSET $3`,
-    [driverId, pageSize, (Math.max(1, page) - 1) * pageSize],
+    [driverId, pageSize, (Math.max(1, page) - 1) * pageSize, range.from, range.to],
   );
-  return { payments, total };
+  return { payments, total, sum };
 }

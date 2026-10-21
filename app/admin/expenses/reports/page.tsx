@@ -150,7 +150,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
             ›<LinkPending />
           </Link>
         </nav>
-        <form className="xp-monthpick" action="/admin/expenses/reports">
+        {/* Keyed so the box shows the month again after the arrows change it */}
+        <form key={month} className="xp-monthpick" action="/admin/expenses/reports">
           <input type="hidden" name="tab" value={tab} />
           <label className="sr-only" htmlFor="report-month">
             Month

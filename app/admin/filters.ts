@@ -1,5 +1,5 @@
 import { isCarId, type BookingStatus, type CarId } from "@/lib/config";
-import { todayIST } from "@/lib/dates";
+import { isIsoDate, todayIST } from "@/lib/dates";
 import { parsePage } from "@/lib/pagination";
 import type { PrintStatus } from "@/lib/print/orders";
 
@@ -40,6 +40,42 @@ export function bookingsHref(current: BookingFilters, change: Partial<BookingFil
 export function parseMonth(params: URLSearchParams): string {
   const month = params.get("month");
   return month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : todayIST().slice(0, 7);
+}
+
+// ---------- Period: all time, one month, or dates from–to ----------
+
+/** A period to filter by: all time, one month, or a range of dates (either end may be left open) */
+export type Period =
+  | { kind: "all"; from: null; to: null }
+  | { kind: "month"; month: string; from: string; to: string }
+  | { kind: "dates"; from: string | null; to: string | null };
+
+/** ?month=2026-10, or ?from=2026-10-01&to=2026-10-15 (from or to alone works too); anything else is all time */
+export function parsePeriod(params: URLSearchParams): Period {
+  const month = params.get("month");
+  if (month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    const lastDay = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).toISOString().slice(0, 10);
+    return { kind: "month", month, from: `${month}-01`, to: lastDay };
+  }
+  const date = (key: string) => {
+    const value = params.get(key);
+    return value && isIsoDate(value) && value >= "2020-01-01" && value <= "2099-12-31" ? value : null;
+  };
+  let from = date("from");
+  let to = date("to");
+  if (from && to && from > to) [from, to] = [to, from];
+  return from || to ? { kind: "dates", from, to } : { kind: "all", from: null, to: null };
+}
+
+/** The period as URL parameters, so links (pages, tabs) keep it */
+export function periodParams(period: Period): URLSearchParams {
+  const p = new URLSearchParams();
+  if (period.kind === "month") p.set("month", period.month);
+  if (period.kind === "dates") {
+    if (period.from) p.set("from", period.from);
+    if (period.to) p.set("to", period.to);
+  }
+  return p;
 }
 
 export function calendarHref(month: string): string {

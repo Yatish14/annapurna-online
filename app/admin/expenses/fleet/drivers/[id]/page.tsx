@@ -5,14 +5,16 @@ import Icon from "@/components/admin/Icon";
 import Pagination from "@/components/admin/Pagination";
 import EditableHeader from "@/components/expenses/EditableHeader";
 import FleetActions, { FleetStatus } from "@/components/expenses/FleetActions";
+import PeriodFilter from "@/components/expenses/PeriodFilter";
 import { can, requireUser } from "@/lib/auth";
-import { fmtRange, fmtShort } from "@/lib/dates";
+import { fmtDayMonth, fmtLong, fmtRange, fmtShort, todayIST } from "@/lib/dates";
 import { getDriver } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
+import { monthLabel } from "@/lib/expenses/reports";
 import { driverOwed, driverPayments, driverSummary, driverTrips, driverUnpaidTrips, PHASE_LABELS, routeText } from "@/lib/expenses/trips";
 import { formatPhone } from "@/lib/format";
 import { pageCount, PAGE_SIZE, parsePage } from "@/lib/pagination";
-import { readParams, type SearchParams } from "../../../../filters";
+import { parsePeriod, periodParams, readParams, type Period, type SearchParams } from "../../../../filters";
 import { driverStatus, editDriver } from "../../actions";
 
 type Params = Promise<{ id: string }>;
@@ -22,6 +24,20 @@ export async function generateMetadata({ params }: { params: Params }) {
   return { title: driver ? driver.name : "Driver" };
 }
 
+/** "in October 2026", "between 1 Oct and 15 Oct 2026", "from 1 Oct 2026", "up to 15 Oct 2026" */
+function periodPhrase(p: Period): string {
+  if (p.kind === "month") return `in ${monthLabel(p.month)}`;
+  if (p.from && p.to) {
+    if (p.from === p.to) return `on ${fmtLong(p.from)}`;
+    // "between 20 Sep and 10 Oct 2026" (the year once when both are in it)
+    const start = p.from.slice(0, 4) === p.to.slice(0, 4) ? fmtDayMonth(p.from) : fmtLong(p.from);
+    return `between ${start} and ${fmtLong(p.to)}`;
+  }
+  if (p.from) return `from ${fmtLong(p.from)}`;
+  if (p.to) return `up to ${fmtLong(p.to)}`;
+  return "";
+}
+
 export default async function DriverPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const user = await requireUser();
   const canManage = can(user, "manageExpenses");
@@ -29,16 +45,21 @@ export default async function DriverPage({ params, searchParams }: { params: Par
   if (!driver) notFound();
   const query = await readParams(searchParams);
   const pages = { payments: parsePage(query.get("payments")), bookings: parsePage(query.get("bookings")) };
+  const period = parsePeriod(query);
+  const range = { from: period.from, to: period.to };
+  const filtered = period.kind !== "all";
+  const when = periodPhrase(period);
 
   const [summary, unpaid, payments, trips] = await Promise.all([
-    driverSummary(driver.id),
-    driverUnpaidTrips(driver.id),
-    driverPayments(driver.id, { page: pages.payments, pageSize: PAGE_SIZE }),
-    driverTrips(driver.id, { page: pages.bookings, pageSize: PAGE_SIZE }),
+    driverSummary(driver.id, range),
+    driverUnpaidTrips(driver.id, range),
+    driverPayments(driver.id, { page: pages.payments, pageSize: PAGE_SIZE, range }),
+    driverTrips(driver.id, { page: pages.bookings, pageSize: PAGE_SIZE, range }),
   ]);
   const base = `/admin/expenses/fleet/drivers/${driver.id}`;
+  // Page links keep the period
   const href = (key: "payments" | "bookings", n: number) => {
-    const p = new URLSearchParams();
+    const p = periodParams(period);
     for (const k of ["payments", "bookings"] as const) {
       const page = k === key ? n : pages[k];
       if (page > 1) p.set(k, String(page));
@@ -51,8 +72,13 @@ export default async function DriverPage({ params, searchParams }: { params: Par
     { label: "Days driven", value: String(summary.days), tone: "navy" },
     { label: "Km driven", value: formatNumber(summary.km), tone: "navy" },
     { label: "Earned", value: formatRupees(summary.earned), sub: "Agreed driver amounts", tone: "plum" },
-    { label: "Paid", value: formatRupees(summary.paid), tone: "green" },
-    { label: "Still to pay", value: formatRupees(summary.owed), tone: summary.owed > 0 ? "red" : "green" },
+    { label: "Paid", value: formatRupees(summary.paid), sub: filtered ? "For these bookings" : undefined, tone: "green" },
+    {
+      label: "Still to pay",
+      value: formatRupees(summary.owed),
+      sub: filtered ? "For these bookings" : undefined,
+      tone: summary.owed > 0 ? "red" : "green",
+    },
   ];
 
   return (
@@ -103,6 +129,9 @@ export default async function DriverPage({ params, searchParams }: { params: Par
         <p className="ap-alert ap-alert-warn">This driver is switched off: they can&apos;t be picked for new bookings. Their history is kept.</p>
       )}
 
+      <PeriodFilter base={base} period={period} today={todayIST()} />
+      {filtered && <p className="ap-hint xp-periodnote">Showing bookings that start {when}, and payments made in that time.</p>}
+
       <section className="xp-sumtiles">
         {tiles.map((t) => (
           <div key={t.label} className={`xp-sumtile is-${t.tone}`}>
@@ -120,7 +149,9 @@ export default async function DriverPage({ params, searchParams }: { params: Par
             <span className={summary.owed > 0 ? "xp-owed" : "ap-muted"}>{formatRupees(summary.owed)}</span>
           </div>
           {unpaid.length === 0 ? (
-            <p className="ap-empty-sm">Nothing owed: every booking is settled. ✨</p>
+            <p className="ap-empty-sm">
+              {filtered ? `Nothing owed for bookings starting ${when}.` : "Nothing owed: every booking is settled. ✨"}
+            </p>
           ) : (
             <>
               <ul className="ap-rows">
@@ -151,10 +182,10 @@ export default async function DriverPage({ params, searchParams }: { params: Par
             <h2>
               <Icon name="wallet" size={18} /> Payments to {driver.name}
             </h2>
-            <span className="xp-total">{formatRupees(summary.paid)}</span>
+            <span className="xp-total">{formatRupees(filtered ? payments.sum : summary.paid)}</span>
           </div>
           {payments.total === 0 ? (
-            <p className="ap-empty-sm">No payments to this driver yet.</p>
+            <p className="ap-empty-sm">{filtered ? `No payments ${when}.` : "No payments to this driver yet."}</p>
           ) : (
             <ul className="xp-ledger">
               {payments.payments.map((p) => (
@@ -202,7 +233,7 @@ export default async function DriverPage({ params, searchParams }: { params: Par
           </span>
         </div>
         {trips.trips.length === 0 ? (
-          <p className="ap-empty-sm">No bookings yet.</p>
+          <p className="ap-empty-sm">{filtered ? `No bookings starting ${when}.` : "No bookings yet."}</p>
         ) : (
           <ul className="ap-rows">
             {trips.trips.map((t) => (
