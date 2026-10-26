@@ -15,6 +15,8 @@ type Props = {
   printCount: number;
   showUsers: boolean;
   showActivity: boolean;
+  /** Annapurna Assist (admins only) */
+  showAssistant: boolean;
   /** Desktop: start with the icon-only sidebar (remembered in a cookie) */
   initialCollapsed: boolean;
   /** Modules that were left open (remembered in a cookie) */
@@ -30,7 +32,7 @@ const EXACT = new Set(["/admin/print", "/admin/expenses"]);
 const isDesktop = () => window.matchMedia("(min-width: 1001px)").matches;
 
 export default function Sidebar(props: Props) {
-  const { user, printCount, showUsers, showActivity, initialCollapsed, initialOpen } = props;
+  const { user, printCount, showUsers, showActivity, showAssistant, initialCollapsed, initialOpen } = props;
   const pathname = usePathname();
   const [drawer, setDrawer] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(initialCollapsed); // desktop icon-only mode
@@ -179,6 +181,11 @@ export default function Sidebar(props: Props) {
         </div>
 
         <nav className="ap-nav">
+          {showAssistant && (
+            <div className={`ap-mod ap-mod-assist ${isActive("/admin/assistant") ? "has-active" : ""}`}>
+              {link({ href: "/admin/assistant", label: "Annapurna Assist", icon: "sparkle" })}
+            </div>
+          )}
           <span className="ap-nav-label">Modules</span>
           {modules.map((m) => {
             const isOpen = open.includes(m.id);

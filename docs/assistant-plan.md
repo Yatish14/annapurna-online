@@ -4,8 +4,14 @@ An admin-only AI assistant inside the Annapurna admin: a chat page (text and voi
 questions from live data, creates bookings / payments / fuel entries after you confirm, gives the
 monthly report, and answers "how do I…" questions from a small knowledge base.
 
-**Name:** not decided yet. The code uses "Assistant" until then.
-Shortlist: PurnaAI · Annapurna AGI · PadmaAI · SevaAI · Annapurna Assist.
+**Name:** Annapurna Assist.
+
+**UI with sample data (done 26 Oct 2026):** the whole chat page works in the browser with canned answers from
+`lib/assistant/sample.ts`, so nothing reads or writes real data yet. It covers the sidebar link and permission (1.1–1.3),
+the chat (1.7, 1.9, 1.11, Stop from 1.12, the length limit and daily count from 1.15), tool chips and cards (2.12, 2.13),
+the report file card (3.2), draft cards with Confirm / Open in form / Cancel (4.4, 4.7, 4.11), the chat list with
+search and delete (5.4, 5.6, 5.8), help sources (6.10) and the mic with English / Telugu / Hindi (7.1–7.4).
+Each of those tasks still needs its server side. When it's real, replace `sampleReply` with the API route and delete `sample.ts`.
 
 ## How we work
 

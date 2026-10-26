@@ -204,6 +204,20 @@ const PATHS = {
       <circle cx="7" cy="7" r="1.5" />
     </>
   ),
+  /** Annapurna Assist: a sparkle */
+  sparkle: (
+    <>
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+      <path d="M19 15v4M17 17h4M5 3v3M3.5 4.5h3" />
+    </>
+  ),
+  mic: (
+    <>
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4" />
+    </>
+  ),
+  stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
 };
 
 export type IconName = keyof typeof PATHS;

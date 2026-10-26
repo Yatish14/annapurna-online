@@ -26,6 +26,8 @@ const PERMISSIONS = {
   /** Expense Tracker: vehicles, drivers, bookings, payments, fuel and repairs */
   manageExpenses: ["super_admin", "admin"],
   viewUsers: ["super_admin", "admin"],
+  /** Annapurna Assist: the AI chat (app/admin/assistant) */
+  useAssistant: ["super_admin", "admin"],
   /** The activity log: who changed what, when */
   viewActivity: ["super_admin", "admin"],
   deleteUsers: ["super_admin", "admin"],
