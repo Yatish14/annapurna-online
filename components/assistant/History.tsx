@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Icon from "@/components/admin/Icon";
 import type { Chat } from "@/lib/assistant/types";
+import { useAssist, VIEW_ONLY } from "./AssistProvider";
 
 type Props = {
   chats: Chat[];
@@ -23,6 +24,9 @@ type Props = {
 /** Your earlier chats, newest first, grouped by day, with a search box */
 export default function History({ chats, activeId, inline, open, onClose, onSelect, onNew, onDelete }: Props) {
   const [query, setQuery] = useState("");
+  const { canUse, notify } = useAssist();
+  /** Viewers: greyed out, but the click still says why */
+  const locked = canUse ? {} : { "aria-disabled": true as const };
 
   const q = query.trim().toLowerCase();
   const saved = chats.filter((c) => c.messages.length > 0);
@@ -58,7 +62,10 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
                   className="as-history-delete"
                   aria-label={`Delete “${c.title}”`}
                   title="Delete chat"
+                  {...locked}
                   onClick={() => {
+                    // Viewers get the message straight away, not a "Delete?" question first
+                    if (!canUse) return notify(VIEW_ONLY.deleteChat);
                     if (confirm(`Delete “${c.title}”?`)) onDelete(c.id);
                   }}
                 >
@@ -73,7 +80,7 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
   );
 
   const newChat = (className: string) => (
-    <button type="button" className={`ap-btn ap-btn-gold ${className}`} onClick={onNew}>
+    <button type="button" className={`ap-btn ap-btn-gold ${className}`} onClick={onNew} {...locked}>
       <Icon name="plus" size={16} /> New chat
     </button>
   );

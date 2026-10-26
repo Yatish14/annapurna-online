@@ -1334,6 +1334,34 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .as-composer .as-micerror { margin-bottom: 8px; }
 .as-footnote { margin-top: 8px; margin-bottom: 0; text-align: center; font-size: .72rem; color: var(--ink-soft); }
 
+/* View only (viewers): same buttons, greyed out; they still take the click so a toast can say why */
+.as-page [aria-disabled="true"], .as-panel [aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.as-page .ap-btn[aria-disabled="true"]:hover, .as-panel .ap-btn[aria-disabled="true"]:hover,
+.as-suggest button[aria-disabled="true"]:hover { transform: none; border-color: var(--line); }
+.as-tool[aria-disabled="true"]:hover { background: none; color: var(--ink-soft); }
+/* Also on the open chat and on hover, where the delete icon is normally fully shown and turns red */
+.as-history-group li .as-history-delete[aria-disabled="true"] { opacity: .45; }
+.as-history-group li .as-history-delete[aria-disabled="true"]:hover { background: none; color: var(--ink-soft); }
+.as-inputbox.is-locked { background: var(--ivory); box-shadow: none; cursor: not-allowed; }
+.as-inputbox.is-locked:focus-within { border-color: rgba(16,26,51,.16); box-shadow: none; }
+/* The box itself stays readable: only its placeholder and buttons are faded */
+.as-inputbox.is-locked textarea { opacity: 1; cursor: not-allowed; }
+
+/* Toast: a short message at the bottom of the screen (components/assistant/AssistProvider.tsx) */
+.as-toast {
+  position: fixed; left: 50%; bottom: 28px; z-index: 80; transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: 10px; width: max-content; max-width: min(460px, calc(100vw - 32px));
+  padding: 12px 12px 12px 16px; border-radius: 14px; background: var(--navy-900); color: #fff;
+  font-size: .88rem; font-weight: 600; line-height: 1.45; box-shadow: 0 18px 40px -14px rgba(5,13,34,.6);
+  animation: as-toast .2s ease-out;
+}
+.as-toast > svg { flex-shrink: 0; margin-top: 2px; color: var(--gold-300); }
+.as-toast button {
+  flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: rgba(255,255,255,.1); color: #fff; cursor: pointer;
+}
+@keyframes as-toast { from { opacity: 0; transform: translate(-50%, 8px); } }
+
 /* Tablets and phones: the chat list slides in from the left */
 @media (max-width: 1000px) {
   /* 60px: the dark top bar (components/admin/Sidebar.tsx) */

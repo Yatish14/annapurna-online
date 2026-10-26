@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
 import { SUGGESTIONS } from "@/lib/assistant/sample";
-import { DAILY_LIMIT, useAssist } from "./AssistProvider";
+import { DAILY_LIMIT, useAssist, VIEW_ONLY } from "./AssistProvider";
 import Composer from "./Composer";
 import History from "./History";
 import MessageView from "./Message";
@@ -20,7 +20,9 @@ type Props = {
 
 /** One view of the chats: the chat list, the open chat and the message box */
 export default function Assistant({ variant = "page", onClose, initialChatId }: Props) {
-  const { firstName, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat } = useAssist();
+  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat } = useAssist();
+  /** Viewers: buttons look greyed out but still take the click, to say why (a disabled button can't) */
+  const locked = canUse ? {} : { "aria-disabled": true as const };
   const [activeId, setActiveId] = useState(initialChatId ?? emptyId);
   /** Full page on phones: the chat list drawer is open */
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -69,6 +71,7 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
   }
 
   function newChat() {
+    if (!canUse) return notify(VIEW_ONLY.newChat);
     setHistoryOpen(false);
     setView("chat");
     setActiveId(emptyId);
@@ -128,7 +131,7 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
           <button type="button" className="as-tool" onClick={() => setView("list")} aria-label="Your chats" title="Your chats">
             <Icon name="clock" size={18} />
           </button>
-          <button type="button" className="as-tool" onClick={newChat} aria-label="New chat" title="New chat">
+          <button type="button" className="as-tool" onClick={newChat} aria-label="New chat" title="New chat" {...locked}>
             <Icon name="plus" size={18} />
           </button>
           <Link href={fullPageHref} className="as-tool" aria-label="Open the full page" title="Open the full page">
@@ -137,7 +140,7 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
           {closeButton}
         </div>
       ) : (
-        <button type="button" className="ap-btn ap-btn-ghost ap-btn-sm as-head-new" onClick={newChat}>
+        <button type="button" className="ap-btn ap-btn-ghost ap-btn-sm as-head-new" onClick={newChat} {...locked}>
           <Icon name="plus" size={15} /> <span className="as-head-new-text">New chat</span>
         </button>
       )}
@@ -174,12 +177,13 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
                 </span>
                 <h2>Namaste, {firstName}</h2>
                 <p>
-                  Ask about bookings, money, drivers and vehicles, print orders, or how to use the admin. Before anything is
-                  saved, you'll see a draft to confirm.
+                  {canUse
+                    ? "Ask about bookings, money, drivers and vehicles, print orders, or how to use the admin. Before anything is saved, you'll see a draft to confirm."
+                    : "You can read the chats here. Asking questions and confirming drafts is for admins."}
                 </p>
                 <div className="as-suggest">
                   {SUGGESTIONS.map((s) => (
-                    <button key={s.text} type="button" onClick={() => ask(s.text)} disabled={busy}>
+                    <button key={s.text} type="button" onClick={() => ask(s.text)} disabled={busy} {...locked}>
                       <Icon name={s.icon} size={17} />
                       <span>{s.text}</span>
                     </button>

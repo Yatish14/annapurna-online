@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import Icon from "@/components/admin/Icon";
 import { sampleConfirm, sampleReply } from "@/lib/assistant/sample";
 import type { Card, Chat, Message, Reply, ToolStep } from "@/lib/assistant/types";
 
@@ -38,8 +39,21 @@ function wait(ms: number, signal: AbortSignal) {
 /** The reply being written right now */
 export type Live = { chatId: string; messageId: string; running: ToolStep | null };
 
+/** What a viewer is told when they press something their role can't use */
+export const VIEW_ONLY = {
+  ask: "Viewers can read Annapurna Assist but can't ask questions. Ask the super admin if you need access.",
+  newChat: "Viewers can't start new chats. Ask the super admin if you need access.",
+  deleteChat: "Viewers can't delete chats. Ask the super admin if you need access.",
+  draft: "Viewers can't confirm or cancel drafts. Ask the super admin if you need access.",
+  form: "Viewers can't create or change bookings. Ask the super admin if you need access.",
+};
+
 type Store = {
   firstName: string;
+  /** Can ask, start chats and confirm drafts (admins). Everyone else sees the same page, view only. */
+  canUse: boolean;
+  /** Shows a short message at the bottom of the screen */
+  notify: (message: string) => void;
   chats: Chat[];
   /** The one empty chat that "New chat" opens. There's always exactly one. */
   emptyId: string;
@@ -62,14 +76,26 @@ export function useAssist(): Store {
   return store;
 }
 
-type Props = { firstName: string; today: string; initialChats: Chat[]; children: React.ReactNode };
+type Props = { firstName: string; today: string; canUse: boolean; initialChats: Chat[]; children: React.ReactNode };
 
-export default function AssistProvider({ firstName, today, initialChats, children }: Props) {
+export default function AssistProvider({ firstName, today, canUse, initialChats, children }: Props) {
   // A fixed id for the first empty chat, so the server and the browser render the same thing
   const [chats, setChats] = useState<Chat[]>(() => [emptyChat("chat-new"), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
   const [asked, setAsked] = useState(0);
+  const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
   const abort = useRef<AbortController | null>(null);
+
+  // The toast hides after 4 seconds; a new one restarts the clock
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  function notify(message: string) {
+    setToast({ id: Date.now(), message });
+  }
   /** Drafts already confirmed or cancelled, so a double-click can't confirm twice */
   const settled = useRef(new Set<string>());
 
@@ -102,7 +128,10 @@ export default function AssistProvider({ firstName, today, initialChats, childre
     updateMessage(chatId, messageId, (m) => ({ ...m, cards: reply.cards }));
   }
 
+  // Each action checks the role too, not just the greyed-out buttons
+  // (the real API route and server actions will check it again on the server)
   function send(chatId: string, question: string, voice = false) {
+    if (!canUse) return notify(VIEW_ONLY.ask);
     if (live || asked >= DAILY_LIMIT) return;
     const time = clock();
     const answer: Message = { id: newId("msg"), role: "assistant", text: "", time };
@@ -149,6 +178,7 @@ export default function AssistProvider({ firstName, today, initialChats, childre
   }
 
   function confirmDraft(card: DraftCard) {
+    if (!canUse) return notify(VIEW_ONLY.draft);
     if (settled.current.has(card.id)) return;
     settled.current.add(card.id);
     const { result, reply } = sampleConfirm(card);
@@ -157,12 +187,14 @@ export default function AssistProvider({ firstName, today, initialChats, childre
   }
 
   function cancelDraft(card: DraftCard) {
+    if (!canUse) return notify(VIEW_ONLY.draft);
     if (settled.current.has(card.id)) return;
     settled.current.add(card.id);
     settleDraft(card.id, { status: "cancelled" });
   }
 
   function deleteChat(id: string) {
+    if (!canUse) return notify(VIEW_ONLY.deleteChat);
     if (live?.chatId === id) abort.current?.abort();
     setChats((cs) => {
       const left = cs.filter((c) => c.id !== id);
@@ -172,6 +204,8 @@ export default function AssistProvider({ firstName, today, initialChats, childre
 
   const store: Store = {
     firstName,
+    canUse,
+    notify,
     chats,
     emptyId,
     live,
@@ -182,5 +216,19 @@ export default function AssistProvider({ firstName, today, initialChats, childre
     cancelDraft,
     deleteChat,
   };
-  return <AssistContext.Provider value={store}>{children}</AssistContext.Provider>;
+  return (
+    <AssistContext.Provider value={store}>
+      {children}
+      {toast && (
+        // key: the same message pressed twice still replays the animation
+        <div key={toast.id} className="as-toast" role="status">
+          <Icon name="shield" size={17} />
+          <span>{toast.message}</span>
+          <button type="button" onClick={() => setToast(null)} aria-label="Close message">
+            <Icon name="close" size={14} />
+          </button>
+        </div>
+      )}
+    </AssistContext.Provider>
+  );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Icon from "@/components/admin/Icon";
 import { formatRupees } from "@/lib/expenses/money";
 import type { Card } from "@/lib/assistant/types";
+import { useAssist, VIEW_ONLY } from "./AssistProvider";
 
 type CardOf<K extends Card["kind"]> = Extract<Card, { kind: K }>;
 type DraftActions = { onConfirm: (card: CardOf<"draft">) => void; onCancel: (card: CardOf<"draft">) => void };
@@ -92,6 +93,9 @@ const DRAFT_BADGE = {
 /** A booking, payment or fuel entry the assistant prepared. Only the Confirm button saves it. */
 function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & DraftActions) {
   const badge = DRAFT_BADGE[card.status];
+  const { canUse, notify } = useAssist();
+  /** Viewers: greyed out, but the click still says why */
+  const locked = canUse ? {} : { "aria-disabled": true as const };
   return (
     <section className={`as-card as-draft is-${card.status}`}>
       <header className="as-card-head">
@@ -117,13 +121,22 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
 
       {card.status === "pending" && (
         <div className="as-draft-actions">
-          <button type="button" className="ap-btn ap-btn-gold" onClick={() => onConfirm(card)}>
+          <button type="button" className="ap-btn ap-btn-gold" onClick={() => onConfirm(card)} {...locked}>
             <Icon name="check" size={16} /> Confirm
           </button>
-          <Link href={card.formHref} className="ap-btn ap-btn-ghost">
+          <Link
+            href={card.formHref}
+            className="ap-btn ap-btn-ghost"
+            {...locked}
+            onClick={(e) => {
+              if (canUse) return;
+              e.preventDefault(); // viewers stay here and get told why
+              notify(VIEW_ONLY.form);
+            }}
+          >
             <Icon name="edit" size={16} /> Open in form
           </Link>
-          <button type="button" className="ap-btn ap-btn-ghost" onClick={() => onCancel(card)}>
+          <button type="button" className="ap-btn ap-btn-ghost" onClick={() => onCancel(card)} {...locked}>
             Cancel
           </button>
         </div>

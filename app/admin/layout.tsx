@@ -19,37 +19,36 @@ export const metadata: Metadata = {
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const [prints, store] = await Promise.all([printStats(), cookies()]);
-  const canAssist = can(user, "useAssistant");
-
-  const shell = (
-    <div className="ap-shell">
-      <Sidebar
-        user={{
-          name: user.name,
-          mobile: user.mobile,
-          role: user.role,
-          roleLabel: ROLE_LABELS[user.role],
-          initials: initials(user.name),
-        }}
-        printCount={prints.new}
-        showUsers={can(user, "viewUsers")}
-        showActivity={can(user, "viewActivity")}
-        showAssistant={canAssist}
-        initialCollapsed={store.get(SIDEBAR_COOKIE)?.value === "collapsed"}
-        initialOpen={parseOpenModules(store.get(MODULES_COOKIE)?.value)}
-      />
-      <div className="ap-content">{children}</div>
-      {canAssist && <AssistPanel />}
-    </div>
-  );
-  if (!canAssist) return shell;
-
-  // The chats live here, above every page, so the side panel and the full page share them
-  // and they stay while you move between pages
   const today = todayIST();
+
+  // Annapurna Assist looks the same for every role. Viewers can read it, but its buttons are
+  // greyed out for them (canUse); the chats live here, above every page, so the side panel and
+  // the full page share them and they stay while you move between pages.
   return (
-    <AssistProvider firstName={user.name.split(" ")[0]} today={today} initialChats={sampleChats(today)}>
-      {shell}
+    <AssistProvider
+      firstName={user.name.split(" ")[0]}
+      today={today}
+      canUse={can(user, "useAssistant")}
+      initialChats={sampleChats(today)}
+    >
+      <div className="ap-shell">
+        <Sidebar
+          user={{
+            name: user.name,
+            mobile: user.mobile,
+            role: user.role,
+            roleLabel: ROLE_LABELS[user.role],
+            initials: initials(user.name),
+          }}
+          printCount={prints.new}
+          showUsers={can(user, "viewUsers")}
+          showActivity={can(user, "viewActivity")}
+          initialCollapsed={store.get(SIDEBAR_COOKIE)?.value === "collapsed"}
+          initialOpen={parseOpenModules(store.get(MODULES_COOKIE)?.value)}
+        />
+        <div className="ap-content">{children}</div>
+        <AssistPanel />
+      </div>
     </AssistProvider>
   );
 }

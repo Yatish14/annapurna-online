@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
+import { useAssist, VIEW_ONLY } from "./AssistProvider";
 
 /** Longest question accepted (the API route will check this too) */
 export const MAX_LENGTH = 1000;
@@ -75,6 +76,10 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   const box = useRef<HTMLTextAreaElement>(null);
   const voice = useRef<HTMLDivElement>(null);
   const language = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
+  const { canUse, notify } = useAssist();
+  /** Viewers: everything looks the same but greyed out; touching it says why */
+  const locked = canUse ? {} : { "aria-disabled": true as const };
+  const tellViewer = () => notify(VIEW_ONLY.ask);
 
   // Close the language menu on an outside click or Escape
   useEffect(() => {
@@ -121,6 +126,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   }
 
   function toggleMic() {
+    if (!canUse) return tellViewer();
     if (listening) {
       recognition.current?.stop();
       return;
@@ -172,7 +178,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
         </p>
       )}
       <form
-        className={`as-inputbox ${listening ? "is-listening" : ""} ${tooLong ? "is-invalid" : ""}`}
+        className={`as-inputbox ${listening ? "is-listening" : ""} ${tooLong ? "is-invalid" : ""} ${canUse ? "" : "is-locked"}`}
         onSubmit={(e) => {
           e.preventDefault();
           send();
@@ -182,10 +188,23 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
           ref={box}
           rows={1}
           value={text}
-          placeholder={listening ? "Listening…" : "Ask about bookings, money, drivers, prints…"}
+          placeholder={
+            !canUse ? "View only: your role can't ask questions" : listening ? "Listening…" : "Ask about bookings, money, drivers, prints…"
+          }
           aria-label="Your question"
+          readOnly={!canUse}
+          {...locked}
+          onMouseDown={(e) => {
+            if (canUse) return;
+            e.preventDefault(); // no cursor in a box that can't be typed in
+            tellViewer();
+          }}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
+            if (!canUse) {
+              if (e.key !== "Tab") tellViewer(); // Tab still moves on
+              return;
+            }
             // Enter sends, Shift+Enter starts a new line (not while typing Telugu/Hindi with an IME)
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
@@ -201,6 +220,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
                 type="button"
                 className="as-mic"
                 onClick={toggleMic}
+                {...locked}
                 aria-label={listening ? "Stop listening" : `Ask by voice in ${language.english}`}
                 aria-pressed={listening}
                 title={micProblem ? "Voice isn't available here" : listening ? "Stop listening" : `Ask by voice (${language.english})`}
@@ -210,7 +230,8 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
               <button
                 type="button"
                 className="as-lang"
-                onClick={() => setLangOpen((o) => !o)}
+                onClick={() => (canUse ? setLangOpen((o) => !o) : tellViewer())}
+                {...locked}
                 aria-haspopup="menu"
                 aria-expanded={langOpen}
                 aria-label={`Language you'll speak: ${language.english}`}
@@ -251,7 +272,12 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
           <span className={`as-count ${tooLong ? "is-over" : ""}`}>
             {text.length > MAX_LENGTH * 0.8 ? `${text.length} / ${MAX_LENGTH}` : ""}
           </span>
-          {busy ? (
+          {!canUse ? (
+            // Not a real disabled button: those can't be clicked, so they couldn't say why
+            <button type="button" className="as-send" onClick={tellViewer} aria-label="Send" title="Send" {...locked}>
+              <Icon name="send" size={17} />
+            </button>
+          ) : busy ? (
             <button type="button" className="as-send is-stop" onClick={onStop} aria-label="Stop the reply" title="Stop">
               <Icon name="stop" size={16} />
             </button>
@@ -263,8 +289,12 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
         </div>
       </form>
       <p className="as-footnote">
-        {left > 0 ? `${left} questions left today` : "No questions left today. The limit resets at midnight."} · Sample
-        answers: nothing is read from or saved to your data yet.
+        {!canUse
+          ? "View only: you can read these chats, but asking is for admins."
+          : left > 0
+            ? `${left} questions left today`
+            : "No questions left today. The limit resets at midnight."}{" "}
+        · Sample answers: nothing is read from or saved to your data yet.
       </p>
     </div>
   );
