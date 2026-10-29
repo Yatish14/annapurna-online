@@ -113,6 +113,7 @@ export default async function TripPage({ params, searchParams }: { params: Param
               locked={locked}
               className={`ap-btn ap-btn-sm ${active ? "ap-btn-danger" : "ap-btn-gold"}`}
               confirm={active ? `Cancel ${trip.trip_no}? The vehicle becomes free on these days. Payments and costs stay recorded.` : undefined}
+              cancelLabel="Keep booking"
             >
               <Icon name={active ? "xcircle" : "undo"} size={14} /> {active ? "Cancel booking" : "Restore booking"}
             </SubmitButton>

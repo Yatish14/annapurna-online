@@ -50,7 +50,14 @@ function ActionForm({
       <input type="hidden" name="id" value={booking.id} />
       <input type="hidden" name="action" value={action} />
       <input type="hidden" name="back" value={back} />
-      <SubmitButton className={className} confirm={confirm} disabled={disabled} title={title}>
+      {/* "Keep booking", not "Cancel", beside a "Cancel booking" button */}
+      <SubmitButton
+        className={className}
+        confirm={confirm}
+        cancelLabel={action === "cancel" ? "Keep booking" : undefined}
+        disabled={disabled}
+        title={title}
+      >
         {children}
       </SubmitButton>
     </form>

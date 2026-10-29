@@ -1062,6 +1062,10 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-modal .ap-alert { margin: 0 0 14px; }
 .xp-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 @media (max-width: 560px) { .xp-modal-actions .ap-btn { flex: 1; justify-content: center; } }
+/* "Are you sure?" popup (components/ConfirmDialog.tsx): a long question wraps beside its icon */
+.xp-confirm h2 { align-items: flex-start; font-size: 1.25rem; line-height: 1.35; overflow-wrap: anywhere; }
+.xp-confirm h2 svg { flex-shrink: 0; margin-top: 3px; }
+.xp-confirm.is-danger h2 svg { color: var(--err); }
 
 /* Booking page: "Enter km directly" switch in the readings form */
 .xp-readings .xp-kmswitch { grid-column: 1 / -1; margin: 0 0 14px; }
@@ -1135,7 +1139,8 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .as-history-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 0 8px; scrollbar-width: thin; }
 .as-history-group + .as-history-group { margin-top: 16px; }
 .as-history-group h3 { margin: 0 0 6px; padding: 0 10px; font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-600); }
-.as-history-group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+/* minmax(0, 1fr): a long title can't widen the row past the column, so it gets "…" and the delete button stays in view */
+.as-history-group ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
 .as-history-group li { display: flex; align-items: center; border-radius: 11px; transition: background .15s; }
 .as-history-group li:hover { background: var(--ivory-2); }
 .as-history-group li.is-active { background: var(--surface); box-shadow: 0 0 0 1px var(--line), var(--shadow); }

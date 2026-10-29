@@ -52,11 +52,12 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
     if (stick.current) scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [active.messages, live]);
 
-  // Escape closes the chat list first (and not the whole side panel)
+  // Escape closes the chat list first (and not the whole side panel), but leaves it open while a popup
+  // over it (e.g. "Delete this chat?") takes the Escape
   useEffect(() => {
     if (!historyOpen && !listing) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== "Escape" || document.querySelector(".xp-modal-backdrop")) return;
       e.preventDefault();
       setHistoryOpen(false);
       setView("chat");

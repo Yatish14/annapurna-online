@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import Icon from "@/components/admin/Icon";
 import type { Chat } from "@/lib/assistant/types";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
@@ -24,6 +25,8 @@ type Props = {
 /** Your earlier chats, newest first, grouped by day, with a search box */
 export default function History({ chats, activeId, inline, open, onClose, onSelect, onNew, onDelete }: Props) {
   const [query, setQuery] = useState("");
+  /** The chat whose delete button was pressed, waiting for "Delete" in the popup */
+  const [deleting, setDeleting] = useState<Chat | null>(null);
   const { canUse, notify } = useAssist();
   /** Viewers: greyed out, but the click still says why */
   const locked = canUse ? {} : { "aria-disabled": true as const };
@@ -64,9 +67,9 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
                   title="Delete chat"
                   {...locked}
                   onClick={() => {
-                    // Viewers get the message straight away, not a "Delete?" question first
+                    // Viewers get the message straight away, not the "Delete?" popup first
                     if (!canUse) return notify(VIEW_ONLY.deleteChat);
-                    if (confirm(`Delete “${c.title}”?`)) onDelete(c.id);
+                    setDeleting(c);
                   }}
                 >
                   <Icon name="trash" size={14} />
@@ -77,6 +80,26 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
         </div>
       ))}
     </nav>
+  );
+
+  // "Delete this chat?" as a popup over the page (components/ConfirmDialog.tsx)
+  const popup = deleting && (
+    <ConfirmDialog
+      title={`Delete “${deleting.title}”?`}
+      message="The chat and all its messages will be gone. This can't be undone."
+      confirmLabel={
+        <>
+          <Icon name="trash" size={15} /> Delete
+        </>
+      }
+      danger
+      icon="trash"
+      onCancel={() => setDeleting(null)}
+      onConfirm={() => {
+        onDelete(deleting.id);
+        setDeleting(null);
+      }}
+    />
   );
 
   const newChat = (className: string) => (
@@ -91,6 +114,7 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
         <div className="as-chatlist-top">{search}</div>
         {list}
         <div className="as-chatlist-foot">{newChat("ap-btn-block")}</div>
+        {popup}
       </div>
     );
   }
@@ -118,6 +142,7 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
         {search}
         {list}
       </aside>
+      {popup}
     </>
   );
 }
