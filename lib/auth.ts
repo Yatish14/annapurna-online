@@ -77,7 +77,7 @@ export function isValidMobile(mobile: string): boolean {
   return /^[6-9]\d{9}$/.test(mobile);
 }
 
-export type LoginResult = { ok: true; mobile: string; version: number } | { ok: false; reason: "invalid" | "setup" };
+export type LoginResult = { ok: true; mobile: string; name: string; version: number } | { ok: false; reason: "invalid" | "setup" };
 
 export async function authenticate(mobileInput: string, password: string): Promise<LoginResult> {
   const mobile = normalizeMobile(mobileInput);
@@ -91,7 +91,7 @@ export async function authenticate(mobileInput: string, password: string): Promi
   }
   if (!verifyPassword(password, user.password_hash)) return { ok: false, reason: "invalid" };
   await touchLogin(user.id);
-  return { ok: true, mobile, version: user.session_version };
+  return { ok: true, mobile, name: user.name, version: user.session_version };
 }
 
 // ---------- Session cookie ----------

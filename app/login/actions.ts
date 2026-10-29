@@ -19,10 +19,11 @@ export async function login(formData: FormData) {
   }
 
   await setSessionCookie(result.mobile, result.version);
-  redirect("/admin/print");
+  // A welcome toast on the first page (components/admin/Flash.tsx)
+  redirect(`/admin/print?flash=welcome&ref=${encodeURIComponent(result.name.split(" ")[0])}`);
 }
 
 export async function logout() {
   (await cookies()).delete(SESSION_COOKIE);
-  redirect("/login");
+  redirect("/login?flash=signed-out");
 }

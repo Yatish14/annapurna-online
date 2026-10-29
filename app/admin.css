@@ -893,10 +893,6 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 }
 
 /* Action message that stays in view while scrolling (booking and vehicle pages) */
-.ap-flash-float { position: sticky; top: 14px; z-index: 25; margin-bottom: 22px; animation: ap-flyout .2s ease-out; }
-.ap-flash-float .ap-alert { margin: 0; padding-right: 46px; box-shadow: 0 14px 30px -14px rgba(10,24,56,.45); border: 1px solid rgba(16,26,51,.08); }
-.ap-flash-close { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(16,26,51,.08); color: inherit; cursor: pointer; }
-@media (max-width: 1000px) { .ap-flash-float { top: 68px; } }
 
 /* Who/when lines: plain text, so they wrap as a sentence on narrow screens */
 .xp-meta { margin: 0; font-size: .78rem; color: var(--ink-soft); }
@@ -1368,37 +1364,6 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 /* The box itself stays readable: only its placeholder and buttons are faded */
 .as-inputbox.is-locked textarea { opacity: 1; cursor: not-allowed; }
 
-/* Toast: a short message at the top right that slides in from the right and back out after 4 seconds;
-   the gold line along its bottom shrinks as the time runs out (components/assistant/AssistProvider.tsx) */
-.as-toast {
-  position: fixed; top: 20px; right: 20px; z-index: 90;
-  display: flex; align-items: flex-start; gap: 10px; width: max-content; max-width: min(400px, calc(100vw - 40px));
-  padding: 13px 12px 15px 16px; border-radius: 14px; background: var(--navy-900); color: #fff; overflow: hidden;
-  font-size: .88rem; font-weight: 600; line-height: 1.45; box-shadow: 0 18px 40px -14px rgba(5,13,34,.6);
-  animation: as-toast-in .38s cubic-bezier(.16, 1, .3, 1) both;
-}
-.as-toast.is-leaving { animation: as-toast-out .28s cubic-bezier(.4, 0, 1, 1) forwards; }
-.as-toast::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--gold-500);
-  transform-origin: left; animation: as-toast-timer 4s linear forwards;
-}
-.as-toast.is-leaving::after { animation: none; transform: scaleX(0); }
-.as-toast > svg { flex-shrink: 0; margin-top: 2px; color: var(--gold-300); }
-.as-toast button {
-  flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%;
-  background: rgba(255,255,255,.1); color: #fff; cursor: pointer;
-}
-.as-toast button:hover { background: rgba(255,255,255,.2); }
-@keyframes as-toast-in { from { opacity: 0; transform: translateX(calc(100% + 32px)); } }
-@keyframes as-toast-out { to { opacity: 0; transform: translateX(calc(100% + 32px)); } }
-@keyframes as-toast-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-/* Phones: across the top, still sliding in from the right */
-@media (max-width: 560px) { .as-toast { top: 12px; right: 12px; left: 12px; width: auto; max-width: none; } }
-/* Less motion: it appears and goes without sliding (the end still fires, so it's removed) */
-@media (prefers-reduced-motion: reduce) {
-  .as-toast, .as-toast.is-leaving { animation-duration: .01ms; }
-  .as-toast::after { animation: none; }
-}
 
 /* Tablets and phones: the chat list slides in from the left */
 @media (max-width: 1000px) {

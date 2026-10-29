@@ -1,9 +1,11 @@
-import FloatingFlash from "./FloatingFlash";
+import FlashToast from "./FlashToast";
 
 type Tone = "ok" | "warn" | "error";
 
 // Messages shown after an action, chosen by ?flash=… ("d" is the booking ref or user name)
 const FLASH: Record<string, { tone: Tone; text: (d: string) => string }> = {
+  welcome: { tone: "ok", text: (d) => (d ? `Welcome back, ${d}! You're signed in.` : "Welcome back! You're signed in.") },
+  "signed-out": { tone: "ok", text: () => "You've signed out. See you soon!" },
   confirmed: { tone: "ok", text: (d) => `${d} marked as booked. The customer has been sent the confirmation on WhatsApp.` },
   "confirmed-unsent": { tone: "warn", text: (d) => `${d} is booked, but the WhatsApp message could not be sent. See the error on the booking and try "Resend message".` },
   rejected: { tone: "ok", text: (d) => `${d} rejected. The customer has been told the car isn't available.` },
@@ -94,23 +96,13 @@ const FLASH: Record<string, { tone: Tone; text: (d: string) => string }> = {
 };
 
 /**
- * The message after an action. `floating`: stays at the top of the screen while scrolling (for pages that
- * return to a section further down, e.g. after adding a payment); success messages then fade.
+ * The result of an action (?flash=… after a redirect), shown as a toast at the top right.
+ * `floating` is kept for the pages that pass it: every message is a toast now.
  */
-export default function Flash({ params, floating = false }: { params: URLSearchParams; floating?: boolean }) {
+export default function Flash({ params }: { params: URLSearchParams; floating?: boolean }) {
   const flash = FLASH[params.get("flash") ?? ""];
   if (!flash) return null;
   const detail = (params.get("ref") ?? "").replace(/[^\p{L}\p{N} .'-]/gu, "").slice(0, 60);
-  const message = (
-    <p className={`ap-alert ap-alert-${flash.tone}`} role="status">
-      {flash.text(detail)}
-    </p>
-  );
-  return floating ? (
-    <FloatingFlash key={params.toString()} tone={flash.tone}>
-      {message}
-    </FloatingFlash>
-  ) : (
-    message
-  );
+  // key: a new action (same message or not) shows its toast again
+  return <FlashToast key={params.toString()} tone={flash.tone} message={flash.text(detail)} />;
 }

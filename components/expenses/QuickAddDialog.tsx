@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { quickAddDriver, quickAddVehicle } from "@/app/admin/expenses/fleet/actions";
 import Icon from "@/components/admin/Icon";
+import { useToast } from "@/components/Toaster";
 import MobileInput from "@/components/MobileInput";
 
 export type VehicleChoice = { id: number; name: string; active: boolean };
@@ -18,6 +19,7 @@ type Props =
  * The new one is added to the dropdown and chosen; Escape or Cancel closes it.
  */
 export default function QuickAddDialog(props: Props) {
+  const { notify } = useToast();
   const { kind, onClose } = props;
   const isVehicle = kind === "vehicle";
   const [error, setError] = useState<{ text: string; field: "name" | "phone" } | null>(null);
@@ -69,6 +71,7 @@ export default function QuickAddDialog(props: Props) {
       if (result.ok) {
         if (props.kind === "vehicle") props.onAdded(result.item as VehicleChoice);
         else props.onAdded(result.item as DriverChoice);
+        notify(`${result.item.name} added and chosen for this booking.`, "ok");
         onClose();
         return;
       }

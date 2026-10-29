@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import ToastProvider from "@/components/Toaster";
+import "./toast.css";
 
 export const metadata: Metadata = {
   title: "Annapurna Online Services",
@@ -21,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* Toasts work on every page: the dashboard, sign in, and the customer pages */}
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

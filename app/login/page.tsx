@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import Flash from "@/components/admin/Flash";
 import Lotus from "@/components/admin/Lotus";
 import MobileInput from "@/components/MobileInput";
 import SubmitButton from "@/components/admin/SubmitButton";
@@ -18,12 +19,14 @@ const ERRORS: Record<string, string> = {
   "no-users": 'No super admin yet. Create one with: npm run super-admin -- create --name "Your Name" --mobile <number>',
 };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; flash?: string }> }) {
   if (await currentUser()) redirect("/admin/print");
-  const { error } = await searchParams;
+  const { error, flash } = await searchParams;
 
   return (
     <main className="ap-login">
+      {/* e.g. "You've signed out" after logging out */}
+      {flash && <Flash params={new URLSearchParams({ flash })} />}
       <form action={login} className="ap-login-card">
         <div className="ap-login-brand">
           <Lotus size={44} />

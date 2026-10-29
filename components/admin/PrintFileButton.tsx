@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { markPrinted } from "@/app/admin/print/actions";
+import { useToast } from "@/components/Toaster";
 import type { PrintMode } from "@/lib/print/files";
 import { lock, LOCKED } from "@/lib/viewOnly";
 import Icon from "./Icon";
@@ -95,6 +96,7 @@ export default function PrintFileButton({ fileId, fileName, title, mode, options
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [, startTransition] = useTransition();
+  const { notify } = useToast();
   const url = `/api/print/file/${fileId}`;
   // Phones and tablets can't print from a hidden frame; they open the file in a new tab instead
   const isTouch = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -123,6 +125,7 @@ export default function PrintFileButton({ fileId, fileName, title, mode, options
       startTransition(async () => {
         const result = await markPrinted(fileId);
         if (!result.ok) setNote({ tone: "error", text: result.error });
+        else notify(`${fileName} marked as printed.`, "ok");
       });
     } catch (err) {
       setNote({ tone: "error", text: err instanceof Error ? err.message : "Couldn't print the file." });

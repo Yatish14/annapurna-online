@@ -204,6 +204,8 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 | **Admin** | Added by the super admin | Print orders, mark them collected, pause uploads. Everything in the Expense Tracker. Mark as booked, reject, cancel, resend messages. Can remove other users, but not the super admin or themselves. |
 | **Viewer** | Added by the super admin | Read-only: print orders (can open files), Expense Tracker pages, car overview, bookings and calendar. Sees the same buttons as an admin, greyed out: pressing one shows a short message saying why. The server still refuses any change. |
 
+**Toasts:** every action's result (booking created, payment recorded, nothing changed, an error…), signing in and out, and view-only messages show as a toast at the top right that slides in and out: green for done, amber for a warning, red for an error. Actions redirect with `?flash=…` as before; `components/admin/Flash.tsx` holds the messages and shows them through `components/Toaster.tsx`, then takes `flash` out of the address so a refresh doesn't repeat it. Mistakes inside a form (a wrong password, a missing field) still show in the form.
+
 Nothing is hidden from a role: what it can't use stays visible but **locked** (greyed out), and says why when pressed, including the Activity and Users & roles menu items for viewers and the super-admin-only buttons (add user, reset password) for admins. It's one mechanism: `lock(...)` in `lib/viewOnly.ts` marks a button, link or form, and `components/admin/ViewOnlyGuard.tsx` stops it and shows the message.
 
 - **Signing in:** everyone signs in at `/login` with their mobile number and password.
