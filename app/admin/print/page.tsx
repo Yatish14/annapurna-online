@@ -8,6 +8,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import PrintOrderCard from "@/components/admin/PrintOrderCard";
 import SubmitButton from "@/components/admin/SubmitButton";
 import { can, requireUser } from "@/lib/auth";
+import { LOCKED } from "@/lib/viewOnly";
 import { cleanupIfDue } from "@/lib/print/cleanup";
 import { PRINT_SHOP } from "@/lib/print/files";
 import { isAccepting, listOrders, printStats } from "@/lib/print/orders";
@@ -61,18 +62,17 @@ export default async function PrintOrdersPage({ searchParams }: { searchParams: 
           <span className="ap-uploads-state">
             <i aria-hidden="true" /> {accepting ? "Accepting uploads" : "Uploads paused"}
           </span>
-          {canManage && (
-            <form action={setUploads}>
-              <input type="hidden" name="on" value={accepting ? "0" : "1"} />
-              <input type="hidden" name="back" value={back} />
-              <SubmitButton
-                className="ap-btn ap-btn-ghost ap-btn-sm"
-                confirm={accepting ? "Pause uploads? Customers will be asked to come to the counter instead." : undefined}
-              >
-                <Icon name={accepting ? "pause" : "play"} size={13} /> {accepting ? "Pause" : "Resume"}
-              </SubmitButton>
-            </form>
-          )}
+          <form action={setUploads}>
+            <input type="hidden" name="on" value={accepting ? "0" : "1"} />
+            <input type="hidden" name="back" value={back} />
+            <SubmitButton
+              locked={!canManage && LOCKED.prints}
+              className="ap-btn ap-btn-ghost ap-btn-sm"
+              confirm={accepting ? "Pause uploads? Customers will be asked to come to the counter instead." : undefined}
+            >
+              <Icon name={accepting ? "pause" : "play"} size={13} /> {accepting ? "Pause" : "Resume"}
+            </SubmitButton>
+          </form>
         </div>
       </PageHeader>
       <Flash params={params} />

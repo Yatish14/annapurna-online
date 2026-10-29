@@ -4,6 +4,7 @@ import SubmitButton from "@/components/admin/SubmitButton";
 import Dropdown from "@/components/Dropdown";
 import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import type { Party, Payment } from "@/lib/expenses/trips";
+import { lock, LOCKED } from "@/lib/viewOnly";
 
 type Props = {
   party: Party;
@@ -19,6 +20,8 @@ type Props = {
 
 /** Money received from the customer, or paid to the driver: a timestamped list plus a form to add to it */
 export default function Payments({ party, trip, payments, due, paid, canManage, now }: Props) {
+  // Viewers see the buttons too, greyed out; pressing one says why
+  const locked = !canManage && LOCKED.expenses;
   const isDriver = party === "driver";
   const left = due === null ? null : Math.max(due - paid, 0);
   const extra = due !== null && paid > due ? paid - due : 0;
@@ -86,11 +89,12 @@ export default function Payments({ party, trip, payments, due, paid, canManage, 
                   </span>
                 )}
               </div>
-              {canManage && !p.deleted_ist && (
+              {!p.deleted_ist && (
                 <form action={deletePayment}>
                   <input type="hidden" name="id" value={p.id} />
                   <input type="hidden" name="trip_no" value={trip.trip_no} />
                   <SubmitButton
+                    locked={locked}
                     className="ap-btn ap-btn-ghost ap-btn-sm xp-remove"
                     title="Remove this payment (entered by mistake)"
                     confirm={`Remove the ${formatRupees(p.amount)} payment from ${p.paid_ist}? It will stay in the list, crossed out.`}
@@ -105,9 +109,9 @@ export default function Payments({ party, trip, payments, due, paid, canManage, 
         </ul>
       )}
 
-      {canManage && trip.status === "booked" && (
+      {trip.status === "booked" && (
         <details className="xp-adder">
-          <summary className="ap-btn ap-btn-ghost ap-btn-sm">
+          <summary className="ap-btn ap-btn-ghost ap-btn-sm" {...lock(locked)}>
             <Icon name="plus" size={14} /> {isDriver ? "Record payment to driver" : "Record customer payment"}
           </summary>
           <form action={recordPayment} className="xp-adder-form">

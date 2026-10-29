@@ -25,6 +25,7 @@ export default function FleetActions({
   active,
   used,
   statusAction,
+  locked,
 }: {
   id: number;
   name: string;
@@ -32,6 +33,8 @@ export default function FleetActions({
   active: boolean;
   used: boolean;
   statusAction: (fd: FormData) => Promise<void>;
+  /** View only: the buttons show greyed out and say why when pressed */
+  locked?: string | false;
 }) {
   return (
     <form action={statusAction} className="xp-fleetactions">
@@ -40,6 +43,7 @@ export default function FleetActions({
         <>
           <input type="hidden" name="action" value={active ? "deactivate" : "activate"} />
           <SubmitButton
+            locked={locked}
             className="ap-btn ap-btn-ghost ap-btn-sm"
             confirm={
               active
@@ -53,7 +57,7 @@ export default function FleetActions({
       ) : (
         <>
           <input type="hidden" name="action" value="delete" />
-          <SubmitButton className="ap-btn ap-btn-danger ap-btn-sm" confirm={`Delete ${name}? This can't be undone.`}>
+          <SubmitButton locked={locked} className="ap-btn ap-btn-danger ap-btn-sm" confirm={`Delete ${name}? This can't be undone.`}>
             <Icon name="trash" size={13} /> Delete
           </SubmitButton>
         </>

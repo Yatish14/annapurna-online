@@ -4,6 +4,7 @@ import Icon from "@/components/admin/Icon";
 import LinkPending from "@/components/admin/LinkPending";
 import PageHeader from "@/components/admin/PageHeader";
 import { can, requireUser } from "@/lib/auth";
+import { lock, LOCKED } from "@/lib/viewOnly";
 import { addDays, fmtRange, MONTHS_LONG, todayIST } from "@/lib/dates";
 import { listDrivers } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees } from "@/lib/expenses/money";
@@ -91,11 +92,10 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
             ›<LinkPending />
           </Link>
         </nav>
-        {can(user, "manageExpenses") && (
-          <Link href="/admin/expenses/bookings/new" className="ap-btn ap-btn-gold">
-            <Icon name="plus" size={16} /> New booking
-          </Link>
-        )}
+        {/* Viewers see it too, greyed out (pressing it says why) */}
+        <Link href="/admin/expenses/bookings/new" className="ap-btn ap-btn-gold" {...lock(!can(user, "manageExpenses") && LOCKED.expenses)}>
+          <Icon name="plus" size={16} /> New booking
+        </Link>
       </PageHeader>
       <Flash params={params} />
       {month !== thisMonth && (

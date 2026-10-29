@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Sidebar from "@/components/admin/Sidebar";
+import ViewOnlyGuard from "@/components/admin/ViewOnlyGuard";
 import { MODULES_COOKIE, parseOpenModules, SIDEBAR_COOKIE } from "@/components/admin/sidebarCookie";
 import AssistPanel from "@/components/assistant/AssistPanel";
 import AssistProvider from "@/components/assistant/AssistProvider";
@@ -8,6 +9,7 @@ import { sampleChats } from "@/lib/assistant/sample";
 import { can, requireUser, ROLE_LABELS } from "@/lib/auth";
 import { todayIST } from "@/lib/dates";
 import { initials } from "@/lib/format";
+import { LOCKED } from "@/lib/viewOnly";
 import { printStats } from "@/lib/print/orders";
 import "../admin.css";
 
@@ -31,6 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       canUse={can(user, "useAssistant")}
       initialChats={sampleChats(today)}
     >
+      <ViewOnlyGuard />
       <div className="ap-shell">
         <Sidebar
           user={{
@@ -41,8 +44,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             initials: initials(user.name),
           }}
           printCount={prints.new}
-          showUsers={can(user, "viewUsers")}
-          showActivity={can(user, "viewActivity")}
+          // Every role sees every menu item; ones their role can't open are greyed out and say why
+          lockUsers={can(user, "viewUsers") ? undefined : LOCKED.users}
+          lockActivity={can(user, "viewActivity") ? undefined : LOCKED.activity}
           initialCollapsed={store.get(SIDEBAR_COOKIE)?.value === "collapsed"}
           initialOpen={parseOpenModules(store.get(MODULES_COOKIE)?.value)}
         />

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { logout } from "@/app/login/actions";
+import { lock } from "@/lib/viewOnly";
 import Icon, { type IconName } from "./Icon";
 import LinkPending from "./LinkPending";
 import Lotus from "./Lotus";
@@ -13,15 +14,16 @@ type Props = {
   user: { name: string; mobile: string; role: string; roleLabel: string; initials: string };
   /** New print orders */
   printCount: number;
-  showUsers: boolean;
-  showActivity: boolean;
+  /** Set when the role can't open these: they still show, greyed out, and say why when pressed */
+  lockUsers?: string;
+  lockActivity?: string;
   /** Desktop: start with the icon-only sidebar (remembered in a cookie) */
   initialCollapsed: boolean;
   /** Modules that were left open (remembered in a cookie) */
   initialOpen: ModuleId[];
 };
 
-type Item = { href: string; label: string; icon: IconName; badge?: number };
+type Item = { href: string; label: string; icon: IconName; badge?: number; locked?: string };
 type Module = { id: ModuleId; label: string; icon: IconName; items: Item[] };
 
 // Module home pages are only "active" on exactly their own URL
@@ -30,7 +32,7 @@ const EXACT = new Set(["/admin/print", "/admin/expenses"]);
 const isDesktop = () => window.matchMedia("(min-width: 1001px)").matches;
 
 export default function Sidebar(props: Props) {
-  const { user, printCount, showUsers, showActivity, initialCollapsed, initialOpen } = props;
+  const { user, printCount, lockUsers, lockActivity, initialCollapsed, initialOpen } = props;
   const pathname = usePathname();
   const [drawer, setDrawer] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(initialCollapsed); // desktop icon-only mode
@@ -45,7 +47,7 @@ export default function Sidebar(props: Props) {
       items: [
         { href: "/admin/print", label: "Orders", icon: "inbox", badge: printCount },
         { href: "/admin/print/qr", label: "QR poster", icon: "qr" },
-        ...(showActivity ? [{ href: "/admin/print/activity", label: "Activity", icon: "activity" as const }] : []),
+        { href: "/admin/print/activity", label: "Activity", icon: "activity", locked: lockActivity },
       ],
     },
     {
@@ -60,7 +62,7 @@ export default function Sidebar(props: Props) {
         { href: "/admin/expenses/fastag", label: "FASTag", icon: "tag" },
         { href: "/admin/expenses/emi", label: "EMI & insurance", icon: "shield" },
         { href: "/admin/expenses/reports", label: "Reports", icon: "download" },
-        ...(showActivity ? [{ href: "/admin/expenses/activity", label: "Activity", icon: "activity" as const }] : []),
+        { href: "/admin/expenses/activity", label: "Activity", icon: "activity", locked: lockActivity },
       ],
     },
     // Car Bookings (WhatsApp enquiries, app/admin/cars) is hidden from the menu: it's only legal with
@@ -126,6 +128,7 @@ export default function Sidebar(props: Props) {
       href={item.href}
       className={isActive(item.href) ? "is-active" : ""}
       title={collapsed && !inFlyout ? item.label : undefined}
+      {...lock(item.locked)}
     >
       <span className="ap-nav-icon">
         <Icon name={item.icon} />
@@ -215,11 +218,9 @@ export default function Sidebar(props: Props) {
             );
           })}
 
-          {showUsers && (
-            <div className={`ap-mod ap-mod-single ${isActive("/admin/users") ? "has-active" : ""}`}>
-              {link({ href: "/admin/users", label: "Users & roles", icon: "users" })}
-            </div>
-          )}
+          <div className={`ap-mod ap-mod-single ${isActive("/admin/users") ? "has-active" : ""}`}>
+            {link({ href: "/admin/users", label: "Users & roles", icon: "users", locked: lockUsers })}
+          </div>
         </nav>
 
         <div className="ap-side-foot">

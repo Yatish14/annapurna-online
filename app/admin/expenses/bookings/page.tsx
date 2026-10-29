@@ -7,6 +7,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import Pagination from "@/components/admin/Pagination";
 import TripCard from "@/components/expenses/TripCard";
 import { can, requireUser } from "@/lib/auth";
+import { lock, LOCKED } from "@/lib/viewOnly";
 import { listTrips, tripCounts } from "@/lib/expenses/trips";
 import { pageCount, PAGE_SIZE } from "@/lib/pagination";
 import { readParams, type SearchParams } from "../../filters";
@@ -42,11 +43,10 @@ export default async function TripsPage({ searchParams }: { searchParams: Search
   return (
     <main className="ap-page">
       <PageHeader eyebrow="Expense Tracker" title="Bookings" subtitle="Every booking of your vehicles, with what the customer paid and what each trip cost.">
-        {can(user, "manageExpenses") && (
-          <Link href="/admin/expenses/bookings/new" className="ap-btn ap-btn-gold">
-            <Icon name="plus" size={16} /> New booking
-          </Link>
-        )}
+        {/* Viewers see it too, greyed out (pressing it says why) */}
+        <Link href="/admin/expenses/bookings/new" className="ap-btn ap-btn-gold" {...lock(!can(user, "manageExpenses") && LOCKED.expenses)}>
+          <Icon name="plus" size={16} /> New booking
+        </Link>
       </PageHeader>
       <Flash params={params} />
 

@@ -4,6 +4,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import SubmitButton from "@/components/admin/SubmitButton";
 import MobileInput from "@/components/MobileInput";
 import { can, requireUser, ROLE_LABELS, type Role } from "@/lib/auth";
+import { lock, LOCKED } from "@/lib/viewOnly";
 import { formatPhone, initials } from "@/lib/format";
 import { listUsers } from "@/lib/users";
 import { readParams, type SearchParams } from "../filters";
@@ -62,7 +63,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
         ))}
       </section>
 
-      <div className={canCreate ? "ap-grid-users" : ""}>
+      <div className="ap-grid-users">
         <section className="ap-panel">
           <div className="ap-panel-head">
             <h2>Team</h2>
@@ -75,8 +76,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
             {users.map((u) => {
               const isMe = u.id === me.id;
               const isSuper = u.role === "super_admin";
-              const showReset = canReset && !isSuper;
-              const showDelete = canDelete && !isMe && !isSuper;
+              // Shown to everyone who can open this page; greyed out (and says why) for those who can't use them
+              const showReset = !isSuper;
+              const showDelete = !isMe && !isSuper;
               return (
                 <li key={u.id} className="ap-user">
                   <span className={`ap-avatar ${isSuper ? "is-owner" : ""}`}>{initials(u.name)}</span>
@@ -104,7 +106,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                     <div className="ap-user-actions">
                       {showReset && (
                         <details className="ap-reset">
-                          <summary className="ap-btn ap-btn-ghost ap-btn-sm">
+                          <summary className="ap-btn ap-btn-ghost ap-btn-sm" {...lock(!canReset && LOCKED.superAdmin)}>
                             <Icon name="key" size={14} /> Reset password
                           </summary>
                           <form action={resetPasswordAction} className="ap-reset-form">
@@ -125,6 +127,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                         <form action={deleteUserAction}>
                           <input type="hidden" name="id" value={u.id} />
                           <SubmitButton
+                            locked={!canDelete && LOCKED.users}
                             className="ap-btn ap-btn-danger ap-btn-sm"
                             confirm={`Remove ${u.name}? They will be signed out and can no longer access the dashboard.`}
                           >
@@ -147,12 +150,12 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
           {!canCreate && <p className="ap-hint">Only the super admin can add users or reset passwords.</p>}
         </section>
 
-        {canCreate && (
-          <section className="ap-panel ap-create">
-            <div className="ap-panel-head">
-              <h2>Add a user</h2>
-            </div>
-            <form action={createUserAction}>
+        <section className="ap-panel ap-create">
+          <div className="ap-panel-head">
+            <h2>Add a user</h2>
+          </div>
+          <form action={createUserAction}>
+            <fieldset className="xp-locked" disabled={!canCreate}>
               <label className="ap-field">
                 <span>Full name</span>
                 <input name="name" required minLength={2} maxLength={60} autoComplete="off" placeholder="e.g. Ravi Kumar" />
@@ -191,13 +194,13 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                   placeholder="At least 8 characters"
                 />
               </label>
-              <SubmitButton className="ap-btn ap-btn-gold ap-btn-block">
-                <Icon name="plus" size={16} /> Add user
-              </SubmitButton>
-              <p className="ap-hint">Share the password with them privately. They sign in at /login with their mobile number.</p>
-            </form>
-          </section>
-        )}
+            </fieldset>
+            <SubmitButton className="ap-btn ap-btn-gold ap-btn-block" locked={!canCreate && LOCKED.superAdmin}>
+              <Icon name="plus" size={16} /> Add user
+            </SubmitButton>
+            <p className="ap-hint">Share the password with them privately. They sign in at /login with their mobile number.</p>
+          </form>
+        </section>
       </div>
     </main>
   );

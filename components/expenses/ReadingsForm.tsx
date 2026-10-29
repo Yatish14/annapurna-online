@@ -12,13 +12,16 @@ type Props = {
   kmDirect: number | null;
   totalAmount: number | null;
   driverAmount: number | null;
+  /** View only: the boxes are shown but disabled, and Save says why when pressed */
+  locked?: string | false;
 };
 
 /**
  * The booking's km and agreed amounts. Km comes from the two odometer readings, or (switch on) is typed
  * in directly when the odometer wasn't noted. Saving one way clears the other.
  */
-export default function ReadingsForm({ tripId, odometerStart, odometerEnd, kmDirect, totalAmount, driverAmount }: Props) {
+export default function ReadingsForm({ tripId, odometerStart, odometerEnd, kmDirect, totalAmount, driverAmount, locked }: Props) {
+  const off = Boolean(locked);
   const [direct, setDirect] = useState(kmDirect !== null && odometerStart === null);
   const hasReadings = odometerStart !== null || odometerEnd !== null;
   const form = useRef<HTMLFormElement>(null);
@@ -35,7 +38,7 @@ export default function ReadingsForm({ tripId, odometerStart, odometerEnd, kmDir
         <input type="hidden" name="id" value={tripId} />
         <input type="hidden" name="km_mode" value={direct ? "direct" : "odometer"} />
         <label className="xp-switch xp-kmswitch">
-          <input type="checkbox" checked={direct} onChange={(e) => toggle(e.target.checked)} />
+          <input type="checkbox" disabled={off} checked={direct} onChange={(e) => toggle(e.target.checked)} />
           <span className="xp-switch-track" aria-hidden="true" />
           <span>
             <strong>Enter km directly</strong>
@@ -45,29 +48,29 @@ export default function ReadingsForm({ tripId, odometerStart, odometerEnd, kmDir
         {direct ? (
           <label className="ap-field xp-kmfield">
             <span>Km travelled</span>
-            <input type="number" name="km_direct" inputMode="numeric" min="0" max="999999" step="1" placeholder="e.g. 340" defaultValue={kmDirect ?? ""} />
+            <input disabled={off} type="number" name="km_direct" inputMode="numeric" min="0" max="999999" step="1" placeholder="e.g. 340" defaultValue={kmDirect ?? ""} />
           </label>
         ) : (
           <>
             <label className="ap-field">
               <span>Odometer at start (km)</span>
-              <input type="number" name="odometer_start" inputMode="numeric" min="0" max="9999999" step="1" defaultValue={odometerStart ?? ""} />
+              <input disabled={off} type="number" name="odometer_start" inputMode="numeric" min="0" max="9999999" step="1" defaultValue={odometerStart ?? ""} />
             </label>
             <label className="ap-field">
               <span>Odometer at end (km)</span>
-              <input type="number" name="odometer_end" inputMode="numeric" min="0" max="9999999" step="1" defaultValue={odometerEnd ?? ""} />
+              <input disabled={off} type="number" name="odometer_end" inputMode="numeric" min="0" max="9999999" step="1" defaultValue={odometerEnd ?? ""} />
             </label>
           </>
         )}
         <label className="ap-field">
           <span>Total from customer (₹)</span>
-          <input type="number" name="total_amount" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={totalAmount ?? ""} />
+          <input disabled={off} type="number" name="total_amount" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={totalAmount ?? ""} />
         </label>
         <label className="ap-field">
           <span>Amount for the driver (₹)</span>
-          <input type="number" name="driver_amount" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={driverAmount ?? ""} />
+          <input disabled={off} type="number" name="driver_amount" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={driverAmount ?? ""} />
         </label>
-        <SubmitButton className="ap-btn ap-btn-gold">
+        <SubmitButton className="ap-btn ap-btn-gold" locked={locked}>
           <Icon name="check" size={15} /> Save
         </SubmitButton>
       </form>

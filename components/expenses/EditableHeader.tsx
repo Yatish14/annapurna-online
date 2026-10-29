@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Icon from "@/components/admin/Icon";
 import MobileInput from "@/components/MobileInput";
+import { lock, LOCKED } from "@/lib/viewOnly";
 
 type Field = { name: string; label: string; value: string; kind?: "text" | "mobile" };
 
@@ -86,11 +87,17 @@ export default function EditableHeader({ eyebrow, title, subtitle, id, fields, a
         ) : (
           <div className="xp-titlerow">
             <h1>{title}</h1>
-            {canEdit && (
-              <button type="button" className="xp-roundbtn xp-editbtn" aria-label={editLabel} title={editLabel} onClick={() => setEditing(true)}>
-                <Icon name="edit" size={16} />
-              </button>
-            )}
+            {/* Shown to everyone; greyed out for viewers, and pressing it says why */}
+            <button
+              type="button"
+              className="xp-roundbtn xp-editbtn"
+              aria-label={editLabel}
+              title={editLabel}
+              onClick={() => setEditing(true)}
+              {...lock(!canEdit && LOCKED.expenses)}
+            >
+              <Icon name="edit" size={16} />
+            </button>
           </div>
         )}
         {children && <div className="xp-headside">{children}</div>}

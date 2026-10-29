@@ -9,6 +9,7 @@ import FleetActions, { FleetStatus } from "@/components/expenses/FleetActions";
 import VehicleFinancePanels from "@/components/expenses/VehicleFinance";
 import { getFinance } from "@/lib/expenses/finance";
 import { requireUser, can } from "@/lib/auth";
+import { LOCKED } from "@/lib/viewOnly";
 import { fmtRange, fmtShort, todayIST } from "@/lib/dates";
 import { getVehicle } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees } from "@/lib/expenses/money";
@@ -84,16 +85,15 @@ export default async function VehiclePage({ params, searchParams }: { params: Pa
       >
         {vehicle.is_sample && <span className="ap-badge is-sample">Sample</span>}
         <FleetStatus active={vehicle.active} onTrip={vehicle.on_trip} />
-        {canManage && (
-          <FleetActions
-            id={vehicle.id}
-            name={vehicle.name}
-            kind="vehicle"
-            active={vehicle.active}
-            used={vehicle.used}
-            statusAction={vehicleStatus}
-          />
-        )}
+        <FleetActions
+          id={vehicle.id}
+          name={vehicle.name}
+          kind="vehicle"
+          active={vehicle.active}
+          used={vehicle.used}
+          statusAction={vehicleStatus}
+          locked={!canManage && LOCKED.expenses}
+        />
       </EditableHeader>
       {!vehicle.active && (
         <p className="ap-alert ap-alert-warn">This vehicle is switched off: it can&apos;t be picked for new bookings. Its history is kept.</p>

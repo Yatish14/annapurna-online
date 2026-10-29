@@ -202,7 +202,9 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 |---|---|---|
 | **Super admin** | The owner. There is exactly one, created with `npm run super-admin -- create`. | Everything. Only role that can add admins/viewers and reset their passwords. Can't be removed. |
 | **Admin** | Added by the super admin | Print orders, mark them collected, pause uploads. Everything in the Expense Tracker. Mark as booked, reject, cancel, resend messages. Can remove other users, but not the super admin or themselves. |
-| **Viewer** | Added by the super admin | Read-only: print orders (can open files), Expense Tracker pages, car overview, bookings and calendar. Sees no buttons, and the server refuses any change. |
+| **Viewer** | Added by the super admin | Read-only: print orders (can open files), Expense Tracker pages, car overview, bookings and calendar. Sees the same buttons as an admin, greyed out: pressing one shows a short message saying why. The server still refuses any change. |
+
+Nothing is hidden from a role: what it can't use stays visible but **locked** (greyed out), and says why when pressed, including the Activity and Users & roles menu items for viewers and the super-admin-only buttons (add user, reset password) for admins. It's one mechanism: `lock(...)` in `lib/viewOnly.ts` marks a button, link or form, and `components/admin/ViewOnlyGuard.tsx` stops it and shows the message.
 
 - **Signing in:** everyone signs in at `/login` with their mobile number and password.
 - **Where users are stored:** everyone, including the super admin, is in the `users` table, with passwords stored as scrypt hashes.

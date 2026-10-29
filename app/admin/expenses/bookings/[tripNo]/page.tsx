@@ -11,6 +11,7 @@ import ReadingsForm from "@/components/expenses/ReadingsForm";
 import { TripBadges } from "@/components/expenses/TripCard";
 import { listTargetActivity } from "@/lib/activity";
 import { can, requireUser } from "@/lib/auth";
+import { lock, LOCKED } from "@/lib/viewOnly";
 import { daysText, diffDays, fmtRange, nowLocalIST, todayIST } from "@/lib/dates";
 import { formatNumber, formatRupees } from "@/lib/expenses/money";
 import { placeText } from "@/lib/expenses/places";
@@ -56,7 +57,8 @@ export default async function TripPage({ params, searchParams }: { params: Param
   const profit = profitOf(trip);
   const whenPaid = profitWhenPaid(trip);
   const active = trip.status === "booked";
-  const editable = canManage && active;
+  // Viewers see every button and form, greyed out; pressing one says why
+  const locked = !canManage && LOCKED.expenses;
 
   const tiles = [
     { label: "Total", value: trip.total_amount === null ? "Not set" : formatRupees(trip.total_amount), tone: "navy" },
@@ -98,25 +100,24 @@ export default async function TripPage({ params, searchParams }: { params: Param
             <Icon name="download" size={14} /> Expense statement (PDF)
           </a>
         )}
-        {canManage && (
-          <div className="ap-actions">
-            {active && (
-              <Link href={`/admin/expenses/bookings/${trip.trip_no}/edit`} className="ap-btn ap-btn-ghost ap-btn-sm">
-                <Icon name="edit" size={14} /> Edit details
-              </Link>
-            )}
-            <form action={changeTripStatus}>
-              <input type="hidden" name="id" value={trip.id} />
-              <input type="hidden" name="action" value={active ? "cancel" : "restore"} />
-              <SubmitButton
-                className={`ap-btn ap-btn-sm ${active ? "ap-btn-danger" : "ap-btn-gold"}`}
-                confirm={active ? `Cancel ${trip.trip_no}? The vehicle becomes free on these days. Payments and costs stay recorded.` : undefined}
-              >
-                <Icon name={active ? "xcircle" : "undo"} size={14} /> {active ? "Cancel booking" : "Restore booking"}
-              </SubmitButton>
-            </form>
-          </div>
-        )}
+        <div className="ap-actions">
+          {active && (
+            <Link href={`/admin/expenses/bookings/${trip.trip_no}/edit`} className="ap-btn ap-btn-ghost ap-btn-sm" {...lock(locked)}>
+              <Icon name="edit" size={14} /> Edit details
+            </Link>
+          )}
+          <form action={changeTripStatus}>
+            <input type="hidden" name="id" value={trip.id} />
+            <input type="hidden" name="action" value={active ? "cancel" : "restore"} />
+            <SubmitButton
+              locked={locked}
+              className={`ap-btn ap-btn-sm ${active ? "ap-btn-danger" : "ap-btn-gold"}`}
+              confirm={active ? `Cancel ${trip.trip_no}? The vehicle becomes free on these days. Payments and costs stay recorded.` : undefined}
+            >
+              <Icon name={active ? "xcircle" : "undo"} size={14} /> {active ? "Cancel booking" : "Restore booking"}
+            </SubmitButton>
+          </form>
+        </div>
       </PageHeader>
       <Flash params={query} floating />
       {!active && <p className="ap-alert ap-alert-warn">This booking is cancelled. Restore it to change it or add payments and costs.</p>}
@@ -254,7 +255,7 @@ export default async function TripPage({ params, searchParams }: { params: Param
             </p>
           </section>
 
-          {editable && (
+          {active && (
             <section className="ap-panel" id="readings">
               <div className="ap-panel-head">
                 <h2>Readings and amounts</h2>
@@ -268,6 +269,7 @@ export default async function TripPage({ params, searchParams }: { params: Param
                 kmDirect={trip.km_direct}
                 totalAmount={trip.total_amount}
                 driverAmount={trip.driver_amount}
+                locked={locked}
               />
             </section>
           )}
@@ -313,23 +315,26 @@ export default async function TripPage({ params, searchParams }: { params: Param
         </div>
       </div>
 
-      {history && (
-        <section className="ap-panel xp-history" id="history">
-          <div className="ap-panel-head">
-            <h2>History</h2>
-            <span className="ap-muted">Everything done on this booking, newest first</span>
-          </div>
-          {history.length === 0 ? (
-            <p className="ap-empty-sm">Nothing recorded yet.</p>
-          ) : (
-            <ul className="ap-acts">
-              {[...history].reverse().map((row) => (
-                <ActivityEntry key={row.id} row={{ ...row, time: row.at_ist }} linkTargets={false} />
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+      <section className="ap-panel xp-history" id="history">
+        <div className="ap-panel-head">
+          <h2>History</h2>
+          <span className="ap-muted">Everything done on this booking, newest first</span>
+        </div>
+        {history === null ? (
+          // The activity log is for admins: the panel still shows, saying why it's empty
+          <p className="ap-empty-sm xp-lockednote">
+            <Icon name="shield" size={15} /> {LOCKED.activity}
+          </p>
+        ) : history.length === 0 ? (
+          <p className="ap-empty-sm">Nothing recorded yet.</p>
+        ) : (
+          <ul className="ap-acts">
+            {[...history].reverse().map((row) => (
+              <ActivityEntry key={row.id} row={{ ...row, time: row.at_ist }} linkTargets={false} />
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }

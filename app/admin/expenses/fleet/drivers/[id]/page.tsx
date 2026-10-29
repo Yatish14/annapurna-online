@@ -7,6 +7,7 @@ import EditableHeader from "@/components/expenses/EditableHeader";
 import FleetActions, { FleetStatus } from "@/components/expenses/FleetActions";
 import PeriodFilter from "@/components/expenses/PeriodFilter";
 import { can, requireUser } from "@/lib/auth";
+import { LOCKED } from "@/lib/viewOnly";
 import { fmtDayMonth, fmtLong, fmtRange, fmtShort, todayIST } from "@/lib/dates";
 import { getDriver } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
@@ -113,16 +114,15 @@ export default async function DriverPage({ params, searchParams }: { params: Par
         <a href={`tel:+91${driver.phone}`} className="ap-btn ap-btn-ghost ap-btn-sm">
           <Icon name="phone" size={13} /> Call
         </a>
-        {canManage && (
-          <FleetActions
-            id={driver.id}
-            name={driver.name}
-            kind="driver"
-            active={driver.active}
-            used={driver.used}
-            statusAction={driverStatus}
-          />
-        )}
+        <FleetActions
+          id={driver.id}
+          name={driver.name}
+          kind="driver"
+          active={driver.active}
+          used={driver.used}
+          statusAction={driverStatus}
+          locked={!canManage && LOCKED.expenses}
+        />
       </EditableHeader>
       <Flash params={query} floating />
       {!driver.active && (

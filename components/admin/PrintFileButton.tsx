@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { markPrinted } from "@/app/admin/print/actions";
 import type { PrintMode } from "@/lib/print/files";
+import { lock, LOCKED } from "@/lib/viewOnly";
 import Icon from "./Icon";
 
 type Props = {
@@ -143,12 +144,11 @@ export default function PrintFileButton({ fileId, fileName, title, mode, options
             <Icon name="download" size={14} /> Download
           </a>
         )}
-        {canPrint && (
-          <button type="button" className="ap-btn ap-btn-gold ap-btn-sm" onClick={print} disabled={busy}>
-            <Icon name={mode === "download" ? "download" : "printer"} size={15} />
-            {busy ? "Opening…" : mode === "download" ? "Download to print" : "Print"}
-          </button>
-        )}
+        {/* Shown to everyone; greyed out for viewers, and pressing it says why */}
+        <button type="button" className="ap-btn ap-btn-gold ap-btn-sm" onClick={print} disabled={busy} {...lock(!canPrint && LOCKED.prints)}>
+          <Icon name={mode === "download" ? "download" : "printer"} size={15} />
+          {busy ? "Opening…" : mode === "download" ? "Download to print" : "Print"}
+        </button>
       </div>
       {note && (
         <p className={`ap-pfile-note is-${note.tone}`} role="status">

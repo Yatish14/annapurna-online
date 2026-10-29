@@ -4,6 +4,7 @@ import type { Booking } from "@/lib/bookings";
 import { CARS, passengersText } from "@/lib/config";
 import { daysText, diffDays, fmtRange } from "@/lib/dates";
 import { formatPhone } from "@/lib/format";
+import { lock, LOCKED } from "@/lib/viewOnly";
 import Icon from "./Icon";
 import SubmitButton from "./SubmitButton";
 
@@ -139,49 +140,48 @@ export default function BookingCard({ b, today, back, canManage, conflict }: Pro
           <span />
         )}
 
-        {canManage && (
-          <div className="ap-actions">
-            {b.status === "pending" && (
-              <>
-                <ActionForm
-                  booking={b}
-                  action="reject"
-                  back={back}
-                  className="ap-btn ap-btn-ghost"
-                  confirm={`Reject ${b.ref}? The customer will be told the car isn't available.`}
-                >
-                  Reject
-                </ActionForm>
-                <ActionForm
-                  booking={b}
-                  action="book"
-                  back={back}
-                  className="ap-btn ap-btn-gold"
-                  disabled={Boolean(conflict) || datesPassed}
-                  title={conflict ? "Dates overlap a confirmed booking" : datesPassed ? "Start date has passed" : undefined}
-                >
-                  ✓ Mark as Booked
-                </ActionForm>
-              </>
-            )}
-            {(b.status === "confirmed" || b.status === "rejected") && b.notify_error && !b.is_sample && (
-              <ActionForm booking={b} action="resend" back={back} className="ap-btn ap-btn-ghost">
-                Resend message
-              </ActionForm>
-            )}
-            {b.status === "confirmed" && b.end_date >= today && (
+        {/* Shown to everyone; greyed out for viewers, and pressing one says why */}
+        <div className="ap-actions" {...lock(!canManage && LOCKED.carBookings)}>
+          {b.status === "pending" && (
+            <>
               <ActionForm
                 booking={b}
-                action="cancel"
+                action="reject"
                 back={back}
-                className="ap-btn ap-btn-danger"
-                confirm={`Cancel booking ${b.ref}? Its dates become free again. The customer is NOT messaged, so please call them.`}
+                className="ap-btn ap-btn-ghost"
+                confirm={`Reject ${b.ref}? The customer will be told the car isn't available.`}
               >
-                Cancel booking
+                Reject
               </ActionForm>
-            )}
-          </div>
-        )}
+              <ActionForm
+                booking={b}
+                action="book"
+                back={back}
+                className="ap-btn ap-btn-gold"
+                disabled={Boolean(conflict) || datesPassed}
+                title={conflict ? "Dates overlap a confirmed booking" : datesPassed ? "Start date has passed" : undefined}
+              >
+                ✓ Mark as Booked
+              </ActionForm>
+            </>
+          )}
+          {(b.status === "confirmed" || b.status === "rejected") && b.notify_error && !b.is_sample && (
+            <ActionForm booking={b} action="resend" back={back} className="ap-btn ap-btn-ghost">
+              Resend message
+            </ActionForm>
+          )}
+          {b.status === "confirmed" && b.end_date >= today && (
+            <ActionForm
+              booking={b}
+              action="cancel"
+              back={back}
+              className="ap-btn ap-btn-danger"
+              confirm={`Cancel booking ${b.ref}? Its dates become free again. The customer is NOT messaged, so please call them.`}
+            >
+              Cancel booking
+            </ActionForm>
+          )}
+        </div>
       </div>
     </article>
   );

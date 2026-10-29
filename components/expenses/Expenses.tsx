@@ -8,6 +8,7 @@ import { fmtLong } from "@/lib/dates";
 import { formatRupees } from "@/lib/expenses/money";
 import { placeText } from "@/lib/expenses/places";
 import type { Expense } from "@/lib/expenses/trips";
+import { lock, LOCKED } from "@/lib/viewOnly";
 import PlacePicker from "./PlacePicker";
 
 /** The costs this list handles (EMI and insurance have their own panels) */
@@ -75,6 +76,8 @@ export default function Expenses(props: Props) {
   // Where to come back to after adding or removing
   const from = "tripId" in target ? "trip" : "vehicleId" in target ? "vehicle" : kind === "fastag" ? "fastag" : "repairs";
   const choices = "vehicles" in target ? target.vehicles : null;
+  // Viewers see the buttons too, greyed out; pressing one says why
+  const locked = !canManage && LOCKED.expenses;
 
   return (
     <section className="ap-panel xp-money" id={copy.anchor}>
@@ -124,11 +127,12 @@ export default function Expenses(props: Props) {
                   </span>
                 )}
               </div>
-              {canManage && !e.deleted_ist && (
+              {!e.deleted_ist && (
                 <form action={deleteExpense}>
                   <input type="hidden" name="id" value={e.id} />
                   <input type="hidden" name="from" value={from} />
                   <SubmitButton
+                    locked={locked}
                     className="ap-btn ap-btn-ghost ap-btn-sm xp-remove"
                     title="Remove this entry (entered by mistake)"
                     confirm={`Remove this ${formatRupees(e.amount)} ${copy.noun} entry? It will stay in the list, crossed out.`}
@@ -144,9 +148,9 @@ export default function Expenses(props: Props) {
       )}
       {footer}
 
-      {canManage && canAdd && (choices === null || choices.length > 0) && (
+      {canAdd && (choices === null || choices.length > 0) && (
         <details className="xp-adder">
-          <summary className="ap-btn ap-btn-ghost ap-btn-sm">
+          <summary className="ap-btn ap-btn-ghost ap-btn-sm" {...lock(locked)}>
             <Icon name="plus" size={14} /> {copy.add}
           </summary>
           <form action={recordExpense} className="xp-adder-form">

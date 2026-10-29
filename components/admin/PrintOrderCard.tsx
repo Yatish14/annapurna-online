@@ -3,6 +3,7 @@ import { PRINT_TABS } from "@/app/admin/filters";
 import { formatPhone } from "@/lib/format";
 import { COLOR_LABELS, copiesText, fileTypeOf, formatSize, optionsText, PRINT_SHOP, SIDES_LABELS } from "@/lib/print/files";
 import type { PrintOrder } from "@/lib/print/orders";
+import { LOCKED } from "@/lib/viewOnly";
 import Icon from "./Icon";
 import PrintFileButton from "./PrintFileButton";
 import SubmitButton from "./SubmitButton";
@@ -20,6 +21,7 @@ function ago(ms: number, now: number): string {
 type Props = { order: PrintOrder; back: string; canManage: boolean; now: number };
 
 export default function PrintOrderCard({ order, back, canManage, now }: Props) {
+  const locked = !canManage && LOCKED.prints;
   const statusLabel = PRINT_TABS.find((t) => t.id === order.status)?.label ?? order.status;
   const printedFiles = order.files.filter((f) => f.printed_count > 0).length;
   const storedFiles = order.files.filter((f) => !f.deleted).length;
@@ -109,45 +111,46 @@ export default function PrintOrderCard({ order, back, canManage, now }: Props) {
             </>
           )}
         </span>
-        {canManage && (
-          <div className="ap-actions">
-            {storedFiles > 0 && (
-              <form action={deleteOrderFiles}>
-                <input type="hidden" name="id" value={order.id} />
-                <input type="hidden" name="back" value={back} />
-                <SubmitButton
-                  className="ap-btn ap-btn-danger ap-btn-sm"
-                  title="For example when the customer asks. The order itself is kept."
-                  confirm={`Delete the ${storedFiles} file${storedFiles === 1 ? "" : "s"} of ${order.order_no} now? They can't be printed or opened again. The order record is kept.`}
-                >
-                  <Icon name="trash" size={14} /> Delete files now
-                </SubmitButton>
-              </form>
-            )}
-            <form action={updateOrder}>
+        {/* Shown to everyone; greyed out for viewers, and pressing one says why */}
+        <div className="ap-actions">
+          {storedFiles > 0 && (
+            <form action={deleteOrderFiles}>
               <input type="hidden" name="id" value={order.id} />
               <input type="hidden" name="back" value={back} />
-              {order.status === "collected" ? (
-                <>
-                  <input type="hidden" name="action" value="reopen" />
-                  <SubmitButton className="ap-btn ap-btn-ghost ap-btn-sm">
-                    <Icon name="undo" size={14} /> Undo collected
-                  </SubmitButton>
-                </>
-              ) : (
-                <>
-                  <input type="hidden" name="action" value="collected" />
-                  <SubmitButton
-                    className={`ap-btn ap-btn-sm ${order.status === "printed" ? "ap-btn-gold" : "ap-btn-ghost"}`}
-                    confirm={order.status === "new" ? `${order.order_no} hasn't been printed yet. Mark it as collected anyway?` : undefined}
-                  >
-                    <Icon name="bag" size={14} /> Mark collected
-                  </SubmitButton>
-                </>
-              )}
+              <SubmitButton
+                locked={locked}
+                className="ap-btn ap-btn-danger ap-btn-sm"
+                title="For example when the customer asks. The order itself is kept."
+                confirm={`Delete the ${storedFiles} file${storedFiles === 1 ? "" : "s"} of ${order.order_no} now? They can't be printed or opened again. The order record is kept.`}
+              >
+                <Icon name="trash" size={14} /> Delete files now
+              </SubmitButton>
             </form>
-          </div>
-        )}
+          )}
+          <form action={updateOrder}>
+            <input type="hidden" name="id" value={order.id} />
+            <input type="hidden" name="back" value={back} />
+            {order.status === "collected" ? (
+              <>
+                <input type="hidden" name="action" value="reopen" />
+                <SubmitButton className="ap-btn ap-btn-ghost ap-btn-sm" locked={locked}>
+                  <Icon name="undo" size={14} /> Undo collected
+                </SubmitButton>
+              </>
+            ) : (
+              <>
+                <input type="hidden" name="action" value="collected" />
+                <SubmitButton
+                locked={locked}
+                  className={`ap-btn ap-btn-sm ${order.status === "printed" ? "ap-btn-gold" : "ap-btn-ghost"}`}
+                  confirm={order.status === "new" ? `${order.order_no} hasn't been printed yet. Mark it as collected anyway?` : undefined}
+                >
+                  <Icon name="bag" size={14} /> Mark collected
+                </SubmitButton>
+              </>
+            )}
+          </form>
+        </div>
       </div>
     </article>
   );

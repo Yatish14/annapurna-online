@@ -6,6 +6,7 @@ import { addDays, fmtLong, todayIST } from "@/lib/dates";
 import { emiStatus, insuranceStatus, monthText, type VehicleFinance } from "@/lib/expenses/finance";
 import { formatRupees } from "@/lib/expenses/money";
 import type { Expense } from "@/lib/expenses/trips";
+import { lock, LOCKED } from "@/lib/viewOnly";
 
 type Props = {
   finance: VehicleFinance;
@@ -55,11 +56,12 @@ function PaidList({ entries, canManage, label, from }: { entries: Expense[]; can
               </span>
             )}
           </div>
-          {canManage && !e.deleted_ist && (
+          {!e.deleted_ist && (
             <form action={deleteExpense}>
               <input type="hidden" name="id" value={e.id} />
               <input type="hidden" name="from" value={from ?? "vehicle"} />
               <SubmitButton
+                locked={!canManage && LOCKED.expenses}
                 className="ap-btn ap-btn-ghost ap-btn-sm xp-remove"
                 title="Remove this payment (entered by mistake)"
                 confirm={`Remove this ${formatRupees(e.amount)} payment? It will stay in the list, crossed out.`}
@@ -159,6 +161,8 @@ function InsuranceForm({ f, renew, back }: { f: VehicleFinance; renew: boolean; 
 
 export default function VehicleFinancePanels(props: Props) {
   const { finance: f, emiEntries, insuranceEntries, canManage, emiFooter, insuranceFooter, from, heading } = props;
+  // Viewers see the buttons too, greyed out; pressing one says why
+  const locked = !canManage && LOCKED.expenses;
   const today = todayIST();
   const emi = emiStatus(f, today);
   const ins = insuranceStatus(f, today);
@@ -236,59 +240,57 @@ export default function VehicleFinancePanels(props: Props) {
         )}
         {emiFooter}
 
-        {canManage && (
-          <div className="xp-adders">
-            {emi.state !== "none" && emi.state !== "finished" && (
-              <details className="xp-adder">
-                <summary className="ap-btn ap-btn-gold ap-btn-sm">
-                  <Icon name="check" size={14} /> Mark EMI paid
-                </summary>
-                <form action={payEmiAction} className="xp-adder-form">
-                  <input type="hidden" name="id" value={f.id} />
-                  <From from={from} />
-                  <label className="ap-field">
-                    <span>EMI for the month</span>
-                    <input type="month" name="month" required min={f.emi_start!} max={f.emi_end!} defaultValue={emi.nextMonth} />
-                  </label>
-                  <label className="ap-field">
-                    <span>Amount (₹)</span>
-                    <input type="number" name="amount" required inputMode="decimal" min="1" max="10000000" step="0.01" defaultValue={f.emi_amount!} />
-                  </label>
-                  <label className="ap-field">
-                    <span>Paid on</span>
-                    <input type="date" name="paid_on" required max={today} defaultValue={today} />
-                  </label>
-                  <label className="ap-field">
-                    <span>Note (optional)</span>
-                    <input name="note" maxLength={200} placeholder="e.g. Includes ₹500 late fee" />
-                  </label>
-                  <SubmitButton className="ap-btn ap-btn-gold">
-                    <Icon name="check" size={15} /> Save EMI payment
-                  </SubmitButton>
-                </form>
-              </details>
-            )}
+        <div className="xp-adders">
+          {emi.state !== "none" && emi.state !== "finished" && (
             <details className="xp-adder">
-              <summary className="ap-btn ap-btn-ghost ap-btn-sm">
-                <Icon name={emi.state === "none" ? "plus" : "edit"} size={14} /> {emi.state === "none" ? "Add loan details" : "Edit loan details"}
+              <summary className="ap-btn ap-btn-gold ap-btn-sm" {...lock(locked)}>
+                <Icon name="check" size={14} /> Mark EMI paid
               </summary>
-              <EmiForm f={f} from={from} submitLabel={emi.state === "none" ? "Save loan details" : "Save changes"} />
-              {emi.state !== "none" && (
-                <form action={saveEmiAction} className="xp-remove-details">
-                  <input type="hidden" name="id" value={f.id} />
-                  <From from={from} />
-                  <input type="hidden" name="action" value="remove" />
-                  <SubmitButton
-                    className="ap-btn ap-btn-danger ap-btn-sm"
-                    confirm="Remove the loan details? EMI payments already recorded are kept."
-                  >
-                    <Icon name="trash" size={13} /> Remove loan details
-                  </SubmitButton>
-                </form>
-              )}
+              <form action={payEmiAction} className="xp-adder-form">
+                <input type="hidden" name="id" value={f.id} />
+                <From from={from} />
+                <label className="ap-field">
+                  <span>EMI for the month</span>
+                  <input type="month" name="month" required min={f.emi_start!} max={f.emi_end!} defaultValue={emi.nextMonth} />
+                </label>
+                <label className="ap-field">
+                  <span>Amount (₹)</span>
+                  <input type="number" name="amount" required inputMode="decimal" min="1" max="10000000" step="0.01" defaultValue={f.emi_amount!} />
+                </label>
+                <label className="ap-field">
+                  <span>Paid on</span>
+                  <input type="date" name="paid_on" required max={today} defaultValue={today} />
+                </label>
+                <label className="ap-field">
+                  <span>Note (optional)</span>
+                  <input name="note" maxLength={200} placeholder="e.g. Includes ₹500 late fee" />
+                </label>
+                <SubmitButton className="ap-btn ap-btn-gold">
+                  <Icon name="check" size={15} /> Save EMI payment
+                </SubmitButton>
+              </form>
             </details>
-          </div>
-        )}
+          )}
+          <details className="xp-adder">
+            <summary className="ap-btn ap-btn-ghost ap-btn-sm" {...lock(locked)}>
+              <Icon name={emi.state === "none" ? "plus" : "edit"} size={14} /> {emi.state === "none" ? "Add loan details" : "Edit loan details"}
+            </summary>
+            <EmiForm f={f} from={from} submitLabel={emi.state === "none" ? "Save loan details" : "Save changes"} />
+            {emi.state !== "none" && (
+              <form action={saveEmiAction} className="xp-remove-details">
+                <input type="hidden" name="id" value={f.id} />
+                <From from={from} />
+                <input type="hidden" name="action" value="remove" />
+                <SubmitButton
+                  className="ap-btn ap-btn-danger ap-btn-sm"
+                  confirm="Remove the loan details? EMI payments already recorded are kept."
+                >
+                  <Icon name="trash" size={13} /> Remove loan details
+                </SubmitButton>
+              </form>
+            )}
+          </details>
+        </div>
       </section>
 
       <section className="ap-panel xp-money" id={from ? undefined : "insurance"}>
@@ -334,37 +336,35 @@ export default function VehicleFinancePanels(props: Props) {
         )}
         {insuranceFooter}
 
-        {canManage && (
-          <div className="xp-adders">
-            {ins.state !== "none" && (
-              <details className="xp-adder">
-                <summary className="ap-btn ap-btn-gold ap-btn-sm">
-                  <Icon name="undo" size={14} /> Renew policy
-                </summary>
-                <InsuranceForm f={f} renew back={from} />
-              </details>
-            )}
+        <div className="xp-adders">
+          {ins.state !== "none" && (
             <details className="xp-adder">
-              <summary className="ap-btn ap-btn-ghost ap-btn-sm">
-                <Icon name={ins.state === "none" ? "plus" : "edit"} size={14} /> {ins.state === "none" ? "Add insurance" : "Edit details"}
+              <summary className="ap-btn ap-btn-gold ap-btn-sm" {...lock(locked)}>
+                <Icon name="undo" size={14} /> Renew policy
               </summary>
-              <InsuranceForm f={f} renew={false} back={from} />
-              {ins.state !== "none" && (
-                <form action={saveInsuranceAction} className="xp-remove-details">
-                  <input type="hidden" name="id" value={f.id} />
-                  <From from={from} />
-                  <input type="hidden" name="action" value="remove" />
-                  <SubmitButton
-                    className="ap-btn ap-btn-danger ap-btn-sm"
-                    confirm="Remove the insurance details? Premiums already recorded are kept."
-                  >
-                    <Icon name="trash" size={13} /> Remove insurance details
-                  </SubmitButton>
-                </form>
-              )}
+              <InsuranceForm f={f} renew back={from} />
             </details>
-          </div>
-        )}
+          )}
+          <details className="xp-adder">
+            <summary className="ap-btn ap-btn-ghost ap-btn-sm" {...lock(locked)}>
+              <Icon name={ins.state === "none" ? "plus" : "edit"} size={14} /> {ins.state === "none" ? "Add insurance" : "Edit details"}
+            </summary>
+            <InsuranceForm f={f} renew={false} back={from} />
+            {ins.state !== "none" && (
+              <form action={saveInsuranceAction} className="xp-remove-details">
+                <input type="hidden" name="id" value={f.id} />
+                <From from={from} />
+                <input type="hidden" name="action" value="remove" />
+                <SubmitButton
+                  className="ap-btn ap-btn-danger ap-btn-sm"
+                  confirm="Remove the insurance details? Premiums already recorded are kept."
+                >
+                  <Icon name="trash" size={13} /> Remove insurance details
+                </SubmitButton>
+              </form>
+            )}
+          </details>
+        </div>
       </section>
     </div>
     </>

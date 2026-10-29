@@ -1334,6 +1334,17 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .as-composer .as-micerror { margin-bottom: 8px; }
 .as-footnote { margin-top: 8px; margin-bottom: 0; text-align: center; font-size: .72rem; color: var(--ink-soft); }
 
+/* Locked (lib/viewOnly.ts): everything a role can't use stays visible, greyed out; pressing it says why
+   (components/admin/ViewOnlyGuard.tsx). Inputs of a locked form are disabled (fieldset), so they fade too. */
+.ap-shell [data-locked] { opacity: .45; cursor: not-allowed; }
+.ap-shell [data-locked]:hover { transform: none; box-shadow: none; }
+.ap-shell fieldset.xp-locked { border: 0; padding: 0; margin: 0; min-width: 0; }
+/* Where a section's content is for admins only (e.g. a booking's history), it says so in its place */
+.xp-lockednote { display: flex; align-items: flex-start; gap: 8px; }
+.xp-lockednote svg { flex-shrink: 0; margin-top: 2px; color: var(--gold-600); }
+.ap-shell fieldset.xp-locked:disabled { opacity: .55; }
+.ap-shell fieldset.xp-locked:disabled * { cursor: not-allowed; }
+
 /* View only (viewers): same buttons, greyed out; they still take the click so a toast can say why */
 .as-page [aria-disabled="true"], .as-panel [aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 .as-page .ap-btn[aria-disabled="true"]:hover, .as-panel .ap-btn[aria-disabled="true"]:hover,

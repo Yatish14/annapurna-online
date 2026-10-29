@@ -6,6 +6,7 @@ import SubmitButton from "@/components/admin/SubmitButton";
 import { FleetStatus } from "@/components/expenses/FleetActions";
 import MobileInput from "@/components/MobileInput";
 import { can, requireUser } from "@/lib/auth";
+import { LOCKED } from "@/lib/viewOnly";
 import { listDrivers, listVehicles } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees } from "@/lib/expenses/money";
 import { formatPhone } from "@/lib/format";
@@ -17,6 +18,7 @@ export const metadata = { title: "Vehicles & drivers" };
 export default async function FleetPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser();
   const canManage = can(user, "manageExpenses");
+  const locked = !canManage && LOCKED.expenses;
   const params = await readParams(searchParams);
   const [vehicles, drivers] = await Promise.all([listVehicles(), listDrivers()]);
 
@@ -41,17 +43,16 @@ export default async function FleetPage({ searchParams }: { searchParams: Search
             <span className="ap-muted">{vehicles.filter((v) => v.active).length} in use</span>
           </div>
 
-          {canManage && (
-            <form action={addVehicle} className="xp-addrow">
-              <label className="ap-field">
-                <span>New vehicle (car)</span>
-                <input name="name" required minLength={2} maxLength={60} autoComplete="off" placeholder="e.g. Innova Crysta (white)" />
-              </label>
-              <SubmitButton className="ap-btn ap-btn-gold">
-                <Icon name="plus" size={15} /> Add vehicle
-              </SubmitButton>
-            </form>
-          )}
+          {/* Viewers see the form too: the box is disabled and the button says why */}
+          <form action={addVehicle} className="xp-addrow">
+            <label className="ap-field">
+              <span>New vehicle (car)</span>
+              <input name="name" required minLength={2} maxLength={60} autoComplete="off" placeholder="e.g. Innova Crysta (white)" disabled={!canManage} />
+            </label>
+            <SubmitButton className="ap-btn ap-btn-gold" locked={locked}>
+              <Icon name="plus" size={15} /> Add vehicle
+            </SubmitButton>
+          </form>
 
           {vehicles.length === 0 ? (
             <p className="ap-empty-sm">No vehicles yet. Add your first car above.</p>
@@ -89,21 +90,19 @@ export default async function FleetPage({ searchParams }: { searchParams: Search
             <span className="ap-muted">{drivers.filter((d) => d.active).length} in use</span>
           </div>
 
-          {canManage && (
-            <form action={addDriver} className="xp-addrow xp-addrow-2">
-              <label className="ap-field">
-                <span>Driver name</span>
-                <input name="name" required minLength={2} maxLength={60} autoComplete="off" placeholder="e.g. Suresh" />
-              </label>
-              <label className="ap-field">
-                <span>Mobile number</span>
-                <MobileInput name="phone" required autoComplete="off" />
-              </label>
-              <SubmitButton className="ap-btn ap-btn-gold">
-                <Icon name="plus" size={15} /> Add driver
-              </SubmitButton>
-            </form>
-          )}
+          <form action={addDriver} className="xp-addrow xp-addrow-2">
+            <label className="ap-field">
+              <span>Driver name</span>
+              <input name="name" required minLength={2} maxLength={60} autoComplete="off" placeholder="e.g. Suresh" disabled={!canManage} />
+            </label>
+            <label className="ap-field">
+              <span>Mobile number</span>
+              <MobileInput name="phone" required autoComplete="off" disabled={!canManage} />
+            </label>
+            <SubmitButton className="ap-btn ap-btn-gold" locked={locked}>
+              <Icon name="plus" size={15} /> Add driver
+            </SubmitButton>
+          </form>
 
           {drivers.length === 0 ? (
             <p className="ap-empty-sm">No drivers yet. Add a driver above.</p>
