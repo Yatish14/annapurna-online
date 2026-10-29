@@ -83,13 +83,14 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
   const [chats, setChats] = useState<Chat[]>(() => [emptyChat("chat-new"), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
   const [asked, setAsked] = useState(0);
-  const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
+  // leaving: sliding back out to the right; it's removed when that animation ends
+  const [toast, setToast] = useState<{ id: number; message: string; leaving?: boolean } | null>(null);
   const abort = useRef<AbortController | null>(null);
 
-  // The toast hides after 4 seconds; a new one restarts the clock
+  // The toast slides out after 4 seconds; a new one restarts the clock
   useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 4000);
+    if (!toast || toast.leaving) return;
+    const timer = window.setTimeout(() => setToast((t) => t && { ...t, leaving: true }), 4000);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
@@ -221,10 +222,15 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
       {children}
       {toast && (
         // key: the same message pressed twice still replays the animation
-        <div key={toast.id} className="as-toast" role="status">
+        <div
+          key={toast.id}
+          className={`as-toast${toast.leaving ? " is-leaving" : ""}`}
+          role="status"
+          onAnimationEnd={(e) => e.animationName === "as-toast-out" && setToast(null)}
+        >
           <Icon name="shield" size={17} />
           <span>{toast.message}</span>
-          <button type="button" onClick={() => setToast(null)} aria-label="Close message">
+          <button type="button" onClick={() => setToast((t) => t && { ...t, leaving: true })} aria-label="Close message">
             <Icon name="close" size={14} />
           </button>
         </div>

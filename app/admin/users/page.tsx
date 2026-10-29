@@ -2,13 +2,14 @@ import Flash from "@/components/admin/Flash";
 import Icon from "@/components/admin/Icon";
 import PageHeader from "@/components/admin/PageHeader";
 import SubmitButton from "@/components/admin/SubmitButton";
+import UserActions from "@/components/admin/UserActions";
 import MobileInput from "@/components/MobileInput";
 import { can, requireUser, ROLE_LABELS, type Role } from "@/lib/auth";
-import { lock, LOCKED } from "@/lib/viewOnly";
+import { LOCKED } from "@/lib/viewOnly";
 import { formatPhone, initials } from "@/lib/format";
 import { listUsers } from "@/lib/users";
 import { readParams, type SearchParams } from "../filters";
-import { createUserAction, deleteUserAction, resetPasswordAction } from "./actions";
+import { createUserAction, deleteUserAction } from "./actions";
 
 export const metadata = { title: "Users & roles" };
 
@@ -103,26 +104,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                   </span>
 
                   {(showReset || showDelete) && (
-                    <div className="ap-user-actions">
-                      {showReset && (
-                        <details className="ap-reset">
-                          <summary className="ap-btn ap-btn-ghost ap-btn-sm" {...lock(!canReset && LOCKED.superAdmin)}>
-                            <Icon name="key" size={14} /> Reset password
-                          </summary>
-                          <form action={resetPasswordAction} className="ap-reset-form">
-                            <input type="hidden" name="id" value={u.id} />
-                            <input
-                              type="password"
-                              name="password"
-                              minLength={8}
-                              required
-                              placeholder="New password (8+ characters)"
-                              autoComplete="new-password"
-                            />
-                            <SubmitButton className="ap-btn ap-btn-gold ap-btn-sm">Save</SubmitButton>
-                          </form>
-                        </details>
-                      )}
+                    <UserActions userId={u.id} name={u.name} showReset={showReset} resetLocked={!canReset && LOCKED.superAdmin}>
                       {showDelete && (
                         <form action={deleteUserAction}>
                           <input type="hidden" name="id" value={u.id} />
@@ -135,7 +117,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
                           </SubmitButton>
                         </form>
                       )}
-                    </div>
+                    </UserActions>
                   )}
                 </li>
               );
