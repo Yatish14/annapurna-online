@@ -25,16 +25,17 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 |---|---|
 | Language | TypeScript (same as the rest of the app) |
 | Agent | LangGraph (`@langchain/langgraph`) |
-| Main model | Claude Sonnet 5.5 (`claude-sonnet-5-5`) via `@langchain/anthropic` |
-| Cheap model (off-topic check, chat titles, AI judge) | Claude Haiku 4.5 (`claude-haiku-4-5`) |
+| Main model | Gemini 3.8 Flash (`gemini-3.8-flash`, free tier) via `@langchain/google-genai` |
+| Cheap model (off-topic check, chat titles, AI judge) | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) |
 | Live data | Tools that call the existing functions in `lib/` (never raw SQL from the model) |
-| RAG | pgvector on the existing Neon database, Voyage AI embeddings |
+| RAG | pgvector in the local database, Gemini embeddings (`gemini-embedding-2`, 768 numbers, free tier) |
 | Voice | The browser's speech recognition (en-IN, te-IN, hi-IN) |
 | Tests | Playwright + a fake model (`ASSISTANT_FAKE=1`), so tests are free and repeatable |
 
 ## Design decisions
 
-1. **Admins only.** `useAssistant: ["super_admin", "admin"]`, checked on the server for the page, the API route and every tool.
+1. **Admins ask, everyone else views.** `useAssistant: ["super_admin", "admin"]`, checked on the server for the API
+   route and every tool. Other roles see the same page, view only.
 2. **The model never writes data.** Write tools only make a *draft* (saved server-side with an owner and an
    expiry). The confirmation card's button runs a server action that re-checks everything and uses the same
    code as the forms. Activity shows "via Assistant".
@@ -42,19 +43,30 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 4. **Tool results are data, not instructions** (booking notes and names can't steer the assistant).
 5. **Guardrails:** scope rules in the prompt + a cheap off-topic check + message length limit + daily cap per admin.
 
-## Cost (estimates)
+## Cost: ₹0 (Google's free tier)
 
-- About ₹2 per question on Sonnet 5.5 with prompt caching → roughly ₹1,000–2,500 a month for 2–3 admins.
-- Evals: about ₹35 per 100-case tool-choice run, ₹200–250 per full run; roughly ₹400–1,000 for the whole project.
-- Start with $10 prepaid credit and a monthly spend limit in the Anthropic Console.
+This is a learning project, not for production, so it runs on the **free tier of the Gemini API**
+(Google AI Studio key, no card, no billing account).
+
+- **Limits:** a few requests a minute and a daily cap per project (see AI Studio → Rate limit; the day resets at
+  midnight Pacific, about 1:30 pm IST). One question is usually 2–3 model calls (pick a tool, read its result,
+  answer), so expect a few dozen questions a day. Too many → a "try again later" error, which the UI must show nicely.
+- **Data:** on the free tier Google may use what we send to improve its products. So we only use the **sample data**
+  (`npm run db:seed-expenses`) in the local database, never real customers' names or phone numbers.
+- **Evals** run on the fake model (free, any number of times) and in small batches on the free tier.
+- **Cost tracking (Step 8)** still counts tokens and shows what each question *would* cost on a paid model.
+  Good for the resume, and it shows what production would cost.
+- **Switching models later** (paid Gemini, Claude…) changes only `lib/assistant/model.ts` and the key.
+
+Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 Dec 2026; don't use them.
 
 ---
 
 ## Step 0 — Setup (outside the app)
 
-- [ ] **0.1** Create an Anthropic account, add $10 credit, set a spend limit, create an API key. *Learn: billing, keys.*
-- [ ] **0.2** Put the key in `.env.local` as `ANTHROPIC_API_KEY` (never commit it). *Learn: secrets stay server-side.*
-- [ ] **0.3** `npm i @langchain/anthropic @langchain/core`. *Learn: what each package does.*
+- [ ] **0.1** Google AI Studio: sign in, create an API key (free, no card), look at the Rate limit page. *Learn: keys, rate limits.*
+- [ ] **0.2** Put the key in `.env.local` as `GOOGLE_API_KEY` (never commit it); add an empty one to `.env.example`. *Learn: secrets stay server-side.*
+- [ ] **0.3** `npm i @langchain/google-genai @langchain/core`. *Learn: what each package does.*
 - [ ] **0.4** `scripts/ai-hello.mjs`: ask one question, print the reply and token counts. *Learn: a model call, tokens.*
 - [ ] **0.5** Add a system message to the script. *Learn: system vs user messages.*
 - [ ] **0.6** Print the reply word by word. *Learn: streaming.*
@@ -74,7 +86,7 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 - [ ] **1.11** Styles in `app/admin.css` (bubbles, message box), matching the mockup.
 - [ ] **1.12** Errors (API down, rate limit) and a Stop button. *Learn: cancelling a request mid-reply.*
 - [ ] **1.13** Guardrail v1: scope rules in the prompt; try off-topic questions by hand.
-- [ ] **1.14** Guardrail v2: `lib/assistant/guard.ts`, a Haiku check before the main model. *Learn: routing to a cheaper model.*
+- [ ] **1.14** Guardrail v2: `lib/assistant/guard.ts`, a Flash-Lite check before the main model. *Learn: routing to a cheaper model.*
 - [ ] **1.15** Maximum message length and a daily question cap per admin. *Learn: preventing abuse.*
 - [ ] **1.16** Fake model for tests (`ASSISTANT_FAKE=1`). *Learn: testing AI code without paying or random results.*
 - [ ] **1.17** Playwright test: a viewer can't open the page; an admin can chat.
@@ -126,7 +138,7 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 - [ ] **5.2** Save each turn, including tool calls.
 - [ ] **5.3** `/admin/assistant/[chatId]` loads an old chat.
 - [ ] **5.4** History sidebar (your own chats only).
-- [ ] **5.5** Haiku gives each chat a title from its first question.
+- [ ] **5.5** Flash-Lite gives each chat a title from its first question.
 - [ ] **5.6** Rename and delete chats.
 - [ ] **5.7** Trim long chats to a token budget. *Learn: context windows.*
 - [ ] **5.8** Search chats.
@@ -135,7 +147,7 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 ## Step 6 — RAG (help and knowledge)
 
 - [ ] **6.1** Write the knowledge base in `knowledge/` (how-to guides, business info, glossary).
-- [ ] **6.2** Voyage key; embed one sentence and print the vector. *Learn: what an embedding is.*
+- [ ] **6.2** Embed one sentence with `gemini-embedding-2` (same key) and print the vector. *Learn: what an embedding is.*
 - [ ] **6.3** Compare 3 sentences with cosine similarity. *Learn: the intuition behind vector search.*
 - [ ] **6.4** `CREATE EXTENSION vector` and a `kb_chunks` table.
 - [ ] **6.5** Split documents by heading. *Learn: chunking trade-offs.*
@@ -161,22 +173,22 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 ## Step 8 — Evals, cost and tracing
 
 - [ ] **8.1** Usage table: tokens, cost, response time per request.
-- [ ] **8.2** Cost calculator (rupees from a price table).
+- [ ] **8.2** Cost calculator: what each question would cost in rupees on a paid model (price table).
 - [ ] **8.3** Usage page for super admin.
 - [ ] **8.4** First 20 cases in `evals/cases.jsonl`: question → expected tool and inputs.
 - [ ] **8.5** Eval runner: tool choice only, against a test database.
 - [ ] **8.6** Code graders: compare tool and inputs (free).
 - [ ] **8.7** Run report: accuracy, cost, time; saved to a file.
 - [ ] **8.8** Grow to 100 cases, including off-topic and prompt-injection cases.
-- [ ] **8.9** Haiku judges answer quality on a small subset.
-- [ ] **8.10** Compare Claude vs GPT vs Gemini on the same cases.
-- [ ] **8.11** Check prompt caching works (`cache_read` tokens above 0).
-- [ ] **8.12** CI: small eval set on every push, with a budget cap.
+- [ ] **8.9** Flash-Lite judges answer quality on a small subset.
+- [ ] **8.10** Compare two models on the same cases (e.g. Gemini Flash vs Flash-Lite, or a free Groq model).
+- [ ] **8.11** Check caching works (Gemini reports cached tokens in the usage).
+- [ ] **8.12** CI: the fake-model eval set on every push (free).
 - [ ] **8.13** *(Optional)* LangSmith tracing.
 - [ ] **8.14** *(Optional)* Rewrite the eval runner in Python.
 
 ## Step 9 — Ship and show
 
-- [ ] **9.1** API key in Vercel's environment settings; monthly spend limit.
+- [ ] **9.1** *(Only if it goes online)* API key in Vercel's environment settings; demo on sample data only.
 - [ ] **9.2** README section with an architecture diagram and the decisions made.
 - [ ] **9.3** Demo mode on sample data + a 2-minute video.
