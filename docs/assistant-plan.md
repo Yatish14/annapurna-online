@@ -25,8 +25,10 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 |---|---|
 | Language | TypeScript (same as the rest of the app) |
 | Agent | LangGraph (`@langchain/langgraph`) |
-| Main model | Gemini 3.8 Flash (`gemini-3.8-flash`, free tier) via `@langchain/google-genai` |
+| Main model, while building | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) via `@langchain/google-genai` |
+| Main model, quality check | Gemini 3.8 Flash (`gemini-3.8-flash`, free tier): smarter, but only 20 requests a day |
 | Cheap model (off-topic check, chat titles, AI judge) | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) |
+| Spare (many requests, e.g. eval runs) | Gemma 4 31B: 14,400 a day, but only 16K tokens a minute; tool calling to be tried |
 | Live data | Tools that call the existing functions in `lib/` (never raw SQL from the model) |
 | RAG | pgvector in the local database, Gemini embeddings (`gemini-embedding-2`, 768 numbers, free tier) |
 | Voice | The browser's speech recognition (en-IN, te-IN, hi-IN) |
@@ -48,9 +50,17 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 This is a learning project, not for production, so it runs on the **free tier of the Gemini API**
 (Google AI Studio key, no card, no billing account).
 
-- **Limits:** a few requests a minute and a daily cap per project (see AI Studio → Rate limit; the day resets at
-  midnight Pacific, about 1:30 pm IST). One question is usually 2–3 model calls (pick a tool, read its result,
-  answer), so expect a few dozen questions a day. Too many → a "try again later" error, which the UI must show nicely.
+- **Limits** (AI Studio → Rate limit, 5 Nov 2026; per project; the day resets at midnight Pacific, about 1:30 pm IST):
+
+  | Model | Requests a minute | Tokens a minute | Requests a day | ≈ questions a day |
+  |---|---|---|---|---|
+  | `gemini-3.5-flash-lite` | 15 | 250K | 500 | 170–250 |
+  | `gemini-3.8-flash` | 5 | 250K | 20 | 7–10 |
+  | Gemma 4 26B / 31B | 30 | 16K | 14,400 | many, but slow: about 1 question a minute |
+
+  One question is usually 2–3 model calls (pick a tool, read its result, answer). So: the **fake model** for building
+  the UI and tests, **Flash-Lite** for everyday testing, **3.8 Flash** for a few final checks. Over the limit →
+  a "try again later" error (429), which the UI must show nicely.
 - **Data:** on the free tier Google may use what we send to improve its products. So we only use the **sample data**
   (`npm run db:seed-expenses`) in the local database, never real customers' names or phone numbers.
 - **Evals** run on the fake model (free, any number of times) and in small batches on the free tier.
@@ -64,7 +74,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 ## Step 0 — Setup (outside the app)
 
-- [ ] **0.1** Google AI Studio: sign in, create an API key (free, no card), look at the Rate limit page. *Learn: keys, rate limits.*
+- [x] **0.1** Google AI Studio: sign in, create an API key (free, no card), look at the Rate limit page. *Learn: keys, rate limits.*
 - [ ] **0.2** Put the key in `.env.local` as `GOOGLE_API_KEY` (never commit it); add an empty one to `.env.example`. *Learn: secrets stay server-side.*
 - [ ] **0.3** `npm i @langchain/google-genai @langchain/core`. *Learn: what each package does.*
 - [ ] **0.4** `scripts/ai-hello.mjs`: ask one question, print the reply and token counts. *Learn: a model call, tokens.*
