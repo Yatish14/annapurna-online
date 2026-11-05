@@ -86,6 +86,17 @@ a { color: inherit; text-decoration: none; }
 }
 .nav-cta:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(201,162,74,.85), inset 0 1px 0 rgba(255,255,255,.5); }
 .nav-cta .icon { width: 16px; height: 16px; stroke-width: 2; }
+/* Staff sign-in: quieter than Call Now, so customers still see the call button first */
+.nav-login {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 15px; border-radius: 999px;
+  border: 1px solid rgba(241,217,154,.32);
+  color: rgba(255,255,255,.86); font-size: .86rem; font-weight: 600; white-space: nowrap;
+  transition: color .2s, background .2s, border-color .2s;
+}
+.nav-login:hover { color: #fff; background: rgba(255,255,255,.08); border-color: rgba(241,217,154,.6); }
+.nav-login:focus-visible, .mobile-login:focus-visible { outline: 2px solid var(--gold-300); outline-offset: 2px; }
+.nav-login .icon { width: 15px; height: 15px; stroke-width: 2; color: var(--gold-300); }
 .menu-btn {
   display: none; width: 42px; height: 42px; border-radius: 999px; border: 0;
   background: rgba(255,255,255,.1); color: #fff; cursor: pointer;
@@ -106,10 +117,15 @@ a { color: inherit; text-decoration: none; }
 .mobile-panel.open { opacity: 1; transform: none; visibility: visible; }
 .mobile-panel a { display: block; padding: 14px 16px; border-radius: 14px; color: rgba(255,255,255,.88); font-weight: 500; }
 .mobile-panel a:hover { background: rgba(255,255,255,.08); }
-.mobile-panel .nav-cta { display: flex; justify-content: center; margin-top: 6px; padding: 14px; }
+.mobile-panel .nav-cta { display: flex; justify-content: center; margin-top: 6px; padding: 14px; color: var(--navy-950); }
+.mobile-panel .mobile-login {
+  display: flex; align-items: center; gap: 10px; margin-top: 6px;
+  border-top: 1px solid rgba(255,255,255,.1); border-radius: 0 0 14px 14px; padding-top: 16px;
+}
+.mobile-login .icon { width: 17px; height: 17px; stroke-width: 2; color: var(--gold-300); }
 
 @media (max-width: 900px) {
-  .nav-links, .nav > .nav-cta { display: none; }
+  .nav-links, .nav > .nav-cta, .nav > .nav-login { display: none; }
   .menu-btn { display: inline-flex; }
   .nav { width: 100%; justify-content: space-between; }
 }

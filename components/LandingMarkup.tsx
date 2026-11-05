@@ -46,6 +46,7 @@ export default function LandingMarkup() {
           <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
           <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
           <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+          <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/><path d="M12 15v2"/></symbol>
           <symbol id="i-docs" viewBox="0 0 24 24"><path d="M9 3h7l4 4v11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2"/><path d="M16 3v4h4M4 7v12a2 2 0 0 0 2 2h9"/></symbol>
       
           {/* Lotus brand mark */}
@@ -94,6 +95,8 @@ export default function LandingMarkup() {
             <li><a href="#why">Why Us</a></li>
             <li><a href="#contact">Contact</a></li>
           </ul>
+          {/* Staff sign-in for the admin console (Printout orders, Expense Tracker) */}
+          <a className="nav-login" href="/login"><svg className="icon"><use href="#i-lock"/></svg>Admin login</a>
           <a className="nav-cta" href="tel:+919949810683"><svg className="icon"><use href="#i-phone"/></svg>Call Now</a>
           <button className="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="mobilePanel">
             <svg className="icon"><use href="#i-menu"/></svg>
@@ -104,6 +107,7 @@ export default function LandingMarkup() {
           <a href="#travel">Tours &amp; Travels</a>
           <a href="#why">Why Us</a>
           <a href="#contact">Contact</a>
+          <a className="mobile-login" href="/login"><svg className="icon"><use href="#i-lock"/></svg>Admin login</a>
           <a className="nav-cta" href="tel:+919949810683"><svg className="icon"><use href="#i-phone"/></svg>Call 99498 10683</a>
         </div>
       </div>
