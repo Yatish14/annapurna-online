@@ -75,7 +75,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 ## Step 0 — Setup (outside the app)
 
 - [x] **0.1** Google AI Studio: sign in, create an API key (free, no card), look at the Rate limit page. *Learn: keys, rate limits.*
-- [ ] **0.2** Put the key in `.env.local` as `GOOGLE_API_KEY` (never commit it); add an empty one to `.env.example`. *Learn: secrets stay server-side.*
+- [x] **0.2** Put the key in `.env.local` as `GOOGLE_API_KEY` (never commit it); add an empty one to `.env.example`. *Learn: secrets stay server-side.*
 - [ ] **0.3** `npm i @langchain/google-genai @langchain/core`. *Learn: what each package does.*
 - [ ] **0.4** `scripts/ai-hello.mjs`: ask one question, print the reply and token counts. *Learn: a model call, tokens.*
 - [ ] **0.5** Add a system message to the script. *Learn: system vs user messages.*
