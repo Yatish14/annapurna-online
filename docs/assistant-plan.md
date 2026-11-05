@@ -79,7 +79,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **0.3** `npm i @langchain/google @langchain/core` (`@langchain/google` replaces the older `@langchain/google-genai`, which LangChain is deprecating). *Learn: what each package does.*
 - [x] **0.4** `scripts/ai-hello.mjs` (`npm run ai:hello`): ask one question, print the reply and token counts. *Learn: a model call, tokens.*
 - [x] **0.5** Add a system message to the script. *Learn: system vs user messages.*
-- [ ] **0.6** Print the reply word by word. *Learn: streaming.*
+- [x] **0.6** Print the reply word by word. *Learn: streaming.*
 
 ## Step 1 — Chat page (no tools yet)
 
