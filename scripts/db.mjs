@@ -23,11 +23,54 @@ export function splitStatements(script) {
   return statements.filter(Boolean);
 }
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/** "docker" (Postgres on this computer), "pglite" (a folder, for the tests) or "neon" (the real data) */
+export function databaseKind(url = process.env.DATABASE_URL ?? "") {
+  if (url.startsWith("pglite:")) return "pglite";
+  try {
+    const u = new URL(url);
+    if (/^postgres(ql)?:$/.test(u.protocol) && LOCAL_HOSTS.has(u.hostname)) return "docker";
+  } catch {
+    // not a URL: treated as Neon
+  }
+  return "neon";
+}
+
+const KIND_LABELS = { docker: "the local database (Docker)", pglite: "the local test database (PGlite)", neon: "NEON, the real data" };
+
+/** Says which database a script is about to use */
+export function describeTarget() {
+  return KIND_LABELS[databaseKind()];
+}
+
+/**
+ * Stops a script that adds sample data or wipes tables unless the database is on this computer,
+ * so it can never touch the real data on Neon.
+ */
+export function requireLocal(what) {
+  if (!process.env.DATABASE_URL) return; // connect() reports it
+  if (databaseKind() !== "neon") return;
+  console.error(`✗ Refusing to ${what}: DATABASE_URL points at Neon (the real data).`);
+  console.error("  This only runs on a database on this computer. See \"Local database\" in README.md.");
+  process.exit(1);
+}
+
 export async function connect() {
   const url = process.env.DATABASE_URL;
   if (!url) {
     console.error("DATABASE_URL is not set. Add it to .env.local (see README.md).");
     process.exit(1);
+  }
+
+  if (databaseKind(url) === "docker") {
+    const { default: pg } = await import("pg");
+    const pool = new pg.Pool({ connectionString: url, max: 2 });
+    return {
+      exec: (sql) => pool.query(sql),
+      query: async (text, params = []) => (await pool.query(text, params)).rows,
+      close: () => pool.end(),
+    };
   }
 
   if (url.startsWith("pglite:")) {

@@ -4,7 +4,7 @@
 //   npm run db:seed-expenses              add / refresh the samples
 //   npm run db:seed-expenses -- --clear   remove them again
 // Samples are marked is_sample = true and show a "Sample" badge. Dates are relative to today.
-import { connect, schemaSql } from "./db.mjs";
+import { connect, requireLocal, schemaSql } from "./db.mjs";
 
 const SAMPLE_TAG = "sample data";
 
@@ -111,6 +111,7 @@ const VEHICLE_FASTAG = [
   [0, -3, 1000, "Paytm"],
 ];
 
+requireLocal("add or clear sample expense data");
 const db = await connect();
 await db.exec(schemaSql);
 

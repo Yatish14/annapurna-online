@@ -6,7 +6,7 @@
 // Passwords are typed at a hidden prompt, so they never end up in your shell history.
 // (`create --use-env-hash` takes an existing hash from ADMIN_PASSWORD_HASH instead.)
 import { randomBytes, scryptSync } from "node:crypto";
-import { connect, schemaSql } from "./db.mjs";
+import { connect, describeTarget, schemaSql } from "./db.mjs";
 
 const [command, ...rest] = process.argv.slice(2);
 const flags = {};
@@ -94,6 +94,7 @@ if (!["create", "reset-password"].includes(command) || !/^[6-9]\d{9}$/.test(mobi
   process.exit(1);
 }
 
+console.log(`Using ${describeTarget()}.`);
 const db = await connect();
 await db.exec(schemaSql);
 

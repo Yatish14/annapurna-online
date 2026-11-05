@@ -1,6 +1,7 @@
 // Creates the database tables. Safe to run more than once: npm run db:migrate
-import { connect, schemaSql } from "./db.mjs";
+import { connect, describeTarget, schemaSql } from "./db.mjs";
 
+console.log(`Updating the tables in ${describeTarget()}…`);
 const db = await connect();
 await db.exec(schemaSql);
 await db.close();

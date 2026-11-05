@@ -110,6 +110,17 @@ button { font: inherit; }
 .ap-side-brandtext { flex: 1; min-width: 0; }
 .ap-side-brand strong { display: block; font-family: var(--serif); font-weight: 600; font-size: 1.25rem; color: #fff; line-height: 1.1; }
 .ap-side-brand span { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-300); white-space: nowrap; }
+/* "Local data": the site is using the database on this computer, not the real data */
+.ap-localdata {
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin: 14px 4px 0; padding: 7px 10px;
+  border: 1px dashed rgba(94,234,212,.55); border-radius: 10px; background: rgba(94,234,212,.08);
+  color: #99f6e4; font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+}
+.ap-localdata-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: #2dd4bf; box-shadow: 0 0 0 3px rgba(45,212,191,.22); }
+.ap-localdata-chip {
+  margin-left: 2px; padding: 2px 7px; border: 1px dashed #14b8a6; border-radius: 999px; background: #f0fdfa;
+  color: #0f766e; font-size: .64rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+}
 .ap-side-toggle { width: 34px; height: 34px; border-radius: 10px; color: rgba(255,255,255,.75); transition: background .15s, color .15s; }
 .ap-side-toggle:hover { background: rgba(241,217,154,.16); color: var(--gold-200); }
 .ap-side-toggle svg { transition: transform .25s; }
@@ -210,6 +221,8 @@ button { font: inherit; }
   .ap-side.is-collapsed ~ .ap-content { margin-left: var(--side-w-collapsed); }
   .is-collapsed .ap-side-brand { flex-direction: column; gap: 14px; padding: 0 0 18px; }
   .is-collapsed .ap-side-toggle svg { transform: rotate(180deg); }
+  .is-collapsed .ap-localdata { margin-inline: 0; padding: 9px 0; }
+  .is-collapsed .ap-localdata-text,
   .is-collapsed .ap-side-brandtext,
   .is-collapsed .ap-nav-label,
   .is-collapsed .ap-nav-text,

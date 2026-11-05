@@ -31,30 +31,48 @@ Website, printout uploads (Annapurna Graphics and Internet), an expense tracker 
 
 ## Run it locally
 
-Requires Node.js 20+.
+Requires Node.js 20+ and Docker Desktop (for the local database).
 
 ```bash
 npm install
-npm run super-admin -- create --name "Srimannarayana" --mobile 9949810683   # once per database; asks for a password
+npm run db:up      # starts the local database (Docker); it keeps running in the background
+npm run db:fresh   # wipes it and fills it with sample data and three sign-ins (run it any time)
 npm run dev
 ```
 
 - Website: http://localhost:3000
-- Dashboard: http://localhost:3000/login. Sign in with the super admin's mobile number and password, then add admins and viewers under **Users & roles**.
+- Dashboard: http://localhost:3000/login. `db:fresh` prints the sign-ins (super admin, admin and viewer).
 
-Locally, `DATABASE_URL=pglite:./.data/pglite` uses a built-in database stored in the `.data` folder, so no account is needed. To try the dashboard with sample bookings:
+### Local database
 
-```bash
-npm run db:seed            # 12 sample bookings covering every case (clash, past date, failed message, ...)
-npm run db:seed -- --clear # removes them again
-```
+Work on your computer uses **its own database**, never the real data on Neon:
+
+- `.env.local` has `DATABASE_URL=postgresql://annapurna:annapurna_local@localhost:5432/annapurna`, the Postgres in Docker ([docker-compose.yml](docker-compose.yml)). Only this computer can reach it, and its data stays in a Docker volume between restarts.
+- The dashboard shows a **Local data** badge in the sidebar (and **Local** on phones) whenever it isn't using Neon. No badge means real data.
+- Safety: `db:fresh`, `db:seed` and `db:seed-expenses` refuse to run if `DATABASE_URL` points at Neon. `db:migrate` and `super-admin` say which database they're using before they start.
+- You can open the database in any Postgres app (pgAdmin, DBeaver, the VS Code PostgreSQL extension): host `localhost`, port `5432`, database and user `annapurna`, password `annapurna_local`.
+
+| Command | What it does |
+|---|---|
+| `npm run db:up` | Starts the local database (needs Docker Desktop running) |
+| `npm run db:down` | Stops it; the data is kept |
+| `npm run db:fresh` | Wipes the local database, then adds sample bookings, expenses and three sign-ins (the super admin's password comes from `LOCAL_SUPER_ADMIN_PASSWORD` in `.env.local`, default `testpass123`) |
+| `npm run db:seed` / `db:seed-expenses` | Adds or refreshes only the samples (`-- --clear` removes them) |
+
+The automated tests use `DATABASE_URL=pglite:./.data/pglite-test`, a built-in database stored in a folder (no Docker needed). Docker runs Postgres 17, Neon's default (your Neon project's version is under Neon → Settings).
 
 ## Using Neon (online database)
 
 1. Create a free project at https://neon.tech and copy its connection string.
-2. Set `DATABASE_URL` to it, in `.env.local` or in your hosting settings.
-3. Create the tables: `npm run db:migrate`. This is safe to run again at any time.
+2. Set `DATABASE_URL` to it in your hosting settings (Vercel). Keep it out of `.env.local`, so local work never uses the real data.
+3. Create the tables: `npm run db:migrate`. This is safe to run again at any time, and needed after a change to `db/schema.sql`.
 4. Create the super admin: `npm run super-admin -- create --name "…" --mobile …`. You only do this once.
+
+For steps 3 and 4 (and `super-admin -- reset-password`), give the Neon address for that one command only. It takes priority over `.env.local`, and the script says "NEON, the real data" before it starts:
+
+```powershell
+$env:DATABASE_URL = "postgresql://…neon.tech/neondb?sslmode=require"; npm run db:migrate; Remove-Item Env:DATABASE_URL
+```
 
 ## Settings (`.env.local`)
 
@@ -62,7 +80,7 @@ All keys are listed in [.env.example](.env.example). `.env.local` is in `.gitign
 
 | Key | Where to get it |
 |---|---|
-| `DATABASE_URL` | Neon connection string, or `pglite:./.data/pglite` locally |
+| `DATABASE_URL` | On the live site: the Neon connection string (hosting settings). On your computer: the Docker database (see Local database above) |
 | `SESSION_SECRET` | Any random 32+ characters (already generated in `.env.local`) |
 | `BLOB_STORE_ID` | Added by Vercel when you connect a Blob store (see Printout below); Vercel signs in with OIDC. On your computer, files are kept in `.data/uploads` instead |
 | `CRON_SECRET` | Optional, any random string: only Vercel's scheduler can then run the clean-up job |
@@ -267,7 +285,7 @@ lib/
   bookings.ts                    availability + booking queries
   auth.ts                        roles, permissions, sign-in, session cookie
   users.ts                       dashboard users (admins, viewers)
-  db.ts                          database connection (Neon or local PGlite)
+  db.ts                          database connection (Neon, the local Docker Postgres, or PGlite for tests)
   dates.ts                       date helpers (Indian time)
   whatsapp/flow.ts               the bot conversation
   whatsapp/client.ts             sending WhatsApp messages

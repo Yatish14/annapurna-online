@@ -1,0 +1,24 @@
+# The local database for development: npm run db:up (start), npm run db:fresh (wipe + sample data)
+# Only this computer can reach it (127.0.0.1). The data lives in the "annapurna-pgdata" Docker volume
+# and survives restarts; the real data stays on Neon and is never touched.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: annapurna-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: annapurna
+      POSTGRES_PASSWORD: annapurna_local
+      POSTGRES_DB: annapurna
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - annapurna-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U annapurna -d annapurna"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  annapurna-pgdata:

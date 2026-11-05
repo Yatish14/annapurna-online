@@ -32,7 +32,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <Lotus size={44} />
           <div>
             <strong>Annapurna</strong>
-            <span>Bookings dashboard</span>
+            <span>Admin console</span>
           </div>
         </div>
 

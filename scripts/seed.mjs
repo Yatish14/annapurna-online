@@ -3,7 +3,7 @@
 //   npm run db:seed -- --clear   remove them again
 // Samples are marked is_sample = true. Their mobile numbers look real (10 digits, starting 6–9)
 // and might belong to someone, so the app never sends WhatsApp messages for sample bookings.
-import { connect, schemaSql } from "./db.mjs";
+import { connect, requireLocal, schemaSql } from "./db.mjs";
 
 const SAMPLE_TAG = "sample data";
 // Numbers from an older version of this script
@@ -40,6 +40,7 @@ const SAMPLES = [
   ["Gopal", "carens", 2, 2, 25, 4, "Old Town", "confirmed", {}],
 ];
 
+requireLocal("add or clear sample bookings");
 const db = await connect();
 await db.exec(schemaSql);
 

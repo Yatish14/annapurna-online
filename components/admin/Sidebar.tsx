@@ -21,7 +21,11 @@ type Props = {
   initialCollapsed: boolean;
   /** Modules that were left open (remembered in a cookie) */
   initialOpen: ModuleId[];
+  /** The site is using the database on this computer (Docker or PGlite), not the real data */
+  localData?: boolean;
 };
+
+const LOCAL_DATA_NOTE = "This copy of the site uses the database on this computer (sample data), not the real data on Neon.";
 
 type Item = { href: string; label: string; icon: IconName; badge?: number; locked?: string };
 type Module = { id: ModuleId; label: string; icon: IconName; items: Item[] };
@@ -32,7 +36,7 @@ const EXACT = new Set(["/admin/print", "/admin/expenses"]);
 const isDesktop = () => window.matchMedia("(min-width: 1001px)").matches;
 
 export default function Sidebar(props: Props) {
-  const { user, printCount, lockUsers, lockActivity, initialCollapsed, initialOpen } = props;
+  const { user, printCount, lockUsers, lockActivity, initialCollapsed, initialOpen, localData } = props;
   const pathname = usePathname();
   const [drawer, setDrawer] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(initialCollapsed); // desktop icon-only mode
@@ -150,6 +154,11 @@ export default function Sidebar(props: Props) {
         <div className="ap-mobilebar-brand">
           <Lotus size={28} />
           <strong>Annapurna</strong>
+          {localData && (
+            <span className="ap-localdata-chip" title={LOCAL_DATA_NOTE}>
+              Local
+            </span>
+          )}
         </div>
         <span className="ap-avatar ap-avatar-sm">{user.initials}</span>
       </header>
@@ -180,6 +189,13 @@ export default function Sidebar(props: Props) {
             <Icon name="close" size={20} />
           </button>
         </div>
+
+        {localData && (
+          <div className="ap-localdata" title={LOCAL_DATA_NOTE} role="note" aria-label={LOCAL_DATA_NOTE}>
+            <span className="ap-localdata-dot" aria-hidden="true" />
+            <span className="ap-localdata-text">Local data</span>
+          </div>
+        )}
 
         <nav className="ap-nav">
           {/* Every role sees it; viewers get it view only */}
