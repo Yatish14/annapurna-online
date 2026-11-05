@@ -25,7 +25,7 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 |---|---|
 | Language | TypeScript (same as the rest of the app) |
 | Agent | LangGraph (`@langchain/langgraph`) |
-| Main model, while building | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) via `@langchain/google-genai` |
+| Main model, while building | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) via `@langchain/google` (`ChatGoogle`) |
 | Main model, quality check | Gemini 3.8 Flash (`gemini-3.8-flash`, free tier): smarter, but only 20 requests a day |
 | Cheap model (off-topic check, chat titles, AI judge) | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) |
 | Spare (many requests, e.g. eval runs) | Gemma 4 31B: 14,400 a day, but only 16K tokens a minute; tool calling to be tried |
@@ -76,7 +76,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 - [x] **0.1** Google AI Studio: sign in, create an API key (free, no card), look at the Rate limit page. *Learn: keys, rate limits.*
 - [x] **0.2** Put the key in `.env.local` as `GOOGLE_API_KEY` (never commit it); add an empty one to `.env.example`. *Learn: secrets stay server-side.*
-- [ ] **0.3** `npm i @langchain/google-genai @langchain/core`. *Learn: what each package does.*
+- [x] **0.3** `npm i @langchain/google @langchain/core` (`@langchain/google` replaces the older `@langchain/google-genai`, which LangChain is deprecating). *Learn: what each package does.*
 - [ ] **0.4** `scripts/ai-hello.mjs`: ask one question, print the reply and token counts. *Learn: a model call, tokens.*
 - [ ] **0.5** Add a system message to the script. *Learn: system vs user messages.*
 - [ ] **0.6** Print the reply word by word. *Learn: streaming.*
