@@ -44,6 +44,11 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 3. **Exact numbers come from tools, not RAG.** RAG is only for help text, business info and the glossary.
 4. **Tool results are data, not instructions** (booking notes and names can't steer the assistant).
 5. **Guardrails:** scope rules in the prompt + a cheap off-topic check + message length limit + daily cap per admin.
+6. **Two privacy modes.** While learning (local database, sample data only) the model sees tool results, like a
+   normal assistant. Before real data or production, **privacy-first mode** (Step 9) is switched on: no database
+   data (customers, phones, amounts, admins' names) reaches Google. The model only picks a tool and its inputs; the
+   server runs it and sends the rows straight to the screen as a card. So from Step 2, every tool returns
+   **two things**: the data for the screen, and a short status for the model (found / none / too many / failed).
 
 ## Cost: ₹0 (Google's free tier)
 
@@ -197,8 +202,25 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [ ] **8.13** *(Optional)* LangSmith tracing.
 - [ ] **8.14** *(Optional)* Rewrite the eval runner in Python.
 
-## Step 9 — Ship and show
+## Step 9 — Privacy-first mode (before real data or production)
 
-- [ ] **9.1** *(Only if it goes online)* API key in Vercel's environment settings; demo on sample data only.
-- [ ] **9.2** README section with an architecture diagram and the decisions made.
-- [ ] **9.3** Demo mode on sample data + a 2-minute video.
+The model never sees database data; it only chooses tools. Trade-offs: no open-ended analysis of the data,
+follow-ups need row labels, sentences with numbers come from our code. (Design decision 6.)
+
+- [ ] **9.1** Choose how strict: only "shown to the admin", **status** (found / none / too many / failed, recommended),
+      or non-personal totals too.
+- [ ] **9.2** `ASSISTANT_PRIVACY=strict`: tools return LangChain's `content_and_artifact`. The model gets the
+      status, the screen gets the rows. *Learn: separating what the model sees from what the user sees.*
+- [ ] **9.3** No database values in the prompt (e.g. the admin's first name from 1.5 is left out in this mode).
+- [ ] **9.4** Anonymous row labels ("result A, row 2") so follow-ups like "call the second one" still work.
+- [ ] **9.5** Drafts: the customer's name and phone are typed into the card, not the chat.
+- [ ] **9.6** A note under the chat box: what you type or say is sent to Google (voice uses Google's speech service).
+- [ ] **9.7** Test: run every eval question in strict mode and check that no name, phone or amount from the
+      database appears in any request sent to Google. *Learn: testing for data leaks.*
+- [ ] **9.8** Compare the two modes on the evals (Step 8): what still works, what doesn't.
+
+## Step 10 — Ship and show
+
+- [ ] **10.1** *(Only if it goes online)* API key in Vercel's environment settings, privacy-first mode on.
+- [ ] **10.2** README section with an architecture diagram and the decisions made.
+- [ ] **10.3** Demo mode on sample data + a 2-minute video.
