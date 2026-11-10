@@ -28,11 +28,13 @@ const titleFrom = (q: string) => (q.length > 48 ? `${q.slice(0, 45).trimEnd()}â€
  * Asks our server (app/api/assistant/route.ts), which asks Gemini, and calls `onText` with the reply so far
  * each time a piece arrives. Stop cancels the request through `signal`, even halfway through the reply.
  */
-async function ask(question: string, signal: AbortSignal, onText: (text: string) => void): Promise<void> {
+async function ask(question: string, earlier: Message[], signal: AbortSignal, onText: (text: string) => void): Promise<void> {
+  // The model remembers nothing between questions, so the chat so far goes with each one (only who said what)
+  const history = earlier.map(({ role, text }) => ({ role, text }));
   const res = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: question }),
+    body: JSON.stringify({ message: question, history }),
     signal,
   });
   // Something went wrong: the route sends { error }. For now it goes in the bubble (1.12 styles errors).
@@ -153,7 +155,9 @@ export default function AssistProvider({ firstName, canUse, initialChats, childr
     abort.current = controller;
     setLive({ chatId, messageId: answer.id, running: null });
     // Each piece of the reply replaces the bubble's text with everything so far
-    ask(question, controller.signal, (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })))
+    // The messages before this question (`chats` is still the list from before setChats above)
+    const earlier = chats.find((c) => c.id === chatId)?.messages ?? [];
+    ask(question, earlier, controller.signal, (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })))
       .catch(() =>
         updateMessage(chatId, answer.id, (m) =>
           // Stop pressed, or the reply broke off halfway: keep the words so far and mark it "Stopped".

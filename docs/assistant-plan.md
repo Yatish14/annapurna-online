@@ -97,7 +97,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **1.7** The chat (message list, input box, Send button, from the sample UI) asks `/api/assistant` instead of `sampleReply` (`components/assistant/AssistProvider.tsx`).
 - [x] **1.8** The route streams the reply in chunks.
 - [x] **1.9** The UI shows words as they arrive.
-- [ ] **1.10** Send earlier messages with each request. *Learn: the model remembers nothing between calls.*
+- [x] **1.10** Send earlier messages with each request. *Learn: the model remembers nothing between calls.*
 - [ ] **1.11** Styles in `app/admin.css` (bubbles, message box), matching the mockup.
 - [ ] **1.12** Errors (API down, rate limit) and a Stop button. *Learn: cancelling a request mid-reply.*
 - [ ] **1.13** Guardrail v1: scope rules in the prompt; try off-topic questions by hand.
