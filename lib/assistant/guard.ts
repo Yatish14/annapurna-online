@@ -59,5 +59,5 @@ export function refusal(question: string): string {
   if (/[ऀ-ॿ]/.test(question)) {
     return "माफ़ कीजिए, यहाँ सिर्फ़ अन्नपूर्णा के काम में मदद मिलती है: बुकिंग, भुगतान, ड्राइवर, गाड़ियाँ और प्रिंटआउट। इनमें से कुछ भी पूछिए।";
   }
-  return `Sorry, I only help with ${BUSINESS.name}'s work: bookings, payments, drivers, vehicles and printouts. Ask me about any of those.`;
+  return `Sorry, I can only help with the work of ${BUSINESS.name}: bookings, payments, drivers, vehicles and printouts. Ask me about any of those.`;
 }

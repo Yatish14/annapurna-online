@@ -293,7 +293,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
           : left > 0
             ? `${left} questions left today`
             : "No questions left today. The limit resets at midnight."}{" "}
-        · Sample answers: nothing is read from or saved to your data yet.
+        · Gemini answers, but can&apos;t see your data yet.
       </p>
     </div>
   );

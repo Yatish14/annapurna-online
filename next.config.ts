@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const noIndex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
 
 const nextConfig: NextConfig = {
+  // The tests' server builds into its own folder (playwright.config.ts), so it can run next to `npm run dev`
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // PGlite (local dev database) ships WASM files and must not be bundled
   serverExternalPackages: ["@electric-sql/pglite"],
   // The expense statement PDF reads its font files from assets/fonts at run time

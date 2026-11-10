@@ -104,7 +104,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **1.14** Guardrail v2: `lib/assistant/guard.ts`, a Flash-Lite check before the main model. *Learn: routing to a cheaper model.*
 - [x] **1.15** Maximum message length and a daily question cap per admin (`lib/assistant/limits.ts`, the `assistant_usage` table; run `npm run db:migrate` on each database). *Learn: preventing abuse.*
 - [x] **1.16** Fake model for tests (`ASSISTANT_FAKE=1`). *Learn: testing AI code without paying or random results.*
-- [ ] **1.17** Playwright test: a viewer can't open the page; an admin can chat.
+- [x] **1.17** Playwright test (`tests/assistant.spec.ts`, `npm run test:e2e`): an admin can chat (follow-ups, off-topic, errors, Stop, daily count); a viewer sees it view only and the API says 403; signed out gets 401.
 
 ## Step 2 — LangGraph and read-only tools
 

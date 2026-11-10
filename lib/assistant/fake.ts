@@ -36,11 +36,6 @@ class FakeModel extends BaseChatModel {
   private reply(messages: BaseMessage[]) {
     const questions = messages.filter((m) => m instanceof HumanMessage);
     const question = questions.at(-1)?.text ?? "";
-    const status = /\[fail:(\d{3})\]/.exec(question)?.[1];
-    if (status) {
-      // Shaped like @langchain/google's errors, so the route's explain() treats it the same way
-      throw Object.assign(new Error(`Fake error ${status}`), { name: "RequestError", statusCode: Number(status) });
-    }
     return { question, text: this.answer(question, questions.length - 1) };
   }
 
@@ -70,13 +65,23 @@ class FakeModel extends BaseChatModel {
 
 /** Instead of Gemini answering: says it's a test, repeats the question and how many came before it */
 export function fakeMainModel() {
-  return new FakeModel(
-    (question, earlier) =>
-      `This is a **test answer** (ASSISTANT_FAKE=1), Gemini wasn't asked. You asked: "${question}". Earlier questions in this chat: ${earlier}.`,
-  );
+  return new FakeModel((question, earlier) => {
+    const status = /\[fail:(\d{3})\]/.exec(question)?.[1];
+    if (status) {
+      // Shaped like @langchain/google's errors, so the route's explain() treats it the same way
+      throw Object.assign(new Error(`Fake error ${status}`), { name: "RequestError", statusCode: Number(status) });
+    }
+    return `This is a **test answer** (ASSISTANT_FAKE=1), Gemini wasn't asked. You asked: "${question}". Earlier questions in this chat: ${earlier}.`;
+  });
 }
 
-/** Instead of the off-topic check: BLOCK only when the question says [off-topic] */
+/**
+ * Instead of the off-topic check: BLOCK only when the question says [off-topic]. Like the real check, it
+ * judges only the part inside <question>, not the <earlier> question sent along for context.
+ */
 export function fakeGuardModel() {
-  return new FakeModel((question) => (question.includes("[off-topic]") ? "BLOCK" : "ALLOW"));
+  return new FakeModel((input) => {
+    const question = /<question>([\s\S]*)<\/question>/.exec(input)?.[1] ?? input;
+    return question.includes("[off-topic]") ? "BLOCK" : "ALLOW";
+  });
 }

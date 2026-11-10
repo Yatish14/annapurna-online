@@ -59,7 +59,7 @@ Work on your computer uses **its own database**, never the real data on Neon:
 | `npm run db:fresh` | Wipes the local database, then adds sample bookings, expenses and three sign-ins (the super admin's password comes from `LOCAL_SUPER_ADMIN_PASSWORD` in `.env.local`, default `testpass123`) |
 | `npm run db:seed` / `db:seed-expenses` | Adds or refreshes only the samples (`-- --clear` removes them) |
 
-The automated tests use `DATABASE_URL=pglite:./.data/pglite-test`, a built-in database stored in a folder (no Docker needed). Docker runs Postgres 17, Neon's default (your Neon project's version is under Neon → Settings).
+The automated tests (`npm run test:e2e`, Playwright; first time: `npx playwright install chromium`) use `DATABASE_URL=pglite:./.data/pglite-test`, a built-in database stored in a folder (no Docker needed), and the assistant's fake models (`ASSISTANT_FAKE=1`), so they never call Google. They start their own server on port 3100, so `npm run dev` can keep running. Docker runs Postgres 17, Neon's default (your Neon project's version is under Neon → Settings).
 
 ## Using Neon (online database)
 

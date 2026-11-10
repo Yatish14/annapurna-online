@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test:e2e": "playwright test",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose stop",
     "db:fresh": "node --env-file-if-exists=.env.local scripts/db-fresh.mjs",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@playwright/test": "^1.65.0",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
