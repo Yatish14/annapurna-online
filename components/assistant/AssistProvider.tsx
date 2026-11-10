@@ -44,10 +44,14 @@ async function ask(question: string, signal: AbortSignal): Promise<Reply> {
     body: JSON.stringify({ message: question }),
     signal,
   });
-  const data = await res.json().catch(() => ({}));
-  // The route sends { reply } when it worked and { error } when it didn't. For now both go in the bubble (1.12 styles errors).
-  if (!res.ok) return { text: data.error ?? "Something went wrong. Please try again." };
-  return { text: data.reply || "I couldn't come up with an answer. Please try asking another way." };
+  // Something went wrong: the route sends { error }. For now it goes in the bubble (1.12 styles errors).
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return { text: data.error ?? "Something went wrong. Please try again." };
+  }
+  // It worked: the reply is plain text arriving in pieces. For now we wait for all of it (1.9 shows it as it arrives).
+  const text = await res.text();
+  return { text: text.trim() || "I couldn't come up with an answer. Please try asking another way." };
 }
 
 /** The reply being written right now */
