@@ -1,5 +1,6 @@
 import { AIMessage, type AIMessageChunk, type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { can, currentUser } from "@/lib/auth";
+import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { mainModel } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
 
@@ -80,7 +81,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
   }
 
-  // 3. Ask the model: our rules first, then the chat so far, then the new question. `signal` fires if the browser goes away
+  // 3. Is it about the business? A quick check first (lib/assistant/guard.ts); the main model never sees off-topic
+  //    questions. The previous question goes along, so a follow-up like "and for 3?" makes sense.
+  //    The "no" is sent like a normal reply, so the chat shows it as the assistant's answer.
+  const earlier = history.findLast((m) => m instanceof HumanMessage)?.text;
+  if (!(await isOnTopic(message, earlier, request.signal))) {
+    return new Response(refusal(message), { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+  }
+
+  // 4. Ask the model: our rules first, then the chat so far, then the new question. `signal` fires if the browser goes away
   //    (Stop, tab closed), so Gemini stops writing and we don't use up tokens nobody will read.
   let pieces: AsyncIterator<AIMessageChunk>;
   let first: IteratorResult<AIMessageChunk>;
@@ -102,7 +111,7 @@ export async function POST(request: Request) {
     return Response.json({ error }, { status });
   }
 
-  // 4. Pass the pieces on as they arrive. The browser reads bytes, so each piece of text is encoded to UTF-8
+  // 5. Pass the pieces on as they arrive. The browser reads bytes, so each piece of text is encoded to UTF-8
   //    (Telugu and Hindi letters take several bytes each).
   const encoder = new TextEncoder();
 

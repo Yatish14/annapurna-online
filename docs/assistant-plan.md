@@ -28,7 +28,7 @@ Each of those tasks still needs its server side. When it's real, replace `sample
 | Main model, while building | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) via `@langchain/google` (`ChatGoogle`) |
 | Main model, quality check | Gemini 3.8 Flash (`gemini-3.8-flash`, free tier): smarter, but only 20 requests a day |
 | Cheap model (off-topic check, chat titles, AI judge) | Gemini 3.5 Flash-Lite (`gemini-3.5-flash-lite`, free tier) |
-| Spare (many requests, e.g. eval runs) | Gemma 4 31B: 14,400 a day, but only 16K tokens a minute; tool calling to be tried |
+| Spare (many requests, e.g. eval runs) | Gemma 4 31B: 14,400 a day, but only 16K tokens a minute; tool calling to be tried. Tried Gemma 4 26B as the off-topic check (10 Nov 2026): 8 of 15 calls failed with Google's "Internal error", about 6 s each, so the check uses Flash-Lite |
 | Live data | Tools that call the existing functions in `lib/` (never raw SQL from the model) |
 | RAG | pgvector in the local database, Gemini embeddings (`gemini-embedding-2`, 768 numbers, free tier) |
 | Voice | The browser's speech recognition (en-IN, te-IN, hi-IN) |
@@ -101,7 +101,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **1.11** Styles in `app/admin.css` (bubbles, message box), matching the mockup.
 - [x] **1.12** Errors (API down, rate limit) and a Stop button. *Learn: cancelling a request mid-reply.*
 - [x] **1.13** Guardrail v1: scope rules in the prompt; try off-topic questions by hand.
-- [ ] **1.14** Guardrail v2: `lib/assistant/guard.ts`, a Flash-Lite check before the main model. *Learn: routing to a cheaper model.*
+- [x] **1.14** Guardrail v2: `lib/assistant/guard.ts`, a Flash-Lite check before the main model. *Learn: routing to a cheaper model.*
 - [ ] **1.15** Maximum message length and a daily question cap per admin. *Learn: preventing abuse.*
 - [ ] **1.16** Fake model for tests (`ASSISTANT_FAKE=1`). *Learn: testing AI code without paying or random results.*
 - [ ] **1.17** Playwright test: a viewer can't open the page; an admin can chat.
