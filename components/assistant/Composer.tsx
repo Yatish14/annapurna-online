@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
+// Longest question accepted; the API route checks it too
+import { MAX_LENGTH } from "@/lib/assistant/limits";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
-
-/** Longest question accepted (the API route will check this too) */
-export const MAX_LENGTH = 1000;
 
 /** The language the mic listens for, so the browser writes down Telugu or Hindi words correctly */
 const LANGUAGES = [

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
+import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { SUGGESTIONS } from "@/lib/assistant/sample";
-import { DAILY_LIMIT, useAssist, VIEW_ONLY } from "./AssistProvider";
+import { useAssist, VIEW_ONLY } from "./AssistProvider";
 import Composer from "./Composer";
 import History from "./History";
 import MessageView from "./Message";

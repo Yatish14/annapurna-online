@@ -2,13 +2,12 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toaster";
+import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { sampleConfirm } from "@/lib/assistant/sample";
 import type { Card, Chat, Message, ToolStep } from "@/lib/assistant/types";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
 
-/** Questions one admin can ask per day (the API route will enforce it; this only shows it) */
-export const DAILY_LIMIT = 50;
 
 let counter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${counter++}`;
@@ -105,13 +104,20 @@ export function useAssist(): Store {
   return store;
 }
 
-type Props = { firstName: string; canUse: boolean; initialChats: Chat[]; children: React.ReactNode };
+type Props = {
+  firstName: string;
+  canUse: boolean;
+  initialChats: Chat[];
+  /** Questions already asked today (from the database), so the count is right after a reload */
+  askedToday: number;
+  children: React.ReactNode;
+};
 
-export default function AssistProvider({ firstName, canUse, initialChats, children }: Props) {
+export default function AssistProvider({ firstName, canUse, initialChats, askedToday, children }: Props) {
   // A fixed id for the first empty chat, so the server and the browser render the same thing
   const [chats, setChats] = useState<Chat[]>(() => [emptyChat("chat-new"), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
-  const [asked, setAsked] = useState(0);
+  const [asked, setAsked] = useState(askedToday);
   const abort = useRef<AbortController | null>(null);
   // Messages (e.g. why a viewer can't do something) use the app's toasts (components/Toaster.tsx)
   const toasts = useToast();

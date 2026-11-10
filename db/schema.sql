@@ -371,3 +371,13 @@ ALTER TABLE vehicle_expenses ADD CONSTRAINT vehicle_expenses_trip_kinds CHECK (
   (trip_id IS NULL OR kind IN ('fuel', 'other')) AND (kind <> 'other' OR (trip_id IS NOT NULL AND description IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS vehicle_expenses_kind_idx ON vehicle_expenses (kind, spent_on DESC);
+
+-- ---------- Annapurna Assist (AI assistant) ----------
+
+-- Questions each admin asked per day (India date), for the daily limit (lib/assistant/usage.ts)
+CREATE TABLE IF NOT EXISTS assistant_usage (
+  user_id   bigint NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  day       date   NOT NULL,
+  questions int    NOT NULL DEFAULT 0 CHECK (questions >= 0),
+  PRIMARY KEY (user_id, day)
+);

@@ -6,6 +6,7 @@ import { MODULES_COOKIE, parseOpenModules, SIDEBAR_COOKIE } from "@/components/a
 import AssistPanel from "@/components/assistant/AssistPanel";
 import AssistProvider from "@/components/assistant/AssistProvider";
 import { sampleChats } from "@/lib/assistant/sample";
+import { questionsToday } from "@/lib/assistant/usage";
 import { can, requireUser, ROLE_LABELS } from "@/lib/auth";
 import { todayIST } from "@/lib/dates";
 import { databaseKind } from "@/lib/db";
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const [prints, store] = await Promise.all([printStats(), cookies()]);
+  const [prints, store, asked] = await Promise.all([printStats(), cookies(), questionsToday(user.id)]);
   const today = todayIST();
 
   // Annapurna Assist looks the same for every role. Viewers can read it, but its buttons are
@@ -32,6 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       firstName={user.name.split(" ")[0]}
       canUse={can(user, "useAssistant")}
       initialChats={sampleChats(today)}
+      askedToday={asked}
     >
       <ViewOnlyGuard />
       <div className="ap-shell">

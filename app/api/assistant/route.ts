@@ -1,8 +1,10 @@
 import { AIMessage, type AIMessageChunk, type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { can, currentUser } from "@/lib/auth";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
+import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
 import { mainModel } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
+import { countQuestion } from "@/lib/assistant/usage";
 
 /** Earlier messages sent with each question: 20 = the last 10 questions and their answers */
 const MAX_HISTORY = 20;
@@ -76,9 +78,21 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   if (!message) return Response.json({ error: "Type a question first." }, { status: 400 });
+  // The chat box stops at this length too, but a request can be sent without the chat box
+  if (message.length > MAX_LENGTH) {
+    return Response.json({ error: `Questions can be up to ${MAX_LENGTH} characters. Try a shorter one.` }, { status: 413 });
+  }
   const history = readHistory(body?.history);
   if (!process.env.GOOGLE_API_KEY) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
+  }
+
+  // Today's limit for this admin. Counted before the off-topic check, because the check uses a request too.
+  if ((await countQuestion(user.id)) === null) {
+    return Response.json(
+      { error: `You've asked ${DAILY_LIMIT} questions today, the daily limit. You can ask again after midnight.` },
+      { status: 429 },
+    );
   }
 
   // 3. Is it about the business? A quick check first (lib/assistant/guard.ts); the main model never sees off-topic
