@@ -83,10 +83,10 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 ## Step 1 — Chat page (no tools yet)
 
-- [ ] **1.1** Add the `useAssistant` permission in `lib/auth.ts`. *Learn: role checks.*
-- [ ] **1.2** Add "Assistant" to `components/admin/Sidebar.tsx`, shown only to admins.
-- [ ] **1.3** `app/admin/assistant/page.tsx`: an admin-only page that says hello. *Learn: protecting a route.*
-- [ ] **1.4** `lib/assistant/model.ts`: model name and settings in one place.
+- [x] **1.1** Add the `useAssistant` permission in `lib/auth.ts`. *Learn: role checks.*
+- [x] **1.2** Add "Assistant" to `components/admin/Sidebar.tsx` (shown to everyone; view only for non-admins).
+- [x] **1.3** `app/admin/assistant/page.tsx`: a signed-in page (view only for non-admins). *Learn: protecting a route.*
+- [x] **1.4** `lib/assistant/model.ts`: model name and settings in one place (`ASSISTANT_MODEL` switches it).
 - [ ] **1.5** `lib/assistant/prompt.ts`: rules, scope, today's date in IST.
 - [ ] **1.6** `app/api/assistant/route.ts`: check login, call the model, return the full reply. *Learn: model calls stay on the server.*
 - [ ] **1.7** `components/assistant/Chat.tsx`: message list, input box, Send button.
