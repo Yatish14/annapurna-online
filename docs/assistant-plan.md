@@ -100,7 +100,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **1.10** Send earlier messages with each request. *Learn: the model remembers nothing between calls.*
 - [x] **1.11** Styles in `app/admin.css` (bubbles, message box), matching the mockup.
 - [x] **1.12** Errors (API down, rate limit) and a Stop button. *Learn: cancelling a request mid-reply.*
-- [ ] **1.13** Guardrail v1: scope rules in the prompt; try off-topic questions by hand.
+- [x] **1.13** Guardrail v1: scope rules in the prompt; try off-topic questions by hand.
 - [ ] **1.14** Guardrail v2: `lib/assistant/guard.ts`, a Flash-Lite check before the main model. *Learn: routing to a cheaper model.*
 - [ ] **1.15** Maximum message length and a daily question cap per admin. *Learn: preventing abuse.*
 - [ ] **1.16** Fake model for tests (`ASSISTANT_FAKE=1`). *Learn: testing AI code without paying or random results.*
