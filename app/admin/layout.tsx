@@ -30,7 +30,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AssistProvider
       firstName={user.name.split(" ")[0]}
-      today={today}
       canUse={can(user, "useAssistant")}
       initialChats={sampleChats(today)}
     >

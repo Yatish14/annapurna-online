@@ -94,7 +94,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **1.4** `lib/assistant/model.ts`: model name and settings in one place (`ASSISTANT_MODEL` switches it).
 - [x] **1.5** `lib/assistant/prompt.ts`: rules, scope, today's date in IST.
 - [x] **1.6** `app/api/assistant/route.ts`: check login, call the model, return the full reply. *Learn: model calls stay on the server.*
-- [ ] **1.7** `components/assistant/Chat.tsx`: message list, input box, Send button.
+- [x] **1.7** The chat (message list, input box, Send button, from the sample UI) asks `/api/assistant` instead of `sampleReply` (`components/assistant/AssistProvider.tsx`).
 - [ ] **1.8** The route streams the reply in chunks.
 - [ ] **1.9** The UI shows words as they arrive.
 - [ ] **1.10** Send earlier messages with each request. *Learn: the model remembers nothing between calls.*

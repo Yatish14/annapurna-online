@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toaster";
-import { sampleConfirm, sampleReply } from "@/lib/assistant/sample";
+import { sampleConfirm } from "@/lib/assistant/sample";
 import type { Card, Chat, Message, Reply, ToolStep } from "@/lib/assistant/types";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
@@ -34,6 +34,20 @@ function wait(ms: number, signal: AbortSignal) {
       reject(signal.reason);
     });
   });
+}
+
+/** Asks our server (app/api/assistant/route.ts), which asks Gemini. Stop cancels the request through `signal`. */
+async function ask(question: string, signal: AbortSignal): Promise<Reply> {
+  const res = await fetch("/api/assistant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: question }),
+    signal,
+  });
+  const data = await res.json().catch(() => ({}));
+  // The route sends { reply } when it worked and { error } when it didn't. For now both go in the bubble (1.12 styles errors).
+  if (!res.ok) return { text: data.error ?? "Something went wrong. Please try again." };
+  return { text: data.reply || "I couldn't come up with an answer. Please try asking another way." };
 }
 
 /** The reply being written right now */
@@ -76,9 +90,9 @@ export function useAssist(): Store {
   return store;
 }
 
-type Props = { firstName: string; today: string; canUse: boolean; initialChats: Chat[]; children: React.ReactNode };
+type Props = { firstName: string; canUse: boolean; initialChats: Chat[]; children: React.ReactNode };
 
-export default function AssistProvider({ firstName, today, canUse, initialChats, children }: Props) {
+export default function AssistProvider({ firstName, canUse, initialChats, children }: Props) {
   // A fixed id for the first empty chat, so the server and the browser render the same thing
   const [chats, setChats] = useState<Chat[]>(() => [emptyChat("chat-new"), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
@@ -123,7 +137,7 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
   }
 
   // Each action checks the role too, not just the greyed-out buttons
-  // (the real API route and server actions will check it again on the server)
+  // (the API route checks it again on the server, and later the server actions will too)
   function send(chatId: string, question: string, voice = false) {
     if (!canUse) return notify(VIEW_ONLY.ask);
     if (live || asked >= DAILY_LIMIT) return;
@@ -149,8 +163,15 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
     const controller = new AbortController();
     abort.current = controller;
     setLive({ chatId, messageId: answer.id, running: null });
-    play(chatId, answer.id, sampleReply(question, today, newId("draft")), controller.signal)
-      .catch(() => updateMessage(chatId, answer.id, (m) => ({ ...m, stopped: true })))
+    // Wait for the server's whole reply, then show it word by word (real streaming comes in 1.8 and 1.9)
+    ask(question, controller.signal)
+      .then((reply) => play(chatId, answer.id, reply, controller.signal))
+      .catch(() =>
+        updateMessage(chatId, answer.id, (m) =>
+          // Stop pressed → "stopped"; anything else means the request never reached the server (e.g. no internet)
+          controller.signal.aborted ? { ...m, stopped: true } : { ...m, text: "I couldn't reach the server. Check your internet and try again." },
+        ),
+      )
       .finally(() => {
         setLive(null);
         abort.current = null;
