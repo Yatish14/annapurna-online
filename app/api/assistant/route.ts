@@ -2,7 +2,7 @@ import { AIMessage, type AIMessageChunk, type BaseMessage, HumanMessage, SystemM
 import { can, currentUser } from "@/lib/auth";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
-import { mainModel } from "@/lib/assistant/model";
+import { mainModel, USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
 import { countQuestion } from "@/lib/assistant/usage";
 
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     return Response.json({ error: `Questions can be up to ${MAX_LENGTH} characters. Try a shorter one.` }, { status: 413 });
   }
   const history = readHistory(body?.history);
-  if (!process.env.GOOGLE_API_KEY) {
+  if (!process.env.GOOGLE_API_KEY && !USE_FAKE) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
   }
 

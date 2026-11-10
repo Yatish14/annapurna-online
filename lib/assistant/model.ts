@@ -1,4 +1,5 @@
 import { ChatGoogle } from "@langchain/google/node";
+import { fakeGuardModel, fakeMainModel } from "./fake";
 
 /**
  * Which AI model Annapurna Assist uses, and its settings, in one place. Server only: it reads
@@ -17,8 +18,12 @@ export const MODELS = {
 /** The model that answers. ASSISTANT_MODEL=gemini-3.8-flash in .env.local switches it without changing code. */
 export const MAIN_MODEL = process.env.ASSISTANT_MODEL || MODELS.flashLite;
 
+/** ASSISTANT_FAKE=1: pretend models answer instead of Gemini (lib/assistant/fake.ts), for tests and UI work. Free. */
+export const USE_FAKE = process.env.ASSISTANT_FAKE === "1";
+
 /** The model that answers the admin's questions */
 export function mainModel() {
+  if (USE_FAKE) return fakeMainModel();
   return new ChatGoogle({
     model: MAIN_MODEL,
     temperature: 0.2, // low: the same question gets nearly the same answer
@@ -35,6 +40,7 @@ export function mainModel() {
  * bigger free limit) failed 8 of 15 with Google's "Internal error" and took about 6 s.
  */
 export function guardModel() {
+  if (USE_FAKE) return fakeGuardModel();
   return new ChatGoogle({
     model: MODELS.flashLite,
     temperature: 0, // a yes/no check: always the same verdict for the same question
