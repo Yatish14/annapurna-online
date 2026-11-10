@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toaster";
 import { sampleConfirm } from "@/lib/assistant/sample";
-import type { Card, Chat, Message, Reply, ToolStep } from "@/lib/assistant/types";
+import type { Card, Chat, Message, ToolStep } from "@/lib/assistant/types";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
 
@@ -24,20 +24,11 @@ const emptyChat = (id = newId("chat")): Chat => ({ id, title: "New chat", when: 
 /** The first question becomes the chat's title (later Haiku writes a shorter one) */
 const titleFrom = (q: string) => (q.length > 48 ? `${q.slice(0, 45).trimEnd()}…` : q);
 
-/** Waits, unless Stop is pressed first */
-function wait(ms: number, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal.aborted) return reject(signal.reason);
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener("abort", () => {
-      clearTimeout(timer);
-      reject(signal.reason);
-    });
-  });
-}
-
-/** Asks our server (app/api/assistant/route.ts), which asks Gemini. Stop cancels the request through `signal`. */
-async function ask(question: string, signal: AbortSignal): Promise<Reply> {
+/**
+ * Asks our server (app/api/assistant/route.ts), which asks Gemini, and calls `onText` with the reply so far
+ * each time a piece arrives. Stop cancels the request through `signal`, even halfway through the reply.
+ */
+async function ask(question: string, signal: AbortSignal, onText: (text: string) => void): Promise<void> {
   const res = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -45,13 +36,25 @@ async function ask(question: string, signal: AbortSignal): Promise<Reply> {
     signal,
   });
   // Something went wrong: the route sends { error }. For now it goes in the bubble (1.12 styles errors).
-  if (!res.ok) {
+  if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({}));
-    return { text: data.error ?? "Something went wrong. Please try again." };
+    return onText(data.error ?? "Something went wrong. Please try again.");
   }
-  // It worked: the reply is plain text arriving in pieces. For now we wait for all of it (1.9 shows it as it arrives).
-  const text = await res.text();
-  return { text: text.trim() || "I couldn't come up with an answer. Please try asking another way." };
+
+  // It worked: read the reply piece by piece as the server passes it on
+  const reader = res.body.getReader();
+  // Turns bytes back into text. `stream: true`: a Telugu letter (3 bytes) can be split across two pieces,
+  // so the decoder holds on to half a letter until the rest arrives.
+  const decoder = new TextDecoder();
+  let text = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value, { stream: true });
+    onText(text);
+  }
+  text += decoder.decode(); // anything the decoder was still holding
+  onText(text.trim() || "I couldn't come up with an answer. Please try asking another way.");
 }
 
 /** The reply being written right now */
@@ -122,24 +125,6 @@ export default function AssistProvider({ firstName, canUse, initialChats, childr
     );
   }
 
-  /** Shows a reply the way a streamed one arrives: tool chips first, then the words, then the cards */
-  async function play(chatId: string, messageId: string, reply: Reply, signal: AbortSignal) {
-    await wait(450, signal);
-    for (const step of reply.steps ?? []) {
-      setLive({ chatId, messageId, running: step });
-      await wait(650, signal);
-      updateMessage(chatId, messageId, (m) => ({ ...m, steps: [...(m.steps ?? []), step] }));
-    }
-    setLive({ chatId, messageId, running: null });
-    const words = reply.text.match(/\S+\s*/g) ?? [];
-    for (let i = 1; i <= words.length; i++) {
-      await wait(28, signal);
-      const text = words.slice(0, i).join("");
-      updateMessage(chatId, messageId, (m) => ({ ...m, text }));
-    }
-    updateMessage(chatId, messageId, (m) => ({ ...m, cards: reply.cards }));
-  }
-
   // Each action checks the role too, not just the greyed-out buttons
   // (the API route checks it again on the server, and later the server actions will too)
   function send(chatId: string, question: string, voice = false) {
@@ -167,13 +152,15 @@ export default function AssistProvider({ firstName, canUse, initialChats, childr
     const controller = new AbortController();
     abort.current = controller;
     setLive({ chatId, messageId: answer.id, running: null });
-    // Wait for the server's whole reply, then show it word by word (real streaming comes in 1.8 and 1.9)
-    ask(question, controller.signal)
-      .then((reply) => play(chatId, answer.id, reply, controller.signal))
+    // Each piece of the reply replaces the bubble's text with everything so far
+    ask(question, controller.signal, (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })))
       .catch(() =>
         updateMessage(chatId, answer.id, (m) =>
-          // Stop pressed → "stopped"; anything else means the request never reached the server (e.g. no internet)
-          controller.signal.aborted ? { ...m, stopped: true } : { ...m, text: "I couldn't reach the server. Check your internet and try again." },
+          // Stop pressed, or the reply broke off halfway: keep the words so far and mark it "Stopped".
+          // No words at all: the request never reached the server (e.g. no internet).
+          controller.signal.aborted || m.text
+            ? { ...m, stopped: true }
+            : { ...m, text: "I couldn't reach the server. Check your internet and try again." },
         ),
       )
       .finally(() => {
