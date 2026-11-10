@@ -40,6 +40,8 @@ export type Message = {
   voice?: boolean;
   /** The reply was cut short with Stop */
   stopped?: boolean;
+  /** Why the reply failed, shown in red under any words that did arrive. Failed replies aren't sent back to the model. */
+  error?: string;
 };
 
 export type Chat = { id: string; title: string; /** "Today", "Yesterday", "12 Oct" */ when: string; messages: Message[] };

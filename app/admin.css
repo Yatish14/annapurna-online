@@ -1208,6 +1208,8 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .as-msg-body { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: start; }
 .as-meta { display: inline-flex; align-items: center; gap: 8px; font-size: .74rem; color: var(--ink-soft); }
 .as-stopped { padding: 1px 8px; border-radius: 999px; background: var(--ivory-2); font-weight: 700; color: var(--ink); }
+/* A failed reply: the red note from .ap-note-error, without its bottom margin (the message's gap spaces it) */
+.as-msg-body .as-error { margin: 0; }
 .as-copy {
   display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 0; border-radius: 8px; background: none;
   color: var(--ink-soft); font-size: .74rem; font-weight: 700; cursor: pointer;

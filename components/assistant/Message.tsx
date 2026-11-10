@@ -105,6 +105,11 @@ export default function MessageView({ message, live, running, onConfirm, onCance
           </div>
         )}
         {message.text && <RichText text={message.text} />}
+        {message.error && (
+          <p className="ap-note ap-note-error as-error" role="alert">
+            <Icon name="xcircle" size={14} /> {message.error}
+          </p>
+        )}
 
         {message.cards?.map((card, i) => (
           <CardView key={i} card={card} onConfirm={onConfirm} onCancel={onCancel} />

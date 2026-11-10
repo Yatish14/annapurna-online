@@ -24,23 +24,28 @@ const emptyChat = (id = newId("chat")): Chat => ({ id, title: "New chat", when: 
 /** The first question becomes the chat's title (later Haiku writes a shorter one) */
 const titleFrom = (q: string) => (q.length > 48 ? `${q.slice(0, 45).trimEnd()}…` : q);
 
+/** A failure our route explained (over the free limit, Google down…): its message is meant for the admin */
+class AssistError extends Error {}
+
 /**
  * Asks our server (app/api/assistant/route.ts), which asks Gemini, and calls `onText` with the reply so far
  * each time a piece arrives. Stop cancels the request through `signal`, even halfway through the reply.
+ * Throws an AssistError when the route says why it failed.
  */
 async function ask(question: string, earlier: Message[], signal: AbortSignal, onText: (text: string) => void): Promise<void> {
-  // The model remembers nothing between questions, so the chat so far goes with each one (only who said what)
-  const history = earlier.map(({ role, text }) => ({ role, text }));
+  // The model remembers nothing between questions, so the chat so far goes with each one (only who said what).
+  // Failed replies stay out: the model shouldn't read "Too many questions…" as something it said.
+  const history = earlier.filter((m) => !m.error).map(({ role, text }) => ({ role, text }));
   const res = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: question, history }),
     signal,
   });
-  // Something went wrong: the route sends { error }. For now it goes in the bubble (1.12 styles errors).
+  // Something went wrong: the route sends { error } with a message for the admin
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({}));
-    return onText(data.error ?? "Something went wrong. Please try again.");
+    throw new AssistError(data.error ?? "Something went wrong. Please try again.");
   }
 
   // It worked: read the reply piece by piece as the server passes it on
@@ -56,7 +61,8 @@ async function ask(question: string, earlier: Message[], signal: AbortSignal, on
     onText(text);
   }
   text += decoder.decode(); // anything the decoder was still holding
-  onText(text.trim() || "I couldn't come up with an answer. Please try asking another way.");
+  if (!text.trim()) throw new AssistError("Gemini sent back an empty answer. Try asking another way.");
+  onText(text.trim());
 }
 
 /** The reply being written right now */
@@ -158,14 +164,19 @@ export default function AssistProvider({ firstName, canUse, initialChats, childr
     // The messages before this question (`chats` is still the list from before setChats above)
     const earlier = chats.find((c) => c.id === chatId)?.messages ?? [];
     ask(question, earlier, controller.signal, (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })))
-      .catch(() =>
-        updateMessage(chatId, answer.id, (m) =>
-          // Stop pressed, or the reply broke off halfway: keep the words so far and mark it "Stopped".
-          // No words at all: the request never reached the server (e.g. no internet).
-          controller.signal.aborted || m.text
-            ? { ...m, stopped: true }
-            : { ...m, text: "I couldn't reach the server. Check your internet and try again." },
-        ),
+      .catch((err) =>
+        updateMessage(chatId, answer.id, (m) => {
+          // Stop pressed: keep the words so far, marked "Stopped". Not an error.
+          if (controller.signal.aborted) return { ...m, stopped: true };
+          // Otherwise keep any words that arrived and say why the rest didn't
+          const error =
+            err instanceof AssistError
+              ? err.message // the route's own explanation
+              : m.text
+                ? "The reply was cut off halfway. Please try again." // the stream broke after some words
+                : "I couldn't reach the server. Check your internet and try again."; // fetch itself failed
+          return { ...m, error };
+        }),
       )
       .finally(() => {
         setLive(null);

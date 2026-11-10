@@ -32,6 +32,31 @@ function readHistory(value: unknown): BaseMessage[] {
 }
 
 /**
+ * Turns a failed model call into a status code and a message an admin can act on. The full details
+ * stay in the server log. (@langchain/google's errors carry Google's `statusCode` and a `name`.)
+ */
+function explain(err: unknown): { status: number; error: string } {
+  const e = (err ?? {}) as { name?: string; statusCode?: number; data?: unknown };
+  const details = JSON.stringify(e.data ?? "");
+  if (e.statusCode === 429) {
+    // Over the free limit. Google says which one: per minute (wait a bit) or per day (wait for the reset)
+    return details.includes("PerDay")
+      ? { status: 429, error: "Today's free questions are used up. They come back at about 1:30 pm (India time)." }
+      : { status: 429, error: "Too many questions in the last minute. Wait a minute, then try again." };
+  }
+  if (e.name === "PromptBlockedError") {
+    return { status: 400, error: "Google's safety filter blocked this question. Try asking it another way." };
+  }
+  if (e.statusCode === 401 || e.statusCode === 403 || details.includes("API_KEY")) {
+    return { status: 500, error: "Google rejected the assistant's API key. Check GOOGLE_API_KEY in .env.local." };
+  }
+  if (e.statusCode && e.statusCode >= 500) {
+    return { status: 503, error: "Google's AI service is busy or down right now. Try again in a minute." };
+  }
+  return { status: 502, error: "The assistant couldn't answer right now. Please try again." };
+}
+
+/**
  * Annapurna Assist's API: the browser sends a question, the server asks Gemini and passes the reply on
  * piece by piece while Gemini is still writing it. The model is called only here, on the server, so the
  * API key never reaches the browser.
@@ -51,6 +76,9 @@ export async function POST(request: Request) {
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   if (!message) return Response.json({ error: "Type a question first." }, { status: 400 });
   const history = readHistory(body?.history);
+  if (!process.env.GOOGLE_API_KEY) {
+    return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
+  }
 
   // 3. Ask the model: our rules first, then the chat so far, then the new question. `signal` fires if the browser goes away
   //    (Stop, tab closed), so Gemini stops writing and we don't use up tokens nobody will read.
@@ -66,9 +94,12 @@ export async function POST(request: Request) {
     // while we can still send a proper error status. Once the 200 has gone out, the status can't change.
     first = await pieces.next();
   } catch (err) {
-    // The real reason goes to the server log; the browser gets a plain message (nicer errors come in 1.12)
+    // Stop pressed before the first word: not a failure, and nobody is waiting for an answer
+    if (request.signal.aborted) return new Response(null, { status: 499 });
+    // The real reason goes to the server log; the browser gets a message an admin understands
     console.error("Annapurna Assist: the model call failed", err);
-    return Response.json({ error: "The assistant couldn't answer right now. Please try again." }, { status: 502 });
+    const { status, error } = explain(err);
+    return Response.json({ error }, { status });
   }
 
   // 4. Pass the pieces on as they arrive. The browser reads bytes, so each piece of text is encoded to UTF-8
@@ -92,7 +123,7 @@ export async function POST(request: Request) {
         }
       } catch (err) {
         // Gemini failed halfway: end the stream with an error, so the browser knows the reply is cut short
-        console.error("Annapurna Assist: the reply stopped halfway", err);
+        if (!request.signal.aborted) console.error("Annapurna Assist: the reply stopped halfway", err);
         controller.error(err);
       }
     },
