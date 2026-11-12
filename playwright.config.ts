@@ -22,7 +22,9 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure", // a step-by-step recording when a test fails: npx playwright show-trace …
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // `channel: "chrome"`: drives the Google Chrome installed on this computer, not Playwright's own download.
+  // A Windows Application Control policy here blocks Playwright's browsers (found 12 Nov 2026), but allows Chrome.
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], channel: "chrome" } }],
   webServer: {
     command: `node scripts/test-setup.mjs && npx next dev --port ${PORT}`,
     url: `http://localhost:${PORT}/login`,

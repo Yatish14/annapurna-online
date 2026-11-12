@@ -108,7 +108,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 ## Step 2 — LangGraph and read-only tools
 
-- [ ] **2.1** `npm i @langchain/langgraph`.
+- [x] **2.1** `npm i @langchain/langgraph "zod@^4.2.0"` (LangGraph needs zod 4.2+; `@vercel/blob` keeps its own older copy).
 - [ ] **2.2** Smallest graph: START → model → END. *Learn: state, nodes, edges.*
 - [ ] **2.3** First tool `get_today`. *Learn: tool definition with a zod schema.*
 - [ ] **2.4** Tool loop: model → tools → model until done. *Learn: the agent (ReAct) loop.*
