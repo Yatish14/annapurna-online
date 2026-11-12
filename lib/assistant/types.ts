@@ -48,3 +48,12 @@ export type Chat = { id: string; title: string; /** "Today", "Yesterday", "12 Oc
 
 /** A reply before it gets an id and a time */
 export type Reply = Pick<Message, "text" | "steps" | "cards">;
+
+/**
+ * What /api/assistant sends while it answers: one of these as JSON on each line (NDJSON).
+ * - text: more words of the answer
+ * - step: a tool started ("running") or finished ("done"); `id` pairs the two when several run at once
+ */
+export type StreamEvent =
+  | { type: "text"; text: string }
+  | { type: "step"; state: "running" | "done"; id: string; step: ToolStep };

@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { sampleConfirm } from "@/lib/assistant/sample";
-import type { Card, Chat, Message, ToolStep } from "@/lib/assistant/types";
+import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
 
@@ -26,12 +26,20 @@ const titleFrom = (q: string) => (q.length > 48 ? `${q.slice(0, 45).trimEnd()}�
 /** A failure our route explained (over the free limit, Google down…): its message is meant for the admin */
 class AssistError extends Error {}
 
+/** What ask() reports while the answer arrives */
+type Listeners = {
+  /** The answer's words so far */
+  text: (text: string) => void;
+  /** A tool started or finished (the chips above the answer) */
+  step: (event: Extract<StreamEvent, { type: "step" }>) => void;
+};
+
 /**
- * Asks our server (app/api/assistant/route.ts), which asks Gemini, and calls `onText` with the reply so far
- * each time a piece arrives. Stop cancels the request through `signal`, even halfway through the reply.
- * Throws an AssistError when the route says why it failed.
+ * Asks our server (app/api/assistant/route.ts), which asks Gemini, and tells `on` about each event as it
+ * arrives: words, and tools starting and finishing. Stop cancels the request through `signal`, even halfway
+ * through the reply. Throws an AssistError when the route says why it failed.
  */
-async function ask(question: string, earlier: Message[], signal: AbortSignal, onText: (text: string) => void): Promise<void> {
+async function ask(question: string, earlier: Message[], signal: AbortSignal, on: Listeners): Promise<void> {
   // The model remembers nothing between questions, so the chat so far goes with each one (only who said what).
   // Failed replies stay out: the model shouldn't read "Too many questions…" as something it said.
   const history = earlier.filter((m) => !m.error).map(({ role, text }) => ({ role, text }));
@@ -53,15 +61,30 @@ async function ask(question: string, earlier: Message[], signal: AbortSignal, on
   // so the decoder holds on to half a letter until the rest arrives.
   const decoder = new TextDecoder();
   let text = "";
+  // Each event is one line of JSON, but the network splits the stream wherever it likes: a piece can end in the
+  // middle of a line. So keep what's left after the last "\n" and finish it with the next piece.
+  let pending = "";
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line) as StreamEvent;
+    if (event.type === "text") {
+      text += event.text;
+      on.text(text);
+    } else if (event.type === "step") {
+      on.step(event);
+    }
+  };
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    text += decoder.decode(value, { stream: true });
-    onText(text);
+    pending += decoder.decode(value, { stream: true });
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? ""; // the unfinished last line waits for the next piece
+    lines.forEach(handle);
   }
-  text += decoder.decode(); // anything the decoder was still holding
+  handle(pending + decoder.decode()); // anything still held
   if (!text.trim()) throw new AssistError("Gemini sent back an empty answer. Try asking another way.");
-  onText(text.trim());
+  on.text(text.trim());
 }
 
 /** The reply being written right now */
@@ -166,10 +189,18 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     const controller = new AbortController();
     abort.current = controller;
     setLive({ chatId, messageId: answer.id, running: null });
-    // Each piece of the reply replaces the bubble's text with everything so far
     // The messages before this question (`chats` is still the list from before setChats above)
     const earlier = chats.find((c) => c.id === chatId)?.messages ?? [];
-    ask(question, earlier, controller.signal, (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })))
+    ask(question, earlier, controller.signal, {
+      // Each piece of the reply replaces the bubble's text with everything so far
+      text: (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })),
+      // A tool started: show its chip with a spinner. It finished: add it to the ticked chips, stop the spinner.
+      step: ({ state, step }) => {
+        if (state === "running") return setLive({ chatId, messageId: answer.id, running: step });
+        updateMessage(chatId, answer.id, (m) => ({ ...m, steps: [...(m.steps ?? []), step] }));
+        setLive({ chatId, messageId: answer.id, running: null });
+      },
+    })
       .catch((err) =>
         updateMessage(chatId, answer.id, (m) => {
           // Stop pressed: keep the words so far, marked "Stopped". Not an error.

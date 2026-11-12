@@ -119,7 +119,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **2.9** Vehicle and driver summary tools (`vehicle_summary`, `driver_summary`: all-time, or one month).
 - [x] **2.10** `month_overview` (money in, money out, profit).
 - [x] **2.11** `print_orders` (orders waiting).
-- [ ] **2.12** "Checked bookings…" chips while a tool runs. *Learn: streaming graph events, not just text.*
+- [x] **2.12** "Checked bookings…" chips while a tool runs (the route now sends NDJSON events: text and step). *Learn: streaming graph events, not just text.*
 - [ ] **2.13** Booking table card rendered from a tool's result. *Learn: structured replies.*
 - [ ] **2.14** Step limit to stop runaway loops. *Learn: loop safety.*
 - [ ] **2.15** Treat tool results as data, never instructions. *Learn: prompt-injection defence.*

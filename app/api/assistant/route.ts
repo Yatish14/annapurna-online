@@ -5,6 +5,8 @@ import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
 import { USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
+import { events, line, NDJSON } from "@/lib/assistant/stream";
+import type { StreamEvent } from "@/lib/assistant/types";
 import { countQuestion } from "@/lib/assistant/usage";
 
 /** Earlier messages sent with each question: 20 = the last 10 questions and their answers */
@@ -33,17 +35,6 @@ function readHistory(value: unknown): BaseMessage[] {
     }
   }
   return messages.slice(-MAX_HISTORY);
-}
-
-/**
- * The model's words from the graph's stream. With streamMode "messages", the graph sends every piece any
- * model writes inside it, as [piece, details]; `details.langgraph_node` says which step wrote it. Only the
- * "model" step's words go to the admin (from 2.4 the graph has other steps too).
- */
-async function* modelWords(stream: AsyncIterable<[BaseMessage, Record<string, unknown>]>) {
-  for await (const [piece, details] of stream) {
-    if (details.langgraph_node === "model" && piece.text) yield piece.text;
-  }
 }
 
 /**
@@ -77,7 +68,10 @@ function explain(err: unknown): { status: number; error: string } {
  * API key never reaches the browser.
  *
  *   POST /api/assistant   { "message": "And tomorrow?", "history": [{ "role": "user", "text": "…" }, { "role": "assistant", "text": "…" }] }
- *   → 200, plain text arriving in pieces: "Today " "there are " "3 bookings…"
+ *   → 200, one JSON event per line, arriving as the answer is made:
+ *       {"type":"step","state":"running","id":"…","step":{"label":"Checked bookings","icon":"bookings"}}
+ *       {"type":"step","state":"done",…}
+ *       {"type":"text","text":"Today "}  {"type":"text","text":"there are 3 bookings…"}
  *   → or an error status with { "error": "…" }
  */
 export async function POST(request: Request) {
@@ -112,18 +106,19 @@ export async function POST(request: Request) {
   //    The "no" is sent like a normal reply, so the chat shows it as the assistant's answer.
   const earlier = history.findLast((m) => m instanceof HumanMessage)?.text;
   if (!(await isOnTopic(message, earlier, request.signal))) {
-    return new Response(refusal(message), { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+    return new Response(line({ type: "text", text: refusal(message) }), { headers: NDJSON });
   }
 
   // 4. Run the graph (lib/assistant/graph.ts) with our rules first, then the chat so far, then the new question.
   //    `signal` fires if the browser goes away (Stop, tab closed), so the graph and Gemini stop and we don't use
   //    up tokens nobody will read.
-  let pieces: AsyncIterator<string>;
-  let first: IteratorResult<string>;
+  let pieces: AsyncIterator<StreamEvent>;
+  let first: IteratorResult<StreamEvent>;
   try {
     const messages = [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0] })), ...history, new HumanMessage(message)];
-    const stream = await graph.stream({ messages }, { streamMode: "messages", signal: request.signal });
-    pieces = modelWords(stream);
+    // Two stream modes at once: the answer's words ("messages") and each step's results ("updates", for the chips)
+    const stream = await graph.stream({ messages }, { streamMode: ["messages", "updates"], signal: request.signal });
+    pieces = events(stream as AsyncIterable<[string, unknown]>);
     // Wait for the first piece before answering: most failures (bad key, over the free limit) show up here,
     // while we can still send a proper error status. Once the 200 has gone out, the status can't change.
     first = await pieces.next();
@@ -136,23 +131,22 @@ export async function POST(request: Request) {
     return Response.json({ error }, { status });
   }
 
-  // 5. Pass the pieces on as they arrive. The browser reads bytes, so each piece of text is encoded to UTF-8
-  //    (Telugu and Hindi letters take several bytes each).
+  // 5. Pass the events on as they arrive, one JSON line each. The browser reads bytes, so each line is encoded to
+  //    UTF-8 (Telugu and Hindi letters take several bytes each).
   const encoder = new TextEncoder();
 
   const reply = new ReadableStream<Uint8Array>({
-    // Runs once, straight away: the piece we already have
+    // Runs once, straight away: the event we already have (a chip, or the first words)
     start(controller) {
       if (first.done) return controller.close();
-      controller.enqueue(encoder.encode(first.value));
+      controller.enqueue(encoder.encode(line(first.value)));
     },
-    // Runs each time the browser is ready for more: wait for the next piece and pass it on.
-    // (modelWords already skips pieces with no text, so every piece here has words.)
+    // Runs each time the browser is ready for more: wait for the next event and pass it on
     async pull(controller) {
       try {
         const { done, value } = await pieces.next();
         if (done) return controller.close();
-        controller.enqueue(encoder.encode(value));
+        controller.enqueue(encoder.encode(line(value)));
       } catch (err) {
         // Gemini failed halfway: end the stream with an error, so the browser knows the reply is cut short
         if (!request.signal.aborted) console.error("Annapurna Assist: the reply stopped halfway", err);
@@ -165,10 +159,6 @@ export async function POST(request: Request) {
     },
   });
 
-  return new Response(reply, {
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-store", // every answer is new; nothing in between may keep a copy
-    },
-  });
+  // no-store: every answer is new; nothing in between may keep a copy
+  return new Response(reply, { headers: NDJSON });
 }
