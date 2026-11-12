@@ -218,10 +218,18 @@ const likeEscape = (s: string) => s.replace(/[\\%_]/g, "\\$&");
 /**
  * One page of bookings. A search ("VB-0004", "0004", a customer, driver, vehicle or referrer name, or any part of
  * a mobile number) looks through every booking, whatever the tab.
+ * `from` / `to` (YYYY-MM-DD, optional) keep only bookings on the road on at least one day between them
+ * (used by Annapurna Assist: "bookings tomorrow", "this week").
  */
 export async function listTrips(
   view: TripView,
-  { search = "", page = 1, pageSize = 10 }: { search?: string; page?: number; pageSize?: number } = {},
+  {
+    search = "",
+    page = 1,
+    pageSize = 10,
+    from,
+    to,
+  }: { search?: string; page?: number; pageSize?: number; from?: string; to?: string } = {},
 ): Promise<{ trips: Trip[]; total: number }> {
   const params: unknown[] = [];
   const param = (value: unknown) => {
@@ -252,6 +260,9 @@ export async function listTrips(
   } else {
     where = VIEW_WHERE[view];
   }
+  // A booking from start_date to end_date overlaps from…to when it ends on or after `from` and starts on or before `to`
+  if (from) where += ` AND t.end_date >= ${param(from)}::date`;
+  if (to) where += ` AND t.start_date <= ${param(to)}::date`;
   const order = text ? VIEW_ORDER.all : VIEW_ORDER[view];
 
   const [{ total }] = await query<{ total: number }>(
