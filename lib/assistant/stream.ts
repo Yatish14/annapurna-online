@@ -1,4 +1,5 @@
 import { AIMessage, type BaseMessage, ToolMessage } from "@langchain/core/messages";
+import { cardFor } from "./cards";
 import { stepFor } from "./steps";
 import type { StreamEvent, ToolStep } from "./types";
 
@@ -12,7 +13,8 @@ import type { StreamEvent, ToolStep } from "./types";
  *   call's id (tool_call_id), which is how we know which chip to tick.
  */
 export async function* events(stream: AsyncIterable<[string, unknown]>): AsyncGenerator<StreamEvent> {
-  const running = new Map<string, ToolStep>(); // tool call id → its chip, until it's done
+  // tool call id → the call (for its card) and its chip, until it's done
+  const running = new Map<string, { name: string; args: Record<string, unknown>; step: ToolStep }>();
   for await (const [kind, payload] of stream) {
     if (kind === "messages") {
       const [piece, details] = payload as [BaseMessage, Record<string, unknown>];
@@ -25,16 +27,19 @@ export async function* events(stream: AsyncIterable<[string, unknown]>): AsyncGe
       for (const call of AIMessage.isInstance(message) ? (message.tool_calls ?? []) : []) {
         const id = call.id ?? call.name;
         const step = stepFor(call.name, call.args);
-        running.set(id, step);
+        running.set(id, { name: call.name, args: call.args, step });
         yield { type: "step", state: "running", id, step };
       }
     }
     for (const message of update.tools?.messages ?? []) {
-      const id = ToolMessage.isInstance(message) ? message.tool_call_id : "";
-      const step = running.get(id);
-      if (!step) continue;
-      running.delete(id);
-      yield { type: "step", state: "done", id, step };
+      if (!ToolMessage.isInstance(message)) continue;
+      const call = running.get(message.tool_call_id);
+      if (!call) continue;
+      running.delete(message.tool_call_id);
+      yield { type: "step", state: "done", id: message.tool_call_id, step: call.step };
+      // The tool's own result (artifact), made into a card for the screen. The model only ever saw the content.
+      const card = cardFor(call.name, call.args, message.artifact);
+      if (card) yield { type: "card", card };
     }
   }
 }

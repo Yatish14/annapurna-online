@@ -32,6 +32,8 @@ type Listeners = {
   text: (text: string) => void;
   /** A tool started or finished (the chips above the answer) */
   step: (event: Extract<StreamEvent, { type: "step" }>) => void;
+  /** A card made from a tool's result (shown under the answer) */
+  card: (card: Card) => void;
 };
 
 /**
@@ -72,6 +74,8 @@ async function ask(question: string, earlier: Message[], signal: AbortSignal, on
       on.text(text);
     } else if (event.type === "step") {
       on.step(event);
+    } else if (event.type === "card") {
+      on.card(event.card);
     }
   };
   while (true) {
@@ -200,6 +204,8 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
         updateMessage(chatId, answer.id, (m) => ({ ...m, steps: [...(m.steps ?? []), step] }));
         setLive({ chatId, messageId: answer.id, running: null });
       },
+      // A table from a tool's own data: added under the answer, in the order the tools finished
+      card: (card) => updateMessage(chatId, answer.id, (m) => ({ ...m, cards: [...(m.cards ?? []), card] })),
     })
       .catch((err) =>
         updateMessage(chatId, answer.id, (m) => {

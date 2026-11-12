@@ -19,7 +19,17 @@ export const balancesDue = tool(
     // Biggest balance first, for "who owes the most?"
     const owing = trips
       .map(bookingRow)
-      .map(({ no, customer, dates, status, total, received, balance }) => ({ no, customer, dates, status, total, received, balance }))
+      .map(({ no, customer, vehicle, driver, dates, status, total, received, balance }) => ({
+        no,
+        customer,
+        vehicle,
+        driver,
+        dates,
+        status,
+        total,
+        received,
+        balance,
+      }))
       .sort((a, b) => b.balance - a.balance);
 
     const data = {
