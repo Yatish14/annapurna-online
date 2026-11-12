@@ -1,6 +1,6 @@
 import { AIMessage, type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { can, currentUser } from "@/lib/auth";
-import { graph } from "@/lib/assistant/graph";
+import { graph, RECURSION_LIMIT } from "@/lib/assistant/graph";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
 import { USE_FAKE } from "@/lib/assistant/model";
@@ -49,6 +49,10 @@ function explain(err: unknown): { status: number; error: string } {
     return details.includes("PerDay")
       ? { status: 429, error: "Today's free questions are used up. They come back at about 1:30 pm (India time)." }
       : { status: 429, error: "Too many questions in the last minute. Wait a minute, then try again." };
+  }
+  if (e.name === "GraphRecursionError") {
+    // The hard step limit: the model kept going round the tool loop
+    return { status: 500, error: "That took too many steps, so I stopped. Try asking for one thing at a time." };
   }
   if (e.name === "PromptBlockedError") {
     return { status: 400, error: "Google's safety filter blocked this question. Try asking it another way." };
@@ -117,7 +121,11 @@ export async function POST(request: Request) {
   try {
     const messages = [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0] })), ...history, new HumanMessage(message)];
     // Two stream modes at once: the answer's words ("messages") and each step's results ("updates", for the chips)
-    const stream = await graph.stream({ messages }, { streamMode: ["messages", "updates"], signal: request.signal });
+    // recursionLimit: the hard stop for the whole run (lib/assistant/graph.ts explains both limits)
+    const stream = await graph.stream(
+      { messages },
+      { streamMode: ["messages", "updates"], signal: request.signal, recursionLimit: RECURSION_LIMIT },
+    );
     pieces = events(stream as AsyncIterable<[string, unknown]>);
     // Wait for the first piece before answering: most failures (bad key, over the free limit) show up here,
     // while we can still send a proper error status. Once the 200 has gone out, the status can't change.
