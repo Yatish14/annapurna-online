@@ -37,5 +37,26 @@ for (const u of USERS) {
     hashPassword(PASSWORD),
   ]);
 }
+// Bookings for the assistant's tools to find (tests/assistant.spec.ts). Dates are counted from today in India,
+// so "upcoming" stays upcoming whenever the tests run.
+const [car] = await db.query("INSERT INTO vehicles (name, created_by) VALUES ('Test Carens', 'tests') RETURNING id::int");
+const [driver] = await db.query(
+  "INSERT INTO drivers (name, phone, created_by) VALUES ('Test Driver', '9000000009', 'tests') RETURNING id::int",
+);
+const BOOKINGS = [
+  // [customer, starts in N days, lasts N days, total]
+  ["Test Customer One", 3, 2, 12000],
+  ["Test Customer Two", 10, 1, 6000],
+];
+for (const [customer, inDays, days, total] of BOOKINGS) {
+  await db.query(
+    `INSERT INTO trips (vehicle_id, driver_id, customer_name, customer_phone, start_date, end_date,
+                        pickup_state, pickup_city, drop_state, drop_city, total_amount, created_by)
+     VALUES ($1, $2, $3, '9000000010', (now() AT TIME ZONE 'Asia/Kolkata')::date + $4::int,
+             (now() AT TIME ZONE 'Asia/Kolkata')::date + $4::int + $5::int - 1,
+             'Andhra Pradesh', 'Vijayawada', 'Andhra Pradesh', 'Guntur', $6, 'tests')`,
+    [car.id, driver.id, customer, inDays, days, total],
+  );
+}
 await db.close();
-console.log(`✓ Test database ready with ${USERS.length} sign-ins.`);
+console.log(`✓ Test database ready with ${USERS.length} sign-ins and ${BOOKINGS.length} bookings.`);

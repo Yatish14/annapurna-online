@@ -123,7 +123,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **2.13** Booking table card rendered from a tool's result (`lib/assistant/cards.ts`, from the artifact; list, search, balances due). *Learn: structured replies.*
 - [x] **2.14** Step limit to stop runaway loops (4 tool rounds, then an answer with no tools offered; hard limit of 11 steps). *Learn: loop safety.*
 - [x] **2.15** Treat tool results as data, never instructions (`freeText()` cleans typed fields; `toolReply()` flags instruction-like text; prompt "Tool results" rules; tested with 4 attacks: 0 followed, 3 of 3 warned). *Learn: prompt-injection defence.*
-- [ ] **2.16** Tests: the fake model makes scripted tool calls; check the right tool runs.
+- [x] **2.16** Tests: the fake model makes scripted tool calls (`[tool:name {…}]`, `[loop]`); check the right tool runs, its chip and card, and the round limit.
 
 ## Step 3 — Reports
 

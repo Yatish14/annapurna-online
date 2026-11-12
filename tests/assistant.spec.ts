@@ -54,6 +54,44 @@ test("an admin can chat: answers, follow-ups, off-topic, errors, Stop and the da
   expect(tooLong.status()).toBe(413);
 });
 
+// Step 2: the fake model asks for tools named in [tool:…] tags (lib/assistant/fake.ts), so these check the real
+// tools, chips and cards against the test database's 2 bookings (scripts/test-setup.mjs), with no AI involved.
+test("tools: the right tool runs, its chip is ticked, and its card shows the database's rows", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const box = chat.getByLabel("Your question");
+  const latest = () => chat.locator(".as-msg.is-assistant").last();
+  async function ask(question: string) {
+    await box.fill(question);
+    await box.press("Enter");
+  }
+
+  // One tool: list_bookings ran (the fake's answer says what it found), its chip is ticked, and its table appears
+  await ask('[tool:list_bookings {"status":"upcoming"}] Which bookings are upcoming?');
+  await expect(latest()).toContainText("Tools used: list_bookings: found, 2 in total.");
+  const chip = latest().locator(".as-steps li", { hasText: "Checked upcoming bookings" });
+  await expect(chip.locator(".as-step-done")).toBeVisible(); // the tick, not the spinner
+  const card = latest().locator(".as-card", { hasText: "Upcoming bookings (2)" });
+  await expect(card).toContainText("Test Customer One");
+  await expect(card).toContainText("Test Customer Two");
+  // The card's links open the booking, and the same list on the Bookings page
+  await expect(card.getByRole("link", { name: "VB-0001" })).toHaveAttribute("href", "/admin/expenses/bookings/VB-0001");
+  await expect(card.getByRole("link", { name: /Open in Bookings/ })).toHaveAttribute("href", "/admin/expenses/bookings?view=upcoming");
+
+  // Two tools in one turn: both chips are ticked, and the balances card lists both bookings (₹12,000 + ₹6,000 owed)
+  await ask("[tool:get_today] [tool:balances_due] Two at once");
+  await expect(latest()).toContainText("Tools used: get_today: found; balances_due: found.");
+  await expect(latest().locator(".as-steps li .as-step-done")).toHaveCount(2);
+  await expect(latest().locator(".as-card", { hasText: "Customers who still owe (2)" })).toBeVisible();
+
+  // A model that keeps asking for tools: stopped after 4 rounds with the graph's own answer, no chip left spinning (2.14)
+  await ask("[loop] Keep checking the date");
+  await expect(latest()).toContainText("I looked things up several times for this and stopped there");
+  await expect(latest().locator(".as-steps li .as-step-done")).toHaveCount(4);
+  await expect(latest().locator(".as-steps li.is-running")).toHaveCount(0);
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");
