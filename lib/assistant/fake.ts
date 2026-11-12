@@ -1,5 +1,5 @@
 import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { BaseChatModel, type BindToolsInput } from "@langchain/core/language_models/chat_models";
 import { AIMessage, AIMessageChunk, type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { ChatGenerationChunk, type ChatResult } from "@langchain/core/outputs";
 
@@ -30,6 +30,11 @@ class FakeModel extends BaseChatModel {
 
   _llmType() {
     return "annapurna-fake";
+  }
+
+  /** The graph offers the model its tools. The fake never asks for one, so it ignores them (2.16 adds scripted tool calls). */
+  bindTools(_tools: BindToolsInput[]) {
+    return this;
   }
 
   /** The question is the last HumanMessage; `earlier` counts the questions before it (to test history) */

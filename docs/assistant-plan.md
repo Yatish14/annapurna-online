@@ -111,7 +111,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **2.1** `npm i @langchain/langgraph "zod@^4.2.0"` (LangGraph needs zod 4.2+; `@vercel/blob` keeps its own older copy).
 - [x] **2.2** Smallest graph: START → model → END. *Learn: state, nodes, edges.*
 - [x] **2.3** First tool `get_today` (`lib/assistant/tools/`; every tool returns status + data through `toolReply()`). *Learn: tool definition with a zod schema.*
-- [ ] **2.4** Tool loop: model → tools → model until done. *Learn: the agent (ReAct) loop.*
+- [x] **2.4** Tool loop: model → tools → model until done. *Learn: the agent (ReAct) loop.*
 - [ ] **2.5** `list_bookings` (by date and status), wrapping `listTrips`. *Learn: reusing code, keeping tool output small.*
 - [ ] **2.6** `get_booking` (by VB number).
 - [ ] **2.7** `search_bookings` (name, phone, number).
