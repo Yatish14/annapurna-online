@@ -23,14 +23,14 @@ import {
 import { toolReply } from "./result";
 
 /** Most rows one tool call returns. Fewer rows = fewer tokens, a faster answer, and less room for the model to get lost. */
-const MAX_ROWS = 20;
+export const MAX_ROWS = 20;
 
 /**
  * One booking, cut down to what an answer needs. Leaves out phone numbers (privacy) and notes (free text a
  * customer could have written; 2.15 decides how tool text is handled), and every internal id.
  * The first six fields match BookingRow in lib/assistant/types.ts, so 2.13 can show them as a table card.
  */
-function bookingRow(t: Trip) {
+export function bookingRow(t: Trip) {
   return {
     no: t.trip_no, // "VB-0012"
     customer: t.customer_name,
