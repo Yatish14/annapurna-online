@@ -117,7 +117,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **2.7** `search_bookings` (name, phone, number).
 - [x] **2.8** `balances_due` (totals from `outstanding()`, the Expense Tracker overview's own SQL).
 - [x] **2.9** Vehicle and driver summary tools (`vehicle_summary`, `driver_summary`: all-time, or one month).
-- [ ] **2.10** `month_overview` (money in, money out, profit).
+- [x] **2.10** `month_overview` (money in, money out, profit).
 - [ ] **2.11** `print_orders` (orders waiting).
 - [ ] **2.12** "Checked bookings…" chips while a tool runs. *Learn: streaming graph events, not just text.*
 - [ ] **2.13** Booking table card rendered from a tool's result. *Learn: structured replies.*
