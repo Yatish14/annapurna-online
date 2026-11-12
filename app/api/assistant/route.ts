@@ -1,8 +1,9 @@
-import { AIMessage, type AIMessageChunk, type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { AIMessage, type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { can, currentUser } from "@/lib/auth";
+import { graph } from "@/lib/assistant/graph";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
-import { mainModel, USE_FAKE } from "@/lib/assistant/model";
+import { USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
 import { countQuestion } from "@/lib/assistant/usage";
 
@@ -32,6 +33,17 @@ function readHistory(value: unknown): BaseMessage[] {
     }
   }
   return messages.slice(-MAX_HISTORY);
+}
+
+/**
+ * The model's words from the graph's stream. With streamMode "messages", the graph sends every piece any
+ * model writes inside it, as [piece, details]; `details.langgraph_node` says which step wrote it. Only the
+ * "model" step's words go to the admin (from 2.4 the graph has other steps too).
+ */
+async function* modelWords(stream: AsyncIterable<[BaseMessage, Record<string, unknown>]>) {
+  for await (const [piece, details] of stream) {
+    if (details.langgraph_node === "model" && piece.text) yield piece.text;
+  }
 }
 
 /**
@@ -103,16 +115,15 @@ export async function POST(request: Request) {
     return new Response(refusal(message), { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
   }
 
-  // 4. Ask the model: our rules first, then the chat so far, then the new question. `signal` fires if the browser goes away
-  //    (Stop, tab closed), so Gemini stops writing and we don't use up tokens nobody will read.
-  let pieces: AsyncIterator<AIMessageChunk>;
-  let first: IteratorResult<AIMessageChunk>;
+  // 4. Run the graph (lib/assistant/graph.ts) with our rules first, then the chat so far, then the new question.
+  //    `signal` fires if the browser goes away (Stop, tab closed), so the graph and Gemini stop and we don't use
+  //    up tokens nobody will read.
+  let pieces: AsyncIterator<string>;
+  let first: IteratorResult<string>;
   try {
-    const stream = await mainModel().stream(
-      [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0] })), ...history, new HumanMessage(message)],
-      { signal: request.signal },
-    );
-    pieces = stream[Symbol.asyncIterator]();
+    const messages = [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0] })), ...history, new HumanMessage(message)];
+    const stream = await graph.stream({ messages }, { streamMode: "messages", signal: request.signal });
+    pieces = modelWords(stream);
     // Wait for the first piece before answering: most failures (bad key, over the free limit) show up here,
     // while we can still send a proper error status. Once the 200 has gone out, the status can't change.
     first = await pieces.next();
@@ -133,17 +144,15 @@ export async function POST(request: Request) {
     // Runs once, straight away: the piece we already have
     start(controller) {
       if (first.done) return controller.close();
-      if (first.value.text) controller.enqueue(encoder.encode(first.value.text));
+      controller.enqueue(encoder.encode(first.value));
     },
-    // Runs each time the browser is ready for more: wait for Gemini's next piece and pass it on.
-    // Some pieces carry no text (only token counts), so keep reading until one does, or the stream could stall.
+    // Runs each time the browser is ready for more: wait for the next piece and pass it on.
+    // (modelWords already skips pieces with no text, so every piece here has words.)
     async pull(controller) {
       try {
-        while (true) {
-          const { done, value } = await pieces.next();
-          if (done) return controller.close();
-          if (value.text) return controller.enqueue(encoder.encode(value.text));
-        }
+        const { done, value } = await pieces.next();
+        if (done) return controller.close();
+        controller.enqueue(encoder.encode(value));
       } catch (err) {
         // Gemini failed halfway: end the stream with an error, so the browser knows the reply is cut short
         if (!request.signal.aborted) console.error("Annapurna Assist: the reply stopped halfway", err);

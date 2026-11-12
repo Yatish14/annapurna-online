@@ -57,8 +57,10 @@ class FakeModel extends BaseChatModel {
       if (question.includes("[cut]") && i === 4) throw new Error("Fake reply cut off halfway");
       await wait(question.includes("[slow]") ? 4000 / words.length : 15);
       options.signal?.throwIfAborted(); // Stop pressed: stop writing, like the real one
-      yield new ChatGenerationChunk({ text: word, message: new AIMessageChunk(word) });
-      await runManager?.handleLLMNewToken(word);
+      const chunk = new ChatGenerationChunk({ text: word, message: new AIMessageChunk(word) });
+      yield chunk;
+      // Tells listeners about the new piece, as ChatGoogle does: LangGraph's "messages" stream hears it here
+      await runManager?.handleLLMNewToken(word, undefined, undefined, undefined, undefined, { chunk });
     }
   }
 }
