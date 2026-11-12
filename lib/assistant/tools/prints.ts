@@ -3,7 +3,7 @@ import { z } from "zod";
 import { optionsText } from "@/lib/print/files";
 import { isAccepting, listOrders, printStats } from "@/lib/print/orders";
 import { MAX_ROWS } from "./bookings";
-import { toolReply } from "./result";
+import { freeText, toolReply } from "./result";
 
 /** What each order status means at the counter */
 const STATUS_TEXT = { new: "Waiting to print", printed: "Printed, waiting to be collected", collected: "Collected" } as const;
@@ -21,14 +21,14 @@ export const printOrders = tool(
     ]);
     const rows = orders.map((o) => ({
       no: o.order_no, // "P-1004"
-      customer: o.customer_name, // optional on the upload page, so may be null
+      customer: freeText(o.customer_name, 60), // typed by the customer (optional, so may be null)
       phone: o.phone,
       status: STATUS_TEXT[o.status],
       sent: o.created_ist,
       minutes_ago: Math.round((Date.now() - o.created_ms) / 60_000),
       files: o.files.map((f) => ({
         // Typed by the customer: information to report, never instructions to follow (2.15)
-        name: f.file_name.slice(0, 80),
+        name: freeText(f.file_name, 120),
         options: optionsText(f), // "Black & white · Single-sided · 2 copies"
         printed: f.printed_count > 0,
         // Files are deleted automatically 3 days after upload (or earlier by staff)

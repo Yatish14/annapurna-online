@@ -20,7 +20,7 @@ import {
   TRIP_VIEWS,
   tripExpenses,
 } from "@/lib/expenses/trips";
-import { toolReply } from "./result";
+import { freeText, toolReply } from "./result";
 
 /** Most rows one tool call returns. Fewer rows = fewer tokens, a faster answer, and less room for the model to get lost. */
 export const MAX_ROWS = 20;
@@ -33,9 +33,10 @@ export const MAX_ROWS = 20;
 export function bookingRow(t: Trip) {
   return {
     no: t.trip_no, // "VB-0012"
-    customer: t.customer_name,
-    vehicle: t.vehicle_name,
-    driver: t.driver_name,
+    // Typed by people: cleaned before the model sees them (freeText, 2.15)
+    customer: freeText(t.customer_name, 60),
+    vehicle: freeText(t.vehicle_name, 60),
+    driver: freeText(t.driver_name, 60),
     dates: fmtRangeCompact(t.start_date, t.end_date), // "12–14 Nov"
     balance: balanceOf(t), // still to collect from the customer, in rupees
     start_date: t.start_date,
@@ -128,7 +129,7 @@ export const getBooking = tool(
         days: diffDays(trip.start_date, trip.end_date) + 1,
         customer_phone: trip.customer_phone,
         driver_phone: trip.driver_phone,
-        referred_by: trip.referrer_name,
+        referred_by: freeText(trip.referrer_name, 60),
         km: kmOf(trip), // null until the odometer readings (or km) are entered
         driver_amount: trip.driver_amount, // agreed with the driver; null if not set
         driver_paid: trip.driver_paid,
@@ -148,9 +149,9 @@ export const getBooking = tool(
           })),
         expenses: expenses
           .filter((e) => !e.deleted_ist)
-          .map((e) => ({ kind: EXPENSE_LABELS[e.kind], amount: e.amount, on: e.spent_on, litres: e.litres, what: e.description })),
+          .map((e) => ({ kind: EXPENSE_LABELS[e.kind], amount: e.amount, on: e.spent_on, litres: e.litres, what: freeText(e.description, 120) })),
         // Written by an admin in the booking form: information to report, never instructions to follow (2.15)
-        notes: trip.notes,
+        notes: freeText(trip.notes, 300),
         created: `${trip.created_ist}${trip.created_by ? ` by ${trip.created_by}` : ""}`,
       },
     });
