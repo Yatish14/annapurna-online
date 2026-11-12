@@ -1,5 +1,5 @@
-import { getBooking, listBookings } from "./bookings";
+import { getBooking, listBookings, searchBookings } from "./bookings";
 import { getToday } from "./today";
 
 /** Every tool Annapurna Assist can use. The graph (lib/assistant/graph.ts) gives this list to the model. */
-export const TOOLS = [getToday, listBookings, getBooking];
+export const TOOLS = [getToday, listBookings, getBooking, searchBookings];

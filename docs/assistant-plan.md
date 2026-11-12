@@ -114,7 +114,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **2.4** Tool loop: model → tools → model until done. *Learn: the agent (ReAct) loop.*
 - [x] **2.5** `list_bookings` (by date and status), wrapping `listTrips`. *Learn: reusing code, keeping tool output small.*
 - [x] **2.6** `get_booking` (by VB number).
-- [ ] **2.7** `search_bookings` (name, phone, number).
+- [x] **2.7** `search_bookings` (name, phone, number).
 - [ ] **2.8** `balances_due`.
 - [ ] **2.9** Vehicle and driver summary tools.
 - [ ] **2.10** `month_overview` (money in, money out, profit).
