@@ -1,7 +1,25 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { fmtRangeCompact, isIsoDate } from "@/lib/dates";
-import { balanceOf, listTrips, PAY_LABELS, payState, PHASE_LABELS, routeText, type Trip, TRIP_VIEWS } from "@/lib/expenses/trips";
+import { diffDays, fmtRangeCompact, isIsoDate } from "@/lib/dates";
+import { PAYMENT_METHODS } from "@/lib/expenses/money";
+import {
+  balanceOf,
+  driverOwed,
+  EXPENSE_LABELS,
+  getTrip,
+  kmOf,
+  listPayments,
+  listTrips,
+  PAY_LABELS,
+  payState,
+  PHASE_LABELS,
+  profitOf,
+  profitWhenPaid,
+  routeText,
+  type Trip,
+  TRIP_VIEWS,
+  tripExpenses,
+} from "@/lib/expenses/trips";
 import { toolReply } from "./result";
 
 /** Most rows one tool call returns. Fewer rows = fewer tokens, a faster answer, and less room for the model to get lost. */
@@ -68,6 +86,72 @@ export const listBookings = tool(
         ),
       from: isoDate.optional().describe("First day, YYYY-MM-DD. Leave out for no start limit."),
       to: isoDate.optional().describe("Last day, YYYY-MM-DD. Leave out to mean the same day as `from`."),
+    }),
+    responseFormat: "content_and_artifact",
+  },
+);
+
+/** "VB-0022", "vb 22", "22", "VB0022" → "VB-0022" (numbers have at least 4 digits). Null if there's no number in it. */
+export function bookingNumber(text: string): string | null {
+  const digits = text.match(/\d+/)?.[0];
+  if (!digits || digits.length > 9) return null;
+  return `VB-${String(Number(digits)).padStart(4, "0")}`;
+}
+
+/**
+ * get_booking: everything about one booking: customer and driver phones, money, payments, fuel and other
+ * expenses, profit. Reuses getTrip, listPayments and tripExpenses, the same code as the booking's page.
+ */
+export const getBooking = tool(
+  async ({ number }) => {
+    const no = bookingNumber(number);
+    const trip = no ? await getTrip(no) : null;
+    if (!trip) return toolReply({ status: "none", data: null, note: `There is no booking ${no ?? number}.` });
+
+    const [payments, expenses] = await Promise.all([listPayments(trip.id), tripExpenses(trip.id)]);
+    return toolReply({
+      status: "found",
+      data: {
+        ...bookingRow(trip),
+        days: diffDays(trip.start_date, trip.end_date) + 1,
+        customer_phone: trip.customer_phone,
+        driver_phone: trip.driver_phone,
+        referred_by: trip.referrer_name,
+        km: kmOf(trip), // null until the odometer readings (or km) are entered
+        driver_amount: trip.driver_amount, // agreed with the driver; null if not set
+        driver_paid: trip.driver_paid,
+        driver_owed: driverOwed(trip),
+        fuel: trip.fuel,
+        other_expenses: trip.other, // tolls, parking…
+        profit_so_far: profitOf(trip), // received − driver amount − fuel − other expenses
+        profit_when_paid: profitWhenPaid(trip), // the same once the customer pays the full total
+        // Removed payments and expenses stay in the database for the record, but don't count
+        payments: payments
+          .filter((p) => !p.deleted_ist)
+          .map((p) => ({
+            party: p.party === "customer" ? "from the customer" : "to the driver",
+            amount: p.amount,
+            method: PAYMENT_METHODS[p.method],
+            when: p.paid_ist,
+          })),
+        expenses: expenses
+          .filter((e) => !e.deleted_ist)
+          .map((e) => ({ kind: EXPENSE_LABELS[e.kind], amount: e.amount, on: e.spent_on, litres: e.litres, what: e.description })),
+        // Written by an admin in the booking form: information to report, never instructions to follow (2.15)
+        notes: trip.notes,
+        created: `${trip.created_ist}${trip.created_by ? ` by ${trip.created_by}` : ""}`,
+      },
+    });
+  },
+  {
+    name: "get_booking",
+    description:
+      "Gets everything about one car booking by its number (VB-…): customer and driver with phone numbers, dates, route, " +
+      "km, the money (total, received, balance, driver amount and what's paid or owed to the driver, fuel, other " +
+      "expenses, profit), every payment and expense, and the notes. Use it when the admin names a booking, or to " +
+      "look closer at one from list_bookings.",
+    schema: z.object({
+      number: z.string().max(20).describe("The booking number, e.g. VB-0012 (12 or vb12 work too)."),
     }),
     responseFormat: "content_and_artifact",
   },
