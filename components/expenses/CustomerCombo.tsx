@@ -16,8 +16,11 @@ type Props = {
   onChange: (name: string) => void;
   /** An existing customer was chosen: fill in their name and mobile number */
   onPick: (customer: CustomerChoice) => void;
-  /** "New customer" was chosen: the form puts the cursor in the mobile number box */
-  onNew: () => void;
+  /**
+   * "New customer" was chosen. nameReady: a name is typed, so the form puts the cursor in the mobile
+   * number box; otherwise the cursor stays here for the name.
+   */
+  onNew: (nameReady: boolean) => void;
 };
 
 const MAX_OPTIONS = 50;
@@ -32,6 +35,8 @@ const phoneText = (p: string) => `${p.slice(0, 5)} ${p.slice(5)}`;
 export default function CustomerCombo({ id, name, customers, value, phone, onChange, onPick, onNew }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  // "+ New customer" chosen before typing a name: the box waits for the name (list closed)
+  const [typingNew, setTypingNew] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
   const listId = `${id}-list`;
@@ -66,16 +71,28 @@ export default function CustomerCombo({ id, name, customers, value, phone, onCha
   function choose(row: Row) {
     setOpen(false);
     if (row.kind === "customer") {
+      setTypingNew(false);
       onPick(row.customer);
+      return;
+    }
+    const typed = tidy(value);
+    onChange(typed);
+    if (typed.length >= 2) {
+      setTypingNew(false);
+      onNew(true);
     } else {
-      onChange(tidy(value));
-      onNew();
+      // No name yet: stay here and ask for it
+      setTypingNew(true);
+      onNew(false);
+      input.current?.focus();
     }
   }
 
   const hint = existing
     ? `Existing customer · ${existing.bookings} booking${existing.bookings === 1 ? "" : "s"}, latest on ${fmtLong(existing.lastDate)}`
-    : query.length >= 2 && !open
+    : typingNew && query.length < 2
+      ? "New customer: type their name, then the mobile number"
+      : query.length >= 2 && !open
       ? sameName.length
         ? `${sameName.length === 1 ? "A customer" : `${sameName.length} customers`} with this name booked before: pick from the list to use their number`
         : "New customer"
@@ -97,19 +114,21 @@ export default function CustomerCombo({ id, name, customers, value, phone, onCha
         required
         minLength={2}
         maxLength={60}
-        placeholder={customers.length ? "Search customers or type a new name" : "e.g. Ravi Kumar"}
+        placeholder={typingNew ? "Type the new customer's name" : customers.length ? "Search customers or type a new name" : "e.g. Ravi Kumar"}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
-          setOpen(true);
+          // Typing a new customer's name: no list (it would offer existing customers again)
+          if (!typingNew) setOpen(true);
         }}
         onFocus={(e) => {
           if (value) e.currentTarget.select();
-          setOpen(true);
+          if (!typingNew) setOpen(true);
         }}
         onClick={() => setOpen(true)}
         onBlur={() => {
           if (value !== tidy(value)) onChange(tidy(value));
+          if (tidy(value).length >= 2) setTypingNew(false);
           setOpen(false);
         }}
         onKeyDown={(e) => {
@@ -121,6 +140,14 @@ export default function CustomerCombo({ id, name, customers, value, phone, onCha
           } else if (e.key === "Enter" && open && rows[active]) {
             e.preventDefault();
             choose(rows[active]);
+          } else if (e.key === "Enter" && typingNew && !open) {
+            // The new customer's name is typed: Enter goes on to the mobile number (doesn't send the form)
+            e.preventDefault();
+            if (tidy(value).length >= 2) {
+              setTypingNew(false);
+              onChange(tidy(value));
+              onNew(true);
+            }
           } else if (e.key === "Escape" && open) {
             e.preventDefault();
             setOpen(false);

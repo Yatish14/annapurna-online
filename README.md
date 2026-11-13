@@ -47,10 +47,10 @@ npm run dev
 
 Work on your computer uses **its own database**, never the real data on Neon:
 
-- `.env.local` has `DATABASE_URL=postgresql://annapurna:annapurna_local@localhost:5432/annapurna`, the Postgres in Docker ([docker-compose.yml](docker-compose.yml)). Only this computer can reach it, and its data stays in a Docker volume between restarts.
+- `.env.local` has `DATABASE_URL=postgresql://annapurna:annapurna_local@localhost:5433/annapurna`, the Postgres in Docker ([docker-compose.yml](docker-compose.yml)). Only this computer can reach it, and its data stays in a Docker volume between restarts.
 - The dashboard shows a **Local data** badge in the sidebar (and **Local** on phones) whenever it isn't using Neon. No badge means real data.
 - Safety: `db:fresh`, `db:seed` and `db:seed-expenses` refuse to run if `DATABASE_URL` points at Neon. `db:migrate` and `super-admin` say which database they're using before they start.
-- You can open the database in any Postgres app (pgAdmin, DBeaver, the VS Code PostgreSQL extension): host `localhost`, port `5432`, database and user `annapurna`, password `annapurna_local`.
+- You can open the database in any Postgres app (pgAdmin, DBeaver, the VS Code PostgreSQL extension): host `localhost`, port `5433`, database and user `annapurna`, password `annapurna_local`.
 
 | Command | What it does |
 |---|---|

@@ -142,11 +142,12 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
                 phone={v.customer_phone}
                 onChange={(name) => set("customer_name", name)}
                 onPick={(c) => setV((old) => ({ ...old, customer_name: c.name, customer_phone: c.phone }))}
-                onNew={() => {
+                onNew={(nameReady) => {
                   // The number in the box belongs to someone else who booked before: clear it for the new customer
                   const typed = v.customer_name.replace(/\s+/g, " ").trim().toLowerCase();
                   if (customers.some((c) => c.phone === v.customer_phone && c.name.toLowerCase() !== typed)) set("customer_phone", "");
-                  window.setTimeout(() => fieldEl("customer_phone")?.focus(), 0);
+                  // Name typed: on to the mobile number. No name yet: the cursor stays in the name box.
+                  if (nameReady) window.setTimeout(() => fieldEl("customer_phone")?.focus(), 0);
                 }}
               />
             </div>
