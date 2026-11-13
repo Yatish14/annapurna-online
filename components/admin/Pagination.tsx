@@ -9,9 +9,23 @@ type Props = {
   href: (page: number) => string;
   /** e.g. "Page 3 of 12 · 118 orders" */
   summary: string;
+  /** false: stay where you are on the page (for a list in the middle of a page) */
+  scroll?: boolean;
 };
 
-function Buttons({ items, page, href, className }: { items: PageItem[]; page: number; href: Props["href"]; className: string }) {
+function Buttons({
+  items,
+  page,
+  href,
+  className,
+  scroll,
+}: {
+  items: PageItem[];
+  page: number;
+  href: Props["href"];
+  className: string;
+  scroll?: boolean;
+}) {
   return (
     <div className={className}>
       {items.map((item, i) =>
@@ -24,7 +38,7 @@ function Buttons({ items, page, href, className }: { items: PageItem[]; page: nu
             {item}
           </span>
         ) : (
-          <Link key={item} href={href(item)} className="ap-pgbtn" aria-label={`Page ${item}`}>
+          <Link key={item} href={href(item)} className="ap-pgbtn" aria-label={`Page ${item}`} scroll={scroll}>
             <LinkPending>{item}</LinkPending>
           </Link>
         ),
@@ -37,13 +51,13 @@ function Buttons({ items, page, href, className }: { items: PageItem[]; page: nu
  * Numbered page buttons. Long lists are shortened with "…" (1 … 66 67 68 … 100), using fewer
  * buttons on phones, so the row always fits.
  */
-export default function Pagination({ page, totalPages, href, summary }: Props) {
+export default function Pagination({ page, totalPages, href, summary, scroll }: Props) {
   if (totalPages <= 1) return null;
   return (
     <nav className="ap-pagination" aria-label="Pages">
       <span className="ap-muted">{summary}</span>
-      <Buttons items={pageItems(page, totalPages, 1)} page={page} href={href} className="ap-pages is-wide" />
-      <Buttons items={pageItems(page, totalPages, 0)} page={page} href={href} className="ap-pages is-narrow" />
+      <Buttons items={pageItems(page, totalPages, 1)} page={page} href={href} className="ap-pages is-wide" scroll={scroll} />
+      <Buttons items={pageItems(page, totalPages, 0)} page={page} href={href} className="ap-pages is-narrow" scroll={scroll} />
     </nav>
   );
 }

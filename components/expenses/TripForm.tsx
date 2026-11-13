@@ -7,6 +7,8 @@ import Icon from "@/components/admin/Icon";
 import Dropdown from "@/components/Dropdown";
 import MobileInput from "@/components/MobileInput";
 import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
+import type { CustomerChoice } from "@/lib/expenses/trips";
+import CustomerCombo from "./CustomerCombo";
 import PlacePicker from "./PlacePicker";
 import QuickAddDialog, { type DriverChoice, type VehicleChoice } from "./QuickAddDialog";
 import type { TripFormValues } from "./tripFormValues";
@@ -17,6 +19,8 @@ type Props = {
   initial: TripFormValues;
   vehicles: VehicleChoice[];
   drivers: DriverChoice[];
+  /** Everyone who has booked before, for the "Customer name" box */
+  customers: CustomerChoice[];
   cancelHref: string;
   /** Editing: what the customer has paid and the fuel entered so far (the form can add one more of each) */
   soFar?: { received: number; fuel: number };
@@ -38,7 +42,7 @@ function tripKm(v: Pick<TripFormValues, "odometer_start" | "odometer_end">): num
 const dayCount = (start: string, end: string) =>
   start && end && end >= start ? Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1 : 0;
 
-export default function TripForm({ tripId, initial, vehicles: serverVehicles, drivers: serverDrivers, cancelHref, soFar }: Props) {
+export default function TripForm({ tripId, initial, vehicles: serverVehicles, drivers: serverDrivers, customers, cancelHref, soFar }: Props) {
   const isNew = tripId === undefined;
   const [v, setV] = useState<TripFormValues>(initial);
   const [state, formAction, pending] = useActionState<TripFormState, FormData>(saveTrip, {});
@@ -128,19 +132,24 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
             <Icon name="users" size={18} /> Customer
           </h2>
           <div className="xp-grid">
-            <label className="ap-field">
-              <span>Customer name</span>
-              <input
+            <div className="ap-field">
+              <label htmlFor="trip-customer">Customer name</label>
+              <CustomerCombo
+                id="trip-customer"
                 name="customer_name"
-                required
-                minLength={2}
-                maxLength={60}
-                autoComplete="off"
-                placeholder="e.g. Ravi Kumar"
+                customers={customers}
                 value={v.customer_name}
-                onChange={(e) => set("customer_name", e.target.value)}
+                phone={v.customer_phone}
+                onChange={(name) => set("customer_name", name)}
+                onPick={(c) => setV((old) => ({ ...old, customer_name: c.name, customer_phone: c.phone }))}
+                onNew={() => {
+                  // The number in the box belongs to someone else who booked before: clear it for the new customer
+                  const typed = v.customer_name.replace(/\s+/g, " ").trim().toLowerCase();
+                  if (customers.some((c) => c.phone === v.customer_phone && c.name.toLowerCase() !== typed)) set("customer_phone", "");
+                  window.setTimeout(() => fieldEl("customer_phone")?.focus(), 0);
+                }}
               />
-            </label>
+            </div>
             <label className="ap-field">
               <span>Customer mobile number</span>
               <MobileInput

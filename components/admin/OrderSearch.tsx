@@ -12,6 +12,10 @@ type Props = {
   path?: string;
   placeholder?: string;
   label?: string;
+  /** The address's name for the search text (default "q") */
+  param?: string;
+  /** Other parts of the address to keep while searching, e.g. "month=2026-10" */
+  keep?: string;
 };
 
 /** Pause in typing before the search runs */
@@ -28,6 +32,8 @@ export default function OrderSearch({
   path = "/admin/print",
   placeholder = "Order no., name or mobile",
   label = "Search orders by order number, customer name or mobile number",
+  param = "q",
+  keep = "",
 }: Props) {
   const router = useRouter();
   const [value, setValue] = useState(initial);
@@ -42,7 +48,9 @@ export default function OrderSearch({
     const q = text.trim().slice(0, 60);
     if (q === last.current) return;
     last.current = q;
-    startTransition(() => router.replace(q ? `${path}?q=${encodeURIComponent(q)}` : clearHref, { scroll: false }));
+    const query = new URLSearchParams(keep);
+    query.set(param, q);
+    startTransition(() => router.replace(q ? `${path}?${query}` : clearHref, { scroll: false }));
   }
 
   // The URL changed some other way (a tab, "Clear search"): show that search, unless the person is typing here

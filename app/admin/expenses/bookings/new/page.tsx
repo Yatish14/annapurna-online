@@ -5,12 +5,13 @@ import TripForm from "@/components/expenses/TripForm";
 import { EMPTY_TRIP } from "@/components/expenses/tripFormValues";
 import { requireUser } from "@/lib/auth";
 import { fleetChoices } from "@/lib/expenses/fleet";
+import { listCustomers } from "@/lib/expenses/trips";
 
 export const metadata = { title: "New booking · Expense Tracker" };
 
 export default async function NewTripPage() {
   await requireUser("manageExpenses");
-  const { vehicles, drivers } = await fleetChoices();
+  const [{ vehicles, drivers }, customers] = await Promise.all([fleetChoices(), listCustomers()]);
 
   return (
     <main className="ap-page xp-formpage">
@@ -22,7 +23,7 @@ export default async function NewTripPage() {
         title="New booking"
         subtitle="Kilometres, payments and fuel can also be added on the booking's page afterwards."
       />
-      <TripForm initial={EMPTY_TRIP} vehicles={vehicles} drivers={drivers} cancelHref="/admin/expenses/bookings" />
+      <TripForm initial={EMPTY_TRIP} vehicles={vehicles} drivers={drivers} customers={customers} cancelHref="/admin/expenses/bookings" />
     </main>
   );
 }

@@ -221,7 +221,18 @@ const likeEscape = (s: string) => s.replace(/[\\%_]/g, "\\$&");
  */
 export async function listTrips(
   view: TripView,
-  { search = "", page = 1, pageSize = 10 }: { search?: string; page?: number; pageSize?: number } = {},
+  {
+    search = "",
+    customer = "",
+    page = 1,
+    pageSize = 10,
+  }: {
+    search?: string;
+    /** Only this tab's bookings whose customer name (or mobile number, if digits) contains this */
+    customer?: string;
+    page?: number;
+    pageSize?: number;
+  } = {},
 ): Promise<{ trips: Trip[]; total: number }> {
   const params: unknown[] = [];
   const param = (value: unknown) => {
@@ -229,8 +240,13 @@ export async function listTrips(
     return `$${params.length}`;
   };
   const text = search.trim().slice(0, 60);
+  const who = customer.trim().slice(0, 60);
   let where: string;
-  if (text) {
+  if (who && !text) {
+    const digits = who.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "");
+    const byPhone = /^[\d\s+()-]+$/.test(who) && digits ? ` OR t.customer_phone LIKE ${param(`%${digits}%`)}` : "";
+    where = `${VIEW_WHERE[view]} AND (t.customer_name ILIKE ${param(`%${likeEscape(who)}%`)}${byPhone})`;
+  } else if (text) {
     let digits = text.replace(/\D/g, "");
     if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
     const like = param(`%${likeEscape(text)}%`);
@@ -263,6 +279,21 @@ export async function listTrips(
     params,
   );
   return { trips, total };
+}
+
+export type CustomerChoice = { name: string; phone: string; bookings: number; lastDate: string };
+
+/**
+ * Everyone who has booked before, one per mobile number, with the name used on their latest booking:
+ * the choices in the booking form's "Customer name" box. Most recent customers first.
+ */
+export async function listCustomers(limit = 3000): Promise<CustomerChoice[]> {
+  return query<CustomerChoice>(
+    `SELECT (array_agg(customer_name ORDER BY start_date DESC, id DESC))[1] AS name, customer_phone AS phone,
+            count(*)::int AS bookings, max(start_date)::text AS "lastDate"
+     FROM trips GROUP BY customer_phone ORDER BY max(start_date) DESC, customer_phone LIMIT $1`,
+    [limit],
+  );
 }
 
 /** Number of bookings on each tab */

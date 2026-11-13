@@ -2,7 +2,9 @@ import Link from "next/link";
 import Flash from "@/components/admin/Flash";
 import Icon from "@/components/admin/Icon";
 import LinkPending from "@/components/admin/LinkPending";
+import OrderSearch from "@/components/admin/OrderSearch";
 import PageHeader from "@/components/admin/PageHeader";
+import Pagination from "@/components/admin/Pagination";
 import { can, requireUser } from "@/lib/auth";
 import { lock, LOCKED } from "@/lib/viewOnly";
 import { addDays, fmtRange, MONTHS_LONG, todayIST } from "@/lib/dates";
@@ -12,9 +14,13 @@ import { monthSummary, outstanding, vehicleProfit, vehiclesMonth } from "@/lib/e
 import { balanceOf, listTrips, routeText, type Trip } from "@/lib/expenses/trips";
 import { reminders } from "@/lib/expenses/finance";
 import { formatPhone } from "@/lib/format";
+import { pageCount, parsePage } from "@/lib/pagination";
 import { parseMonth, readParams, type SearchParams } from "../filters";
 
 export const metadata = { title: "Expense Tracker" };
+
+/** Bookings per page in "Customers who still owe" */
+const OWED_PAGE_SIZE = 6;
 
 const monthName = (m: string) => `${MONTHS_LONG[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
 const shiftMonth = (m: string, by: number) => {
@@ -45,16 +51,35 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
   const month = parseMonth(params);
   const thisMonth = todayIST().slice(0, 7);
 
-  const [summary, vehicles, owed, ongoing, upcoming, dues, drivers, alerts] = await Promise.all([
+  // "Customers who still owe": its own search (?owed=) and pages (?owedpage=), keeping the month
+  const owedQ = (params.get("owed") ?? "").trim().slice(0, 60);
+  let owedPage = parsePage(params.get("owedpage"));
+  const overviewHref = (change: { owed?: string; page?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.has("month")) q.set("month", month);
+    const search = change.owed ?? owedQ;
+    if (search) q.set("owed", search);
+    if (change.page && change.page > 1) q.set("owedpage", String(change.page));
+    return `/admin/expenses${q.size ? `?${q}` : ""}`;
+  };
+
+  const [summary, vehicles, owed, ongoing, upcoming, firstDues, drivers, alerts] = await Promise.all([
     monthSummary(month),
     vehiclesMonth(month),
     outstanding(),
     listTrips("ongoing", { pageSize: 10 }),
     listTrips("upcoming", { pageSize: 5 }),
-    listTrips("due", { pageSize: 6 }),
+    listTrips("due", { customer: owedQ, page: owedPage, pageSize: OWED_PAGE_SIZE }),
     listDrivers(),
     reminders(),
   ]);
+  let dues = firstDues;
+  const owedPages = pageCount(dues.total, OWED_PAGE_SIZE);
+  // Past the last page (e.g. someone paid in full meanwhile): show the last page
+  if (dues.trips.length === 0 && dues.total > 0 && owedPage > owedPages) {
+    owedPage = owedPages;
+    dues = await listTrips("due", { customer: owedQ, page: owedPage, pageSize: OWED_PAGE_SIZE });
+  }
   const moneyOut = summary.driverPaid + summary.fuel + summary.other + summary.repairs + summary.fastag + summary.emi + summary.insurance;
   const driversToPay = drivers.filter((d) => d.owed > 0);
   // Upcoming bookings in the next two weeks only
@@ -246,8 +271,32 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
               View all <Icon name="arrow" size={15} />
             </Link>
           </div>
+          {(owed.customerTrips > 0 || owedQ) && (
+            <div className="xp-owedsearch">
+              <OrderSearch
+                initial={owedQ}
+                clearHref={overviewHref({ owed: "" })}
+                path="/admin/expenses"
+                param="owed"
+                keep={params.has("month") ? `month=${month}` : ""}
+                placeholder="Search customer name or mobile"
+                label="Search customers who still owe by name or mobile number"
+              />
+            </div>
+          )}
+          {owedQ && (
+            <p className="ap-searchnote">
+              <Icon name="search" size={14} />
+              <span>
+                {dues.total} {dues.total === 1 ? "booking matches" : "bookings match"} <b>“{owedQ}”</b>
+              </span>
+              <Link href={overviewHref({ owed: "" })} scroll={false} className="ap-link">
+                Clear search
+              </Link>
+            </p>
+          )}
           {dues.trips.length === 0 ? (
-            <p className="ap-empty-sm">Nothing to collect. ✨</p>
+            <p className="ap-empty-sm">{owedQ ? `No customer who still owes matches “${owedQ}”.` : "Nothing to collect. ✨"}</p>
           ) : (
             <ul className="ap-rows">
               {dues.trips.map((t) => (
@@ -255,6 +304,13 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
               ))}
             </ul>
           )}
+          <Pagination
+            page={owedPage}
+            totalPages={owedPages}
+            href={(n) => overviewHref({ page: n })}
+            scroll={false}
+            summary={`Page ${owedPage} of ${owedPages} · ${dues.total} bookings`}
+          />
         </section>
 
         <section className="ap-panel" id="drivers-to-pay">
