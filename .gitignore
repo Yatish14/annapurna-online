@@ -11,3 +11,8 @@ next-env.d.ts
 
 # local dev database (PGlite)
 .data/
+
+# automated tests (Playwright): the test server's build, and the results
+.next-test/
+test-results/
+playwright-report/
