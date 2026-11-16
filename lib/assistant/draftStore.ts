@@ -23,10 +23,25 @@ export type Draft = {
   /** Past its expiry time (still loaded, so the admin can be told why it can't be confirmed) */
   expired: boolean;
   result: string | null;
+  /** Minutes since it was confirmed or cancelled (0 while pending): a save that never finished shows up here */
+  minutesSinceSettled: number;
 };
+
+/** A draft's columns, as the Draft type has them */
+const DRAFT_COLUMNS = `id, kind, fields, status, expires_at <= now() AS expired, result,
+  coalesce(extract(epoch FROM now() - settled_at) / 60, 0)::float8 AS "minutesSinceSettled"`;
+
+/** Settled or expired drafts are deleted after this many days (they're only kept so a chat can say what became of them) */
+const KEEP_DAYS = 30;
 
 /** Keeps a checked draft for this admin. Returns its id, the only thing the card gets. */
 export async function saveDraft(userId: number, kind: DraftKind, fields: Record<string, string>): Promise<string> {
+  // Tidy up this admin's old drafts first (4.11): settled or expired ones over a month old
+  await query(
+    `DELETE FROM assistant_drafts WHERE user_id = $1 AND created_at < now() - make_interval(days => $2)
+       AND (status <> 'pending' OR expires_at <= now())`,
+    [userId, KEEP_DAYS],
+  );
   const [row] = await query<{ id: string }>(
     `INSERT INTO assistant_drafts (user_id, kind, fields, expires_at)
      VALUES ($1, $2, $3::jsonb, now() + make_interval(hours => $4))
@@ -46,8 +61,7 @@ const DRAFT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 export async function getDraft(id: string, userId: number): Promise<Draft | null> {
   if (!DRAFT_ID.test(id)) return null;
   const [row] = await query<Draft>(
-    `SELECT id, kind, fields, status, expires_at <= now() AS expired, result
-     FROM assistant_drafts WHERE id = $1 AND user_id = $2`,
+    `SELECT ${DRAFT_COLUMNS} FROM assistant_drafts WHERE id = $1 AND user_id = $2`,
     [id, userId],
   );
   return row ?? null;
@@ -74,6 +88,20 @@ export async function finishDraft(id: string, result: string): Promise<void> {
   await query(`UPDATE assistant_drafts SET result = $2 WHERE id = $1 AND status = 'confirmed'`, [id, result]);
 }
 
+/**
+ * Cancel (4.11): pending → cancelled, only if it's this admin's and still pending (one already saved stays saved;
+ * an expired one can still be cancelled). True if it was cancelled now.
+ */
+export async function cancelPendingDraft(id: string, userId: number): Promise<boolean> {
+  if (!DRAFT_ID.test(id)) return false;
+  const rows = await query(
+    `UPDATE assistant_drafts SET status = 'cancelled', settled_at = now()
+     WHERE id = $1 AND user_id = $2 AND status = 'pending' RETURNING id`,
+    [id, userId],
+  );
+  return rows.length === 1;
+}
+
 /** A claimed draft that couldn't be saved (e.g. the vehicle was booked meanwhile) goes back to pending */
 export async function releaseDraft(id: string): Promise<void> {
   await query(`UPDATE assistant_drafts SET status = 'pending', settled_at = NULL WHERE id = $1 AND status = 'confirmed' AND result IS NULL`, [id]);
@@ -90,8 +118,7 @@ export async function draftsOf(ids: string[], userId: number): Promise<Map<strin
   const valid = [...new Set(ids.filter((id) => DRAFT_ID.test(id)))].slice(0, MAX_HISTORY_DRAFTS);
   if (!valid.length) return new Map();
   const rows = await query<Draft>(
-    `SELECT id, kind, fields, status, expires_at <= now() AS expired, result
-     FROM assistant_drafts WHERE id = ANY($1::uuid[]) AND user_id = $2`,
+    `SELECT ${DRAFT_COLUMNS} FROM assistant_drafts WHERE id = ANY($1::uuid[]) AND user_id = $2`,
     [valid, userId],
   );
   return new Map(rows.map((d) => [d.id, d]));

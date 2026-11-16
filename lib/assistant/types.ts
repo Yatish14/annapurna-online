@@ -19,7 +19,8 @@ export type Card =
       icon: IconName;
       fields: { label: string; value: string }[];
       warning?: string;
-      status: "pending" | "confirmed" | "cancelled";
+      /** expired: found to be past its 24 hours when Confirm or Cancel was pressed (4.11) */
+      status: "pending" | "confirmed" | "cancelled" | "expired";
       /** True while Confirm is saving it (the buttons wait) */
       saving?: boolean;
       /** Shown after Confirm, e.g. "Saved as VB-0042" */

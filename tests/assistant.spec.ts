@@ -135,9 +135,12 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   await expect(draftCard).toContainText("Vijayawada → Guntur");
   await expect(draftCard).toContainText("(2 days)");
   await expect(draftCard).toContainText("₹9,000");
-  // Cancel closes it
+  // Cancel closes it, on the server too (4.11): the next question's history says it was cancelled
   await draftCard.getByRole("button", { name: "Cancel" }).click();
   await expect(draftCard).toContainText("Cancelled. Nothing was saved.");
+  await expect(draftCard.locator(".ap-badge")).toHaveText("Cancelled");
+  await ask("[history] Did I book it?");
+  await expect(latest()).toContainText("[After this answer: the admin cancelled the booking draft. Nothing was saved.]");
   // And really nothing was saved: still the 2 upcoming test bookings
   await ask('[tool:list_bookings {"status":"upcoming"}] Upcoming again?');
   await expect(latest()).toContainText("Tools used: list_bookings: found, 2 in total.");
@@ -235,9 +238,13 @@ test("Open in form fills the booking form from a draft, and the draft becomes on
   await expect(form.getByText(`Booking ${tripNo} created.`)).toBeVisible();
   expect(await (await page.request.get("/admin/expenses/activity")).text()).toContain("from an Annapurna Assist draft");
 
-  // Back in the chat's tab, the card's Confirm is refused: the draft is used up
+  // Back in the chat's tab, the card's Confirm is refused: the draft is used up, and the card now shows what it
+  // became, as the server knows it (4.11)
   await card.getByRole("button", { name: "Confirm" }).click();
-  await expect(page.getByText(`Already saved as ${tripNo}.`)).toBeVisible();
+  await expect(page.getByText("This draft was already saved.")).toBeVisible();
+  await expect(card).toContainText(`Saved as ${tripNo}.`);
+  await expect(card.locator(".ap-badge")).toHaveText("Saved");
+  await expect(card.getByRole("link", { name: "Open the booking" })).toHaveAttribute("href", `/admin/expenses/bookings/${tripNo}`);
 
   // And the form's link now says so instead of filling the form again
   await form.goto(formUrl);

@@ -88,6 +88,7 @@ const DRAFT_BADGE = {
   pending: { className: "is-pending", text: "Draft" },
   confirmed: { className: "is-confirmed", text: "Saved" },
   cancelled: { className: "is-cancelled", text: "Cancelled" },
+  expired: { className: "is-cancelled", text: "Expired" },
 } as const;
 
 /** A booking, payment or fuel entry the assistant prepared. Only the Confirm button saves it. */
@@ -156,6 +157,7 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
         </p>
       )}
       {card.status === "cancelled" && <p className="as-draft-done ap-muted">Cancelled. Nothing was saved.</p>}
+      {card.status === "expired" && <p className="as-draft-done ap-muted">Expired. Nothing was saved. Ask again for a new draft.</p>}
     </section>
   );
 }

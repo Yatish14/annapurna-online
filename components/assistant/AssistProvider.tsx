@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { confirmDraft as confirmOnServer, type ConfirmResult } from "@/app/admin/assistant/actions";
+import { cancelDraft as cancelOnServer, confirmDraft as confirmOnServer, type DraftActionResult } from "@/app/admin/assistant/actions";
 import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
@@ -249,24 +249,29 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
   }
 
   /**
-   * Confirm: the server action (app/admin/assistant/actions.ts) gets only the draft's id, loads the values kept on
-   * the server, checks them again and saves the booking. A second click while it works does nothing here, and the
-   * server would refuse it anyway.
+   * Confirm and Cancel: the server actions (app/admin/assistant/actions.ts) get only the draft's id and do the work
+   * on the server: Confirm loads the values kept there, checks them again and saves; Cancel marks the draft
+   * cancelled so nothing can confirm it later (4.11). A second click while one is working does nothing here, and
+   * the server would refuse it anyway.
    */
-  async function confirmDraft(card: DraftCard) {
+  async function onServer(card: DraftCard, action: typeof confirmOnServer, done: (r: Extract<DraftActionResult, { ok: true }>) => Partial<DraftCard>) {
     if (!canUse) return notify(VIEW_ONLY.draft);
     if (settled.current.has(card.id)) return;
     settled.current.add(card.id);
     settleDraft(card.id, { saving: true });
-    let result: ConfirmResult;
+    let result: DraftActionResult;
     try {
-      result = await confirmOnServer(card.id);
+      result = await action(card.id);
     } catch {
-      // No answer: it may or may not have been saved, so don't offer to press again blindly
+      // No answer: it may or may not have happened, so don't offer to press again blindly
       result = { ok: false, error: "No answer from the server. Check the Bookings page before trying again." };
     }
     if (result.ok) {
-      settleDraft(card.id, { saving: false, status: "confirmed", result: result.message, resultHref: result.href });
+      settleDraft(card.id, { saving: false, ...done(result) });
+    } else if (result.card) {
+      // The server knows better: saved in another tab, cancelled, or expired. The card shows that now.
+      settleDraft(card.id, { saving: false, ...result.card });
+      toasts.notify(result.error, "info");
     } else {
       settled.current.delete(card.id); // still a draft: it can be pressed again after fixing what's wrong
       settleDraft(card.id, { saving: false });
@@ -274,11 +279,12 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     }
   }
 
+  function confirmDraft(card: DraftCard) {
+    void onServer(card, confirmOnServer, (r) => ({ status: "confirmed", result: r.message, resultHref: r.href }));
+  }
+
   function cancelDraft(card: DraftCard) {
-    if (!canUse) return notify(VIEW_ONLY.draft);
-    if (settled.current.has(card.id)) return;
-    settled.current.add(card.id);
-    settleDraft(card.id, { status: "cancelled" });
+    void onServer(card, cancelOnServer, () => ({ status: "cancelled" }));
   }
 
   function deleteChat(id: string) {

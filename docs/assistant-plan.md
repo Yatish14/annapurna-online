@@ -144,7 +144,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **4.8** "Open in booking form" → the create form, filled in from the draft. (`/admin/expenses/bookings/new?draft=<id>` loads it on the server for its owner; saving the form uses the draft up the way Confirm does, so a draft becomes one booking only; logged "from an Annapurna Assist draft".)
 - [x] **4.9** Payment draft: tool, card, confirm. (`draft_payment` in `tools/payments.ts`: the booking by number or customer name, with choices; payment checks and saving shared with the booking page in `lib/expenses/paymentInput.ts`; Confirm saves it once, logged "via Annapurna Assist".)
 - [x] **4.10** Fuel draft: tool, card, confirm. (`draft_fuel` in `tools/fuel.ts`: on a booking or straight on a vehicle; warns about an odd price per litre; fuel checks and saving shared with the fuel form in `lib/expenses/fuelInput.ts`; booking lookup shared with payments in `tools/findBooking.ts`.)
-- [ ] **4.11** Drafts can be cancelled and expire.
+- [x] **4.11** Drafts can be cancelled and expire. (Cancel is a server action; a draft found saved, cancelled or expired updates its card; a save that broke off halfway is reported, never retried; settled or expired drafts are deleted after 30 days.)
 - [ ] **4.12** Tests: a draft never writes; confirm writes exactly once, even on a double-click.
 
 ## Step 5 — Saved conversations
