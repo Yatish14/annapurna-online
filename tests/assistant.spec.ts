@@ -63,6 +63,9 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   const box = chat.getByLabel("Your question");
   const latest = () => chat.locator(".as-msg.is-assistant").last();
   async function ask(question: string) {
+    // Wait for the previous answer to finish (no Stop button): the chat ignores questions while it's answering, and a
+    // card can appear before the answer's last words, so seeing the card isn't enough
+    await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
     await box.fill(question);
     await box.press("Enter");
   }
