@@ -191,6 +191,60 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   await expect(latest().locator(".as-steps li.is-running")).toHaveCount(0);
 });
 
+// 4.8: "Open in form" fills the booking form from the draft kept on the server, and saving the form uses the draft
+// up, so the chat's Confirm can't save the same booking again
+test("Open in form fills the booking form from a draft, and the draft becomes one booking only", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const card = chat.locator(".as-msg.is-assistant").last().locator(".as-draft");
+  // 50 days from now: the Test Carens is free (the other tests book days 3–4, 10, 30–31 and 40–41)
+  const inDays = (n: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(Date.now() + n * 86_400_000);
+  const draft = {
+    customer_name: "Form Draft Customer",
+    customer_phone: "9876500050",
+    vehicle: "Carens",
+    driver: "Test Driver",
+    start_date: inDays(50),
+    days: 2,
+    pickup_city: "Vijayawada",
+    drop_city: "Guntur",
+    total_amount: 7000,
+  };
+  await chat.getByLabel("Your question").fill(`[tool:draft_booking ${JSON.stringify(draft)}] Book it`);
+  await chat.getByLabel("Your question").press("Enter");
+  await expect(card).toContainText("Form Draft Customer");
+
+  // The form opens filled in: the address carries only the draft's id, the values come from the server.
+  // In a second tab, so the chat stays open in the first for the end of the test.
+  const formUrl = (await card.getByRole("link", { name: "Open in form" }).getAttribute("href"))!;
+  expect(formUrl).toMatch(/^\/admin\/expenses\/bookings\/new\?draft=[0-9a-f-]{36}$/);
+  const form = await page.context().newPage();
+  await form.goto(formUrl);
+  await expect(form.getByText("Filled in from Annapurna Assist's draft.")).toBeVisible();
+  await expect(form.locator('input[name="customer_name"]')).toHaveValue("Form Draft Customer");
+  await expect(form.locator('input[name="customer_phone"]')).toHaveValue("9876500050");
+  await expect(form.locator('input[name="start_date"]')).toHaveValue(inDays(50));
+  await expect(form.locator('input[name="end_date"]')).toHaveValue(inDays(51)); // 2 days, counted by our code
+  await expect(form.locator('input[name="total_amount"]')).toHaveValue("7000");
+
+  // Saved from the form, and the log says where it started
+  await form.getByRole("button", { name: "Create booking" }).click();
+  await expect(form).toHaveURL(/\/admin\/expenses\/bookings\/VB-\d{4}$/);
+  const tripNo = form.url().split("/").at(-1)!;
+  await expect(form.getByText(`Booking ${tripNo} created.`)).toBeVisible();
+  expect(await (await page.request.get("/admin/expenses/activity")).text()).toContain("from an Annapurna Assist draft");
+
+  // Back in the chat's tab, the card's Confirm is refused: the draft is used up
+  await card.getByRole("button", { name: "Confirm" }).click();
+  await expect(page.getByText(`Already saved as ${tripNo}.`)).toBeVisible();
+
+  // And the form's link now says so instead of filling the form again
+  await form.goto(formUrl);
+  await expect(form.getByText(`That draft is already saved as ${tripNo}`)).toBeVisible();
+  await expect(form.locator('input[name="customer_name"]')).toHaveValue("");
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");

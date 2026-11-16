@@ -56,7 +56,8 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
       title: "New booking",
       icon: "bookings",
       status: "pending",
-      formHref: "/admin/expenses/bookings/new",
+      // Only the id: the form page loads the values from the server, for this admin (4.8)
+      formHref: `/admin/expenses/bookings/new?draft=${draft_id}`,
       fields: [
         { label: "Customer", value: `${b.customer} · ${b.phone}` },
         { label: "Route", value: b.route },

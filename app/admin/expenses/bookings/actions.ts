@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
+import { claimDraft, finishDraft, getDraft, releaseDraft } from "@/lib/assistant/draftStore";
 import { requireUser } from "@/lib/auth";
 import { isIsoDate, nowLocalIST, parseLocalIST } from "@/lib/dates";
 import { formatRupees, isPaymentMethod, parseAmount, parseWhole } from "@/lib/expenses/money";
@@ -66,9 +67,25 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
   const { vehicle } = check;
 
   if (id === null) {
+    // Filled in from an Annapurna Assist draft ("Open in form", 4.8): take the draft first, as its Confirm button
+    // does, so the same draft can't become two bookings (one here, one from the chat). A draft that's expired or
+    // cancelled doesn't stop the form: what's in the form now is the admin's own.
+    const draftId = text(fd, "from_draft");
+    const claimed = draftId ? (await claimDraft(draftId, user.id)) !== null : false;
+    if (draftId && !claimed) {
+      const draft = await getDraft(draftId, user.id);
+      if (draft?.status === "confirmed") {
+        return { error: draft.result ? `This draft was already saved as ${draft.result}.` : "This draft is being saved already." };
+      }
+    }
+
     // Saved and logged the same way as a booking confirmed in Annapurna Assist (lib/expenses/tripInput.ts)
-    const saved = await createCheckedTrip(parsed, check, user);
-    if (!saved.ok) return { error: saved.error, field: saved.field };
+    const saved = await createCheckedTrip(parsed, check, user, claimed ? "from an Annapurna Assist draft" : undefined);
+    if (!saved.ok) {
+      if (claimed) await releaseDraft(draftId);
+      return { error: saved.error, field: saved.field };
+    }
+    if (claimed) await finishDraft(draftId, saved.tripNo);
     refresh();
     redirect(withFlash(tripPath(saved.tripNo), "trip-created", saved.tripNo));
   }

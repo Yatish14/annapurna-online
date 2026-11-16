@@ -4,9 +4,9 @@ import { signIn } from "./users";
 // The booking form, through the browser like a person uses it. Its checks live in lib/expenses/tripInput.ts, shared
 // with Annapurna Assist's drafts (task 4.1), so this makes sure the form still saves and still refuses what it should.
 //
-// It adds a booking (VB-0004) to the test database. Files run one at a time in name order, so assistant.spec.ts
-// (which counts the 2 test bookings, then confirms a draft as VB-0003) has already run. A test that needs to count
-// bookings goes before this file.
+// It adds a booking to the test database. Files run one at a time in name order, so assistant.spec.ts (which counts
+// the 2 test bookings, then saves its own from drafts) has already run. A test that needs to count bookings goes
+// before this file.
 
 /** A date some days from today in India, as the date box wants it: "2026-11-20" */
 const inDays = (n: number) =>
@@ -42,7 +42,8 @@ test("the booking form refuses a busy vehicle and saves a free one", async ({ pa
   await page.locator('input[name="start_date"]').fill(inDays(40));
   await page.locator('input[name="end_date"]').fill(inDays(41));
   await page.getByRole("button", { name: "Create booking" }).click();
-  await expect(page).toHaveURL(/\/admin\/expenses\/bookings\/VB-0004/);
-  await expect(page.getByText("Booking VB-0004 created.")).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/expenses\/bookings\/VB-\d{4}$/);
+  const tripNo = page.url().split("/").at(-1)!; // the next number, after the assistant tests' bookings
+  await expect(page.getByText(`Booking ${tripNo} created.`)).toBeVisible();
   await expect(page.getByText("Form Test Customer").first()).toBeVisible();
 });

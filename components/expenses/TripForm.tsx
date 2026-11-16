@@ -20,6 +20,9 @@ type Props = {
   cancelHref: string;
   /** Editing: what the customer has paid and the fuel entered so far (the form can add one more of each) */
   soFar?: { received: number; fuel: number };
+  /** A new booking filled in from Annapurna Assist's draft (its id): saving it uses up the draft, so the chat's
+   *  Confirm can't save the same booking a second time (4.8) */
+  fromDraft?: string;
 };
 
 /** The list from the server plus any added on this form (the server list has them too after its refresh) */
@@ -38,7 +41,7 @@ function tripKm(v: Pick<TripFormValues, "odometer_start" | "odometer_end">): num
 const dayCount = (start: string, end: string) =>
   start && end && end >= start ? Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1 : 0;
 
-export default function TripForm({ tripId, initial, vehicles: serverVehicles, drivers: serverDrivers, cancelHref, soFar }: Props) {
+export default function TripForm({ tripId, initial, vehicles: serverVehicles, drivers: serverDrivers, cancelHref, soFar, fromDraft }: Props) {
   const isNew = tripId === undefined;
   const [v, setV] = useState<TripFormValues>(initial);
   const [state, formAction, pending] = useActionState<TripFormState, FormData>(saveTrip, {});
@@ -99,6 +102,7 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
         }}
       >
         {tripId !== undefined && <input type="hidden" name="id" value={tripId} />}
+        {fromDraft && <input type="hidden" name="from_draft" value={fromDraft} />}
 
         <div ref={alert} aria-live="polite">
           {state.error && <p className="ap-alert ap-alert-error">{state.error}</p>}
