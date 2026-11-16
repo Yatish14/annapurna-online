@@ -129,6 +129,8 @@ export const draftBooking = tool(
       advance_method: a.advance_method ?? "cash",
       driver_amount: a.driver_amount != null ? String(a.driver_amount) : "",
       notes: a.notes ?? "",
+      // As the form sends it after "book anyway": Confirm checks again with the same answer (4.6)
+      ...(a.driver_is_busy_ok ? { allow_driver_clash: "1" } : {}),
     };
     const parsed = parseTrip(fromObject(fields), true);
     // The form's own message ("Choose the driver.", "The advance is more than the total…"), for the model to ask about

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { confirmDraft as confirmOnServer, type ConfirmResult } from "@/app/admin/assistant/actions";
 import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
@@ -240,12 +241,30 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     );
   }
 
-  function confirmDraft(card: DraftCard) {
+  /**
+   * Confirm: the server action (app/admin/assistant/actions.ts) gets only the draft's id, loads the values kept on
+   * the server, checks them again and saves the booking. A second click while it works does nothing here, and the
+   * server would refuse it anyway.
+   */
+  async function confirmDraft(card: DraftCard) {
     if (!canUse) return notify(VIEW_ONLY.draft);
     if (settled.current.has(card.id)) return;
-    // Saving from the chat comes in 4.6 (a server action that checks the draft again). Until then, say so plainly
-    // instead of pretending: the mockup's "Saved as VB-0042" saved nothing.
-    notify("Saving from the chat isn't switched on yet, so nothing was saved. Use the Bookings page for now.");
+    settled.current.add(card.id);
+    settleDraft(card.id, { saving: true });
+    let result: ConfirmResult;
+    try {
+      result = await confirmOnServer(card.id);
+    } catch {
+      // No answer: it may or may not have been saved, so don't offer to press again blindly
+      result = { ok: false, error: "No answer from the server. Check the Bookings page before trying again." };
+    }
+    if (result.ok) {
+      settleDraft(card.id, { saving: false, status: "confirmed", result: `Saved as ${result.tripNo}.`, resultHref: result.href });
+    } else {
+      settled.current.delete(card.id); // still a draft: it can be pressed again after fixing what's wrong
+      settleDraft(card.id, { saving: false });
+      toasts.notify(result.error, "error");
+    }
   }
 
   function cancelDraft(card: DraftCard) {

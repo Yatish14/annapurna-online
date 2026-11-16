@@ -52,3 +52,29 @@ export async function getDraft(id: string, userId: number): Promise<Draft | null
   );
   return row ?? null;
 }
+
+/**
+ * Takes a draft for confirming: pending → confirmed, only if it's this admin's, still pending and not expired. One
+ * statement, so of two Confirm clicks at the same moment (a double-click, two tabs) only one gets the values back;
+ * the other gets null. Returns the checked values to save.
+ */
+export async function claimDraft(id: string, userId: number): Promise<{ kind: DraftKind; fields: Record<string, string> } | null> {
+  if (!DRAFT_ID.test(id)) return null;
+  const [row] = await query<{ kind: DraftKind; fields: Record<string, string> }>(
+    `UPDATE assistant_drafts SET status = 'confirmed', settled_at = now()
+     WHERE id = $1 AND user_id = $2 AND status = 'pending' AND expires_at > now()
+     RETURNING kind, fields`,
+    [id, userId],
+  );
+  return row ?? null;
+}
+
+/** After a claimed draft was saved: what it became, e.g. "VB-0042" */
+export async function finishDraft(id: string, result: string): Promise<void> {
+  await query(`UPDATE assistant_drafts SET result = $2 WHERE id = $1 AND status = 'confirmed'`, [id, result]);
+}
+
+/** A claimed draft that couldn't be saved (e.g. the vehicle was booked meanwhile) goes back to pending */
+export async function releaseDraft(id: string): Promise<void> {
+  await query(`UPDATE assistant_drafts SET status = 'pending', settled_at = NULL WHERE id = $1 AND status = 'confirmed' AND result IS NULL`, [id]);
+}

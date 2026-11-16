@@ -135,16 +135,25 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   await expect(draftCard).toContainText("Vijayawada → Guntur");
   await expect(draftCard).toContainText("(2 days)");
   await expect(draftCard).toContainText("₹9,000");
-  // Confirm saves nothing yet (4.6), and says so; the card stays a draft
-  await draftCard.getByRole("button", { name: "Confirm" }).click();
-  await expect(page.getByText("Saving from the chat isn't switched on yet, so nothing was saved.")).toBeVisible();
-  await expect(draftCard.locator(".ap-badge")).toHaveText("Draft");
   // Cancel closes it
   await draftCard.getByRole("button", { name: "Cancel" }).click();
   await expect(draftCard).toContainText("Cancelled. Nothing was saved.");
   // And really nothing was saved: still the 2 upcoming test bookings
   await ask('[tool:list_bookings {"status":"upcoming"}] Upcoming again?');
   await expect(latest()).toContainText("Tools used: list_bookings: found, 2 in total.");
+
+  // The same draft again, confirmed this time: the server saves it as the next booking (4.6)
+  await ask(`[tool:draft_booking ${JSON.stringify(draft)}] Book the Carens again`);
+  const confirmCard = latest().locator(".as-draft");
+  await confirmCard.getByRole("button", { name: "Confirm" }).click();
+  await expect(confirmCard).toContainText("Saved as VB-0003.");
+  await expect(confirmCard.locator(".ap-badge")).toHaveText("Saved");
+  await expect(confirmCard.getByRole("link", { name: "Open the booking" })).toHaveAttribute("href", "/admin/expenses/bookings/VB-0003");
+  // It's really there: 3 upcoming now, and the activity log says where it came from
+  await ask('[tool:list_bookings {"status":"upcoming"}] And now?');
+  await expect(latest()).toContainText("Tools used: list_bookings: found, 3 in total.");
+  const activity = await page.request.get("/admin/expenses/activity");
+  expect(await activity.text()).toContain("via Annapurna Assist");
 
   // A model that keeps asking for tools: stopped after 4 rounds with the graph's own answer, no chip left spinning (2.14)
   await ask("[loop] Keep checking the date");

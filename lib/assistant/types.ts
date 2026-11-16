@@ -20,8 +20,12 @@ export type Card =
       fields: { label: string; value: string }[];
       warning?: string;
       status: "pending" | "confirmed" | "cancelled";
+      /** True while Confirm is saving it (the buttons wait) */
+      saving?: boolean;
       /** Shown after Confirm, e.g. "Saved as VB-0042" */
       result?: string;
+      /** The saved booking's page, linked from the result */
+      resultHref?: string;
       formHref: string;
     }
   | {

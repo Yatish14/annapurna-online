@@ -5,16 +5,14 @@ import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { requireUser } from "@/lib/auth";
 import { isIsoDate, nowLocalIST, parseLocalIST } from "@/lib/dates";
-import { formatNumber, formatRupees, isPaymentMethod, parseAmount, parseWhole } from "@/lib/expenses/money";
+import { formatRupees, isPaymentMethod, parseAmount, parseWhole } from "@/lib/expenses/money";
 import { cleanPlace, isState } from "@/lib/expenses/places";
 import {
   addExpense,
   addPayment,
   clashText,
-  createTrip,
   expenseText,
   getTripById,
-  kmOf,
   paymentText,
   removeExpense,
   removePayment,
@@ -24,7 +22,7 @@ import {
   EXPENSE_LABELS,
   type ExpenseInput,
 } from "@/lib/expenses/trips";
-import { checkTrip, fromForm, parseTrip } from "@/lib/expenses/tripInput";
+import { checkTrip, createCheckedTrip, fromForm, parseTrip } from "@/lib/expenses/tripInput";
 import { withFlash } from "../../filters";
 
 const EXPENSE_ANCHORS = { fuel: "#fuel", other: "#other-expenses", repair: "#repairs", fastag: "#fastag", emi: "#emi", insurance: "#insurance" } as const;
@@ -65,35 +63,14 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
   // Vehicle and driver in use and free on those days (the form asks before saving with a busy driver)
   const check = await checkTrip(input, { before, allowDriverClash: fd.get("allow_driver_clash") === "1" });
   if (!check.ok) return "driverClash" in check ? { driverClash: check.driverClash } : { error: check.error, field: check.field };
-  const { vehicle, driver } = check;
+  const { vehicle } = check;
 
   if (id === null) {
-    const result = await createTrip(input, parsed, parsed.advance, parsed.fuel, user.name);
-    if (!result.ok) {
-      return {
-        error: `${vehicle.name} is already booked on these days${result.clash ? `: ${clashText(result.clash)}` : ""}. Choose other dates or another vehicle.`,
-        field: "start_date",
-      };
-    }
-    const route = input.roundTrip
-      ? `${input.pickupCity} → ${input.destCity} → ${input.pickupCity} (round trip)`
-      : `${input.pickupCity} → ${input.dropCity}`;
-    const km = kmOf({ odometer_start: parsed.odometerStart, odometer_end: parsed.odometerEnd, km_direct: parsed.kmDirect });
-    await logActivity(
-      user,
-      "trip.created",
-      result.trip_no,
-      [`${input.customerName} (${input.customerPhone})`, `${vehicle.name} with ${driver.name}`, route,
-        km !== null ? `${formatNumber(km)} km` : null,
-        parsed.totalAmount !== null ? `Total ${formatRupees(parsed.totalAmount)}` : null].filter(Boolean).join(" · "),
-    );
-    if (parsed.advance) await logActivity(user, "payment.received", result.trip_no, `${paymentText(parsed.advance)} · Advance`);
-    if (parsed.fuel) {
-      const fuelText = expenseText({ kind: "fuel", amount: parsed.fuel.amount, litres: parsed.fuel.litres, description: null, shop_name: null, shop_city: null, shop_state: null, note: null });
-      await logActivity(user, "expense.fuel_added", result.trip_no, `${fuelText} · ${vehicle.name}`);
-    }
+    // Saved and logged the same way as a booking confirmed in Annapurna Assist (lib/expenses/tripInput.ts)
+    const saved = await createCheckedTrip(parsed, check, user);
+    if (!saved.ok) return { error: saved.error, field: saved.field };
     refresh();
-    redirect(withFlash(tripPath(result.trip_no), "trip-created", result.trip_no));
+    redirect(withFlash(tripPath(saved.tripNo), "trip-created", saved.tripNo));
   }
 
   // A payment added while editing: with what is already received, it can't go past the total

@@ -1,9 +1,10 @@
 import { isValidMobile, normalizeMobile } from "../auth";
 import { diffDays, isIsoDate, todayIST } from "../dates";
 import { fleetChoices } from "./fleet";
-import { isPaymentMethod, parseAmount, parseWhole, PAYMENT_METHODS } from "./money";
+import { logActivity, type Actor } from "../activity";
+import { formatNumber, formatRupees, isPaymentMethod, parseAmount, parseWhole, PAYMENT_METHODS } from "./money";
 import { cleanPlace, isState } from "./places";
-import { clashText, findClash, type Trip, type TripInput } from "./trips";
+import { clashText, createTrip, expenseText, findClash, kmOf, paymentText, type Trip, type TripInput } from "./trips";
 
 /**
  * A booking's checks, in one place: the booking form (app/admin/expenses/bookings/actions.ts) and Annapurna Assist's
@@ -184,4 +185,47 @@ export async function checkTrip(
     if (clash) return { ok: false, driverClash: `${driver.name} is already driving ${clashText(clash)}.`, vehicle, driver };
   }
   return { ok: true, vehicle, driver };
+}
+
+/**
+ * Saves a new booking that passed parseTrip and checkTrip, with its activity log entries (the booking, and its
+ * advance and fuel if any). The booking form and Annapurna Assist's Confirm both save through here (4.6), so a
+ * booking made in the chat is saved and logged exactly like one made in the form. `via` ends the log entry, e.g.
+ * "via Annapurna Assist".
+ */
+export async function createCheckedTrip(
+  parsed: Extract<ParsedTrip, { ok: true }>,
+  { vehicle, driver }: { vehicle: Choice; driver: Choice },
+  user: Actor,
+  via?: string,
+): Promise<{ ok: true; tripNo: string } | { ok: false; error: string; field: string }> {
+  const { input } = parsed;
+  const result = await createTrip(input, parsed, parsed.advance, parsed.fuel, user.name);
+  if (!result.ok) {
+    // Booked by someone else between the check and the save: the database refused it
+    return {
+      ok: false,
+      error: `${vehicle.name} is already booked on these days${result.clash ? `: ${clashText(result.clash)}` : ""}. Choose other dates or another vehicle.`,
+      field: "start_date",
+    };
+  }
+  const route = input.roundTrip
+    ? `${input.pickupCity} → ${input.destCity} → ${input.pickupCity} (round trip)`
+    : `${input.pickupCity} → ${input.dropCity}`;
+  const km = kmOf({ odometer_start: parsed.odometerStart, odometer_end: parsed.odometerEnd, km_direct: parsed.kmDirect });
+  await logActivity(
+    user,
+    "trip.created",
+    result.trip_no,
+    [`${input.customerName} (${input.customerPhone})`, `${vehicle.name} with ${driver.name}`, route,
+      km !== null ? `${formatNumber(km)} km` : null,
+      parsed.totalAmount !== null ? `Total ${formatRupees(parsed.totalAmount)}` : null,
+      via ?? null].filter(Boolean).join(" · "),
+  );
+  if (parsed.advance) await logActivity(user, "payment.received", result.trip_no, `${paymentText(parsed.advance)} · Advance`);
+  if (parsed.fuel) {
+    const fuelText = expenseText({ kind: "fuel", amount: parsed.fuel.amount, litres: parsed.fuel.litres, description: null, shop_name: null, shop_city: null, shop_state: null, note: null });
+    await logActivity(user, "expense.fuel_added", result.trip_no, `${fuelText} · ${vehicle.name}`);
+  }
+  return { ok: true, tripNo: result.trip_no };
 }

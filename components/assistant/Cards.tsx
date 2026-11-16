@@ -121,8 +121,9 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
 
       {card.status === "pending" && (
         <div className="as-draft-actions">
-          <button type="button" className="ap-btn ap-btn-gold" onClick={() => onConfirm(card)} {...locked}>
-            <Icon name="check" size={16} /> Confirm
+          {/* While saving, the buttons wait (the server also saves a draft only once, however often it's pressed) */}
+          <button type="button" className="ap-btn ap-btn-gold" onClick={() => onConfirm(card)} disabled={card.saving} {...locked}>
+            <Icon name="check" size={16} /> {card.saving ? "Saving…" : "Confirm"}
           </button>
           <Link
             href={card.formHref}
@@ -136,7 +137,7 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
           >
             <Icon name="edit" size={16} /> Open in form
           </Link>
-          <button type="button" className="ap-btn ap-btn-ghost" onClick={() => onCancel(card)} {...locked}>
+          <button type="button" className="ap-btn ap-btn-ghost" onClick={() => onCancel(card)} disabled={card.saving} {...locked}>
             Cancel
           </button>
         </div>
@@ -144,6 +145,14 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
       {card.status === "confirmed" && (
         <p className="ap-note ap-note-ok as-draft-done">
           <Icon name="check" size={16} /> {card.result}
+          {card.resultHref && (
+            <>
+              {" "}
+              <Link href={card.resultHref} className="ap-link">
+                Open the booking
+              </Link>
+            </>
+          )}
         </p>
       )}
       {card.status === "cancelled" && <p className="as-draft-done ap-muted">Cancelled. Nothing was saved.</p>}
