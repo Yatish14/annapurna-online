@@ -203,3 +203,52 @@ export const searchBookings = tool(
     responseFormat: "content_and_artifact",
   },
 );
+
+/**
+ * expense_statement: a booking's expense statement, the one-page PDF for the customer (total, payments received,
+ * balance to pay), from the booking page's "Expense statement (PDF)" button. Follows the same rules as that button
+ * and its route: only for a booking that isn't cancelled and has its total entered.
+ */
+export const expenseStatement = tool(
+  async ({ number }) => {
+    const no = bookingNumber(number);
+    const trip = no ? await getTrip(no) : null;
+    if (!trip) return toolReply({ status: "none", data: null, note: `There is no booking ${no ?? number}.` });
+    // The same two checks as /admin/expenses/bookings/[tripNo]/statement, so the link never leads to an error page
+    if (trip.status !== "booked") {
+      return toolReply({ status: "failed", data: null, note: `${trip.trip_no} is cancelled, so it has no expense statement.` });
+    }
+    if (trip.total_amount === null) {
+      return toolReply({
+        status: "failed",
+        data: null,
+        note: `${trip.trip_no} has no total from the customer yet. Enter it on the booking's page first, then the statement can be made.`,
+      });
+    }
+    return toolReply({
+      status: "found",
+      data: {
+        no: trip.trip_no,
+        customer: freeText(trip.customer_name, 60),
+        total: trip.total_amount,
+        received: trip.received,
+        balance: balanceOf(trip),
+        file: `expense-statement-${trip.trip_no}.pdf`,
+        url: `/admin/expenses/bookings/${trip.trip_no}/statement`,
+        page: `/admin/expenses/bookings/${trip.trip_no}`,
+      },
+    });
+  },
+  {
+    name: "expense_statement",
+    description:
+      "Gets a booking's expense statement: the one-page PDF for the customer with the total, the payments received " +
+      "and the balance still to pay (no vehicle or driver details). The admin gets a Download button for it. Use it " +
+      "when the admin wants a statement, bill or PDF to send a customer. Only for bookings that aren't cancelled and " +
+      "have their total entered.",
+    schema: z.object({
+      number: z.string().max(20).describe("The booking number, e.g. VB-0012 (12 or vb12 work too)."),
+    }),
+    responseFormat: "content_and_artifact",
+  },
+);

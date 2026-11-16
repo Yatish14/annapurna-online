@@ -100,6 +100,15 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   expect(pdf.status()).toBe(200);
   expect(pdf.headers()["content-type"]).toBe("application/pdf");
 
+  // A booking's expense statement: a file card whose Download link really gives the PDF (3.4)
+  await ask('[tool:expense_statement {"number":"VB-0001"}] Statement for the first booking');
+  const statement = latest().locator(".as-file");
+  await expect(statement).toContainText("expense-statement-VB-0001.pdf");
+  await expect(statement).toContainText("For Test Customer One · total ₹12,000, paid ₹0, ₹12,000 to pay");
+  const statementPdf = await page.request.get("/admin/expenses/bookings/VB-0001/statement");
+  await expect(statement.getByRole("link", { name: "Download" })).toHaveAttribute("href", "/admin/expenses/bookings/VB-0001/statement");
+  expect(statementPdf.headers()["content-type"]).toBe("application/pdf");
+
   // A model that keeps asking for tools: stopped after 4 rounds with the graph's own answer, no chip left spinning (2.14)
   await ask("[loop] Keep checking the date");
   await expect(latest()).toContainText("I looked things up several times for this and stopped there");

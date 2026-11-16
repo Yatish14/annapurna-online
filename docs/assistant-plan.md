@@ -130,7 +130,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **3.1** `report` tool (bookings, customers, drivers, vehicles or all, for a month): headline numbers + a link to the existing PDF download (the app has PDFs, not CSV).
 - [x] **3.2** File card with a Download button (and a View link to the report's page; the prompt says never to write links).
 - [x] **3.3** "Last month" / "September" → a checked `YYYY-MM` value (`lib/assistant/months.ts`: month tools take the admin's words, our code works out the month).
-- [ ] **3.4** Expense statement tool: link to a booking's existing PDF.
+- [x] **3.4** Expense statement tool: link to a booking's existing PDF (`expense_statement`, same rules as the booking page's button).
 
 ## Step 4 — Creating data, with your confirmation
 

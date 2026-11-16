@@ -1,5 +1,6 @@
 import { tripsHref } from "@/app/admin/expenses/views";
 import { fmtShort } from "@/lib/dates";
+import { formatRupees } from "@/lib/expenses/money";
 import { TRIP_VIEWS, type TripView } from "@/lib/expenses/trips";
 import type { ToolResult } from "./tools/result";
 import type { BookingRow, Card } from "./types";
@@ -70,6 +71,18 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
       detail: `${title} · ${reports.map((r) => r.lists).join(", ")}`, // "Drivers report · October 2026 · 3 drivers"
       href: pdf.url,
       view: page,
+    };
+  },
+  // A booking's expense statement, with the same file name and link as the booking page's button
+  expense_statement: (_args, result) => {
+    const s = result.data as { no: string; customer: string; total: number; received: number; balance: number; file: string; url: string; page: string };
+    const owes = s.balance > 0 ? `${formatRupees(s.balance)} to pay` : "fully paid";
+    return {
+      kind: "file",
+      name: s.file, // "expense-statement-VB-0012.pdf"
+      detail: `For ${s.customer} · total ${formatRupees(s.total)}, paid ${formatRupees(s.received)}, ${owes}`,
+      href: s.url,
+      view: s.page,
     };
   },
   balances_due: (_args, result) => {

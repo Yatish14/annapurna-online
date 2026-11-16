@@ -31,6 +31,8 @@ const STEPS: Record<string, (args: Args) => ToolStep> = {
   driver_summary: (a) => ({ label: `Checked drivers${a.month ? ` for ${monthName(a.month)}` : ""}`, icon: "steering" }),
   print_orders: () => ({ label: "Checked printouts", icon: "printer" }),
   report: (a) => ({ label: `Read ${monthName(a.month)}'s report`, icon: "chart" }),
+  // Neutral words: the chip shows before the tool runs, and the booking may not exist or may have no total yet
+  expense_statement: (a) => ({ label: `Statement for ${text(a.number).toUpperCase() || "a booking"}`, icon: "receipt" }),
 };
 
 export function stepFor(name: string, args: Args = {}): ToolStep {
