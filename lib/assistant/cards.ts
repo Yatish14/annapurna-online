@@ -31,7 +31,44 @@ const counted = (title: string, shown: number, total: number) => `${title} (${sh
 const tableRows = (rows: BookingRow[]): BookingRow[] =>
   rows.map(({ no, customer, vehicle, driver, dates, balance }) => ({ no, customer, vehicle, driver, dates, balance }));
 
-const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | null> = {
+/** "not set yet" → "Not set yet" (the tool writes values for the model; the card starts them with a capital) */
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+type ReadyBooking = {
+  ready: boolean;
+  booking: Record<"customer" | "phone" | "vehicle" | "driver" | "dates" | "route" | "total" | "advance" | "driver_amount", string> & {
+    notes: string | null;
+  };
+  driver_busy: string | null;
+};
+
+const CARDS: Record<string, (args: Args, result: ToolResult<unknown>, callId: string) => Card | null> = {
+  // A booking ready to confirm (4.4). The card shows the checked values from the tool, not the model's words.
+  // Nothing is saved: Confirm comes in 4.6, and from 4.5 the id is a row in assistant_drafts, not the tool call's id.
+  draft_booking: (_args, result, callId) => {
+    const { ready, booking: b, driver_busy } = result.data as ReadyBooking;
+    if (!ready) return null;
+    return {
+      kind: "draft",
+      id: `draft-${callId}`,
+      title: "New booking",
+      icon: "bookings",
+      status: "pending",
+      formHref: "/admin/expenses/bookings/new",
+      fields: [
+        { label: "Customer", value: `${b.customer} · ${b.phone}` },
+        { label: "Route", value: b.route },
+        { label: "Dates", value: b.dates },
+        { label: "Vehicle", value: b.vehicle },
+        { label: "Driver", value: b.driver },
+        { label: "Total", value: capital(b.total) },
+        { label: "Advance", value: capital(b.advance) },
+        { label: "Driver's pay", value: capital(b.driver_amount) },
+        ...(b.notes ? [{ label: "Notes", value: b.notes }] : []),
+      ],
+      warning: driver_busy ? `${driver_busy} You said to book them anyway.` : undefined,
+    };
+  },
   list_bookings: (args, result) => {
     const { total, bookings } = result.data as Rows;
     if (!bookings.length) return null;
@@ -98,11 +135,11 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
 };
 
 /** The card for one finished tool call, or null. Never throws: a broken card mustn't break the answer. */
-export function cardFor(tool: string, args: Args, artifact: unknown): Card | null {
+export function cardFor(tool: string, args: Args, artifact: unknown, callId = ""): Card | null {
   const result = artifact as ToolResult<unknown> | undefined;
   if (!result || result.status === "failed" || result.status === "none" || !result.data) return null;
   try {
-    return CARDS[tool]?.(args, result) ?? null;
+    return CARDS[tool]?.(args, result, callId) ?? null;
   } catch (err) {
     console.error(`Annapurna Assist: couldn't make a card for ${tool}`, err);
     return null;

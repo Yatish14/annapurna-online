@@ -138,9 +138,13 @@ export const draftBooking = tool(
     }
     if (!check.ok) return ask(check.error, check.field);
 
-    // 3. Ready: the booking as the admin will check it. Still nothing saved.
+    // 3. Ready: the booking as the admin will check it on the card (4.4). Still nothing saved.
     const { input } = parsed;
     const days = diffDays(input.startDate, input.endDate) + 1;
+    // A busy driver the admin said to book anyway: the card says which booking they're already on. Checked again,
+    // because the model may set driver_is_busy_ok without being told the driver was busy.
+    const again = a.driver_is_busy_ok ? await checkTrip(input) : null;
+    const driverBusy = again && !again.ok && "driverClash" in again ? again.driverClash : null;
     return toolReply({
       status: "found",
       data: {
@@ -160,8 +164,11 @@ export const draftBooking = tool(
         },
         // The checked values, by the form's field names: kept for saving (4.5, 4.6) and for "Open in booking form" (4.8)
         fields,
+        driver_busy: driverBusy,
       },
-      note: "Checked with the booking form's rules. NOTHING IS SAVED: show the admin these details to check. Saving needs the admin's confirmation.",
+      note:
+        "Checked with the booking form's rules. NOTHING IS SAVED. The admin sees these details on a card under your " +
+        "answer, with Confirm, Open in form and Cancel buttons; only their Confirm saves it, you can't.",
     });
   },
   {

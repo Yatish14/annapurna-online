@@ -38,7 +38,7 @@ export async function* events(stream: AsyncIterable<[string, unknown]>): AsyncGe
       running.delete(message.tool_call_id);
       yield { type: "step", state: "done", id: message.tool_call_id, step: call.step };
       // The tool's own result (artifact), made into a card for the screen. The model only ever saw the content.
-      const card = cardFor(call.name, call.args, message.artifact);
+      const card = cardFor(call.name, call.args, message.artifact, message.tool_call_id);
       if (card) yield { type: "card", card };
     }
   }

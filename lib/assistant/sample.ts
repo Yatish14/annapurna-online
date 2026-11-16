@@ -238,18 +238,6 @@ export function sampleReply(question: string, today: string, draftId: string): R
   return unknownReply;
 }
 
-let nextBookingNo = 42;
-
-/** What Confirm answers in the sample. The real one comes back from the server action after it saves. */
-export function sampleConfirm(card: Extract<Card, { kind: "draft" }>): { result: string; reply: string } {
-  if (card.icon === "bookings") {
-    const no = `VB-${String(nextBookingNo++).padStart(4, "0")}`;
-    return { result: `Saved as ${no}`, reply: `Done. **${no}** is booked. Want me to record an advance?` };
-  }
-  if (card.icon === "rupee") return { result: "Payment saved on VB-0038", reply: "Done. VB-0038 is now **fully paid**." };
-  return { result: "Fuel saved on VB-0038", reply: "Done. The fuel is on VB-0038 and in what you owe Suresh Babu." };
-}
-
 // ---------- Saved chats for the history list ----------
 
 const ask = (id: string, text: string, time: string, voice?: boolean): Message => ({ id, role: "user", text, time, voice });

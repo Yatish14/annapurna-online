@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
-import { sampleConfirm } from "@/lib/assistant/sample";
 import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
@@ -244,10 +243,9 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
   function confirmDraft(card: DraftCard) {
     if (!canUse) return notify(VIEW_ONLY.draft);
     if (settled.current.has(card.id)) return;
-    settled.current.add(card.id);
-    const { result, reply } = sampleConfirm(card);
-    // The result goes back into the chat, so the conversation carries on from it
-    settleDraft(card.id, { status: "confirmed", result }, { id: newId("msg"), role: "assistant", text: reply, time: clock() });
+    // Saving from the chat comes in 4.6 (a server action that checks the draft again). Until then, say so plainly
+    // instead of pretending: the mockup's "Saved as VB-0042" saved nothing.
+    notify("Saving from the chat isn't switched on yet, so nothing was saved. Use the Bookings page for now.");
   }
 
   function cancelDraft(card: DraftCard) {
