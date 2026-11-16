@@ -140,7 +140,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **4.4** Confirmation card (as in the mockup). (Built from the tool's checked values in `cards.ts`; a busy driver booked anyway is a warning on it; Confirm says plainly it saves nothing until 4.6; the mockup's fake save removed.)
 - [x] **4.5** `assistant_drafts` table (owner, expiry); the card only carries an ID. *Learn: never trust data from the browser.* (`lib/assistant/draftStore.ts`: `saveDraft`, `getDraft` for the owner only; the admin's id comes from the session via `configurable`; drafts last 24 hours.)
 - [x] **4.6** Confirm button → server action re-checks, calls `createTrip`, logs "via Assistant". (`app/admin/assistant/actions.ts`; the draft is claimed in one statement so it saves once; form and Confirm both save through `createCheckedTrip`; a failed save puts the draft back to pending.)
-- [ ] **4.7** After confirming, the result goes back into the chat so the conversation continues.
+- [x] **4.7** After confirming, the result goes back into the chat so the conversation continues. (The chat sends its cards' draft ids with the history; the server adds what became of each, from the database: "[After this answer: … saved as VB-0042.]"; notes typed by the browser are removed; fake `[history]` tag to test it.)
 - [ ] **4.8** "Open in booking form" → the create form, filled in from the draft.
 - [ ] **4.9** Payment draft: tool, card, confirm.
 - [ ] **4.10** Fuel draft: tool, card, confirm.

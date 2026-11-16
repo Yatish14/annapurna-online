@@ -78,3 +78,39 @@ export async function finishDraft(id: string, result: string): Promise<void> {
 export async function releaseDraft(id: string): Promise<void> {
   await query(`UPDATE assistant_drafts SET status = 'pending', settled_at = NULL WHERE id = $1 AND status = 'confirmed' AND result IS NULL`, [id]);
 }
+
+/** At most this many draft ids are looked up for one question's history (the browser could send any number) */
+const MAX_HISTORY_DRAFTS = 20;
+
+/**
+ * This admin's drafts among the ids the chat history mentions (4.7). Ids that aren't drafts, or are another admin's,
+ * are simply left out. One query for the whole history.
+ */
+export async function draftsOf(ids: string[], userId: number): Promise<Map<string, Draft>> {
+  const valid = [...new Set(ids.filter((id) => DRAFT_ID.test(id)))].slice(0, MAX_HISTORY_DRAFTS);
+  if (!valid.length) return new Map();
+  const rows = await query<Draft>(
+    `SELECT id, kind, fields, status, expires_at <= now() AS expired, result
+     FROM assistant_drafts WHERE id = ANY($1::uuid[]) AND user_id = $2`,
+    [valid, userId],
+  );
+  return new Map(rows.map((d) => [d.id, d]));
+}
+
+const KIND_NAMES: Record<DraftKind, string> = { booking: "booking", payment: "payment", fuel: "fuel entry" };
+
+/**
+ * What became of a draft after the answer that showed it, for the model to read with that answer (4.7). Written by
+ * the server from the database, so the browser can't make the model believe something was saved.
+ */
+export function afterDraft(d: Draft): string {
+  const what = `the ${KIND_NAMES[d.kind]} draft`;
+  if (d.status === "confirmed") {
+    return d.result
+      ? `[After this answer: the admin pressed Confirm and ${what} was saved as ${d.result}.]`
+      : `[After this answer: the admin pressed Confirm and ${what} is being saved.]`;
+  }
+  if (d.status === "cancelled") return `[After this answer: the admin cancelled ${what}. Nothing was saved.]`;
+  if (d.expired) return `[After this answer: ${what} expired without being confirmed. Nothing was saved.]`;
+  return `[After this answer: ${what} is still waiting for the admin's Confirm. Nothing is saved yet.]`;
+}

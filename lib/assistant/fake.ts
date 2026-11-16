@@ -18,6 +18,8 @@ import { ChatGenerationChunk, type ChatResult } from "@langchain/core/outputs";
  *   [fail:429]    fails before the first word with that status (429 rate limit, 500 Google down, 401 bad key…)
  *   [cut]         fails after a few words, like a reply cut off halfway
  *   [slow]        writes slowly (about 4 s), so there's time to press Stop
+ *   [history]     quotes the end of the previous answer as the model was sent it, so a test can see what the
+ *                 server added to the history (e.g. "[After this answer: … saved as VB-0003.]", 4.7)
  */
 
 type Call = { name: string; args: Record<string, unknown> };
@@ -25,7 +27,7 @@ type Call = { name: string; args: Record<string, unknown> };
 type Turn = { text: string; calls?: Call[] };
 
 /** What the fake can see: the admin's question, what came before it, and this turn's tool results so far */
-type Seen = { question: string; earlier: number; results: ToolMessage[]; outOfRounds: boolean };
+type Seen = { question: string; earlier: number; lastAnswer: string; results: ToolMessage[]; outOfRounds: boolean };
 type Script = (seen: Seen) => Turn;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,6 +70,7 @@ class FakeModel extends BaseChatModel {
     return {
       question: questions.at(-1)?.text ?? "",
       earlier: questions.length - 1,
+      lastAnswer: beforeTools.filter((m) => AIMessage.isInstance(m)).at(-1)?.text ?? "",
       results: messages.filter((m): m is ToolMessage => ToolMessage.isInstance(m)),
       outOfRounds: firstResult !== -1 && HumanMessage.isInstance(messages.at(-1)),
     };
@@ -129,7 +132,7 @@ function resultText(m: ToolMessage): string {
 
 /** Instead of Gemini answering: tool calls from [tool:…] tags, then a test answer saying what they found */
 export function fakeMainModel() {
-  return new FakeModel(({ question, earlier, results, outOfRounds }) => {
+  return new FakeModel(({ question, earlier, lastAnswer, results, outOfRounds }) => {
     const status = /\[fail:(\d{3})\]/.exec(question)?.[1];
     if (status) {
       // Shaped like @langchain/google's errors, so the route's explain() treats it the same way
@@ -143,8 +146,9 @@ export function fakeMainModel() {
     if (calls.length && !results.length) return { text: "", calls };
     const used = results.length ? ` Tools used: ${results.map(resultText).join("; ")}.` : "";
     const note = outOfRounds ? " (Out of tool rounds.)" : "";
+    const last = question.includes("[history]") ? ` My last answer ended: "${lastAnswer.slice(-150)}".` : "";
     return {
-      text: `This is a **test answer** (ASSISTANT_FAKE=1), Gemini wasn't asked. You asked: "${question}". Earlier questions in this chat: ${earlier}.${used}${note}`,
+      text: `This is a **test answer** (ASSISTANT_FAKE=1), Gemini wasn't asked. You asked: "${question}". Earlier questions in this chat: ${earlier}.${used}${note}${last}`,
     };
   });
 }

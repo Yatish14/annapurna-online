@@ -1,5 +1,6 @@
 import { AIMessage, type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { can, currentUser } from "@/lib/auth";
+import { afterDraft, draftsOf } from "@/lib/assistant/draftStore";
 import { graph, RECURSION_LIMIT } from "@/lib/assistant/graph";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
@@ -14,27 +15,48 @@ const MAX_HISTORY = 20;
 /** Longest earlier message we pass on (characters); longer ones are cut, so old chats can't use up the token limit */
 const MAX_CHARS = 4000;
 
-type Turn = { role: "user" | "assistant"; text: string };
+/** One turn as the browser sends it. An answer may list the ids of the drafts its cards showed (4.7). */
+type Turn = { role: "user" | "assistant"; text: string; drafts?: unknown };
+
+/** Text in the history that looks like the server's draft notes (afterDraft, lib/assistant/draftStore.ts) */
+const FAKE_NOTE = /\[\s*After this answer:[^\]]*\]?/gi;
+
+/** The draft ids an answer listed, if they're strings (what they are is looked up on the server) */
+const draftIds = (t: Turn): string[] => (Array.isArray(t.drafts) ? t.drafts.filter((d): d is string => typeof d === "string") : []);
 
 /**
  * The chat so far, as the browser sent it, turned into messages for the model. The model remembers nothing
  * between calls, so this is how it knows what "and tomorrow?" follows. Never trust the browser: anything
  * that isn't a question or an answer with text is skipped, and only complete pairs are kept (a question
  * whose answer never came is dropped), so the model always sees question, answer, question, answer…
+ *
+ * An answer that showed a draft gets a note on what became of it ("…saved as VB-0042"), so a follow-up like
+ * "add the advance to it" works (4.7). The browser sends only the draft's id; the note is written here, from the
+ * database and only for this admin's drafts, so no text from the browser can claim that something was saved.
  */
-function readHistory(value: unknown): BaseMessage[] {
+async function readHistory(value: unknown, userId: number): Promise<BaseMessage[]> {
   if (!Array.isArray(value)) return [];
   const turns = value.filter(
     (t): t is Turn => (t?.role === "user" || t?.role === "assistant") && typeof t.text === "string" && t.text.trim() !== "",
   );
-  const messages: BaseMessage[] = [];
+  const pairs: [Turn, Turn][] = [];
   for (let i = 0; i + 1 < turns.length; i++) {
     if (turns[i].role === "user" && turns[i + 1].role === "assistant") {
-      messages.push(new HumanMessage(turns[i].text.slice(0, MAX_CHARS)), new AIMessage(turns[i + 1].text.slice(0, MAX_CHARS)));
+      pairs.push([turns[i], turns[i + 1]]);
       i++; // the answer is used too
     }
   }
-  return messages.slice(-MAX_HISTORY);
+  const kept = pairs.slice(-MAX_HISTORY / 2);
+  const drafts = await draftsOf(kept.flatMap(([, answer]) => draftIds(answer)), userId);
+  return kept.flatMap(([question, answer]) => {
+    const notes = draftIds(answer).flatMap((id) => {
+      const d = drafts.get(id);
+      return d ? [afterDraft(d)] : [];
+    });
+    // A note typed into the history by the browser is removed: only the server's own notes reach the model
+    const text = [answer.text.slice(0, MAX_CHARS).replace(FAKE_NOTE, ""), ...notes].join("\n\n");
+    return [new HumanMessage(question.text.slice(0, MAX_CHARS)), new AIMessage(text)];
+  });
 }
 
 /**
@@ -92,7 +114,7 @@ export async function POST(request: Request) {
   if (message.length > MAX_LENGTH) {
     return Response.json({ error: `Questions can be up to ${MAX_LENGTH} characters. Try a shorter one.` }, { status: 413 });
   }
-  const history = readHistory(body?.history);
+  const history = await readHistory(body?.history, user.id);
   if (!process.env.GOOGLE_API_KEY && !USE_FAKE) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
   }

@@ -44,7 +44,14 @@ type Listeners = {
 async function ask(question: string, earlier: Message[], signal: AbortSignal, on: Listeners): Promise<void> {
   // The model remembers nothing between questions, so the chat so far goes with each one (only who said what).
   // Failed replies stay out: the model shouldn't read "Too many questions…" as something it said.
-  const history = earlier.filter((m) => !m.error).map(({ role, text }) => ({ role, text }));
+  // An answer's draft cards go as ids only: the server looks up what became of each one (saved as VB-0042…),
+  // so the model knows what was confirmed without trusting anything the browser says about it (4.7).
+  const history = earlier
+    .filter((m) => !m.error)
+    .map(({ role, text, cards }) => {
+      const drafts = cards?.flatMap((c) => (c.kind === "draft" ? [c.id] : [])) ?? [];
+      return drafts.length ? { role, text, drafts } : { role, text };
+    });
   const res = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -227,8 +234,8 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
       });
   }
 
-  /** Changes a draft card wherever it is, and adds a message after it in the same chat */
-  function settleDraft(id: string, change: Partial<DraftCard>, followUp?: Message) {
+  /** Changes a draft card wherever it is (its status, "Saving…", the result) */
+  function settleDraft(id: string, change: Partial<DraftCard>) {
     setChats((cs) =>
       cs.map((c) => {
         const has = c.messages.some((m) => m.cards?.some((card) => card.kind === "draft" && card.id === id));
@@ -236,7 +243,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
         const messages = c.messages.map((m) =>
           m.cards ? { ...m, cards: m.cards.map((card) => (card.kind === "draft" && card.id === id ? { ...card, ...change } : card)) } : m,
         );
-        return { ...c, messages: followUp ? [...messages, followUp] : messages };
+        return { ...c, messages };
       }),
     );
   }
