@@ -245,6 +245,42 @@ test("Open in form fills the booking form from a draft, and the draft becomes on
   await expect(form.locator('input[name="customer_name"]')).toHaveValue("");
 });
 
+// 4.9: a payment draft, checked with the booking page's payment rules (lib/expenses/paymentInput.ts)
+test("a payment draft is saved once by Confirm, even on a double-click, and the booking page's payment form still works", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const card = chat.locator(".as-msg.is-assistant").last().locator(".as-draft");
+  // Test booking VB-0002: ₹6,000, nothing paid yet (scripts/test-setup.mjs)
+  await chat.getByLabel("Your question").fill('[tool:draft_payment {"booking":"VB-0002","amount":2500,"method":"upi","note":"Advance"}] Payment');
+  await chat.getByLabel("Your question").press("Enter");
+  await expect(card).toContainText("Payment received");
+  await expect(card).toContainText("VB-0002 · Test Customer Two");
+  await expect(card).toContainText("₹2,500 · UPI");
+  await expect(card).toContainText("₹3,500 still to pay after this"); // worked out by our code
+  await expect(card.getByRole("link", { name: "Open the booking" })).toHaveAttribute("href", "/admin/expenses/bookings/VB-0002#customer-payments");
+
+  // A double-click: one payment. The second click finds the draft already taken (claimDraft, 4.6).
+  await card.getByRole("button", { name: "Confirm" }).dblclick();
+  await expect(card).toContainText("Payment saved on VB-0002.");
+  // Counted on the page as shown (the raw HTML has each text twice: once to show, once in Next.js's page data)
+  await page.goto("/admin/expenses/activity");
+  await expect(page.getByText("₹2,500 · UPI · Advance · via Annapurna Assist")).toHaveCount(1);
+  // …and on the booking's page, one payment in its list (the summary above it shows "Received ₹2,500" too)
+  await page.goto("/admin/expenses/bookings/VB-0002");
+  await expect(page.locator("#customer-payments .xp-ledger li")).toHaveCount(1);
+  await expect(page.locator("#customer-payments .xp-ledger li")).toContainText("₹2,500");
+
+  // The booking page's own payment form, now on the shared checks too, still saves
+  await page.getByText("Record customer payment").click();
+  const form = page.locator("form", { has: page.locator('input[name="party"][value="customer"]') });
+  await form.locator('input[name="amount"]').fill("1000");
+  await form.getByRole("button", { name: "Save payment" }).click();
+  // (the page's message drops the comma, "Rs 1000", as it always has)
+  await expect(page.getByText(/Payment of Rs 1,?000 from the customer recorded\./)).toBeVisible();
+  await expect(page.locator("#customer-payments .xp-ledger li")).toHaveCount(2);
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");

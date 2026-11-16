@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import { logActivity } from "@/lib/activity";
 import { claimDraft, finishDraft, getDraft, releaseDraft } from "@/lib/assistant/draftStore";
 import { requireUser } from "@/lib/auth";
-import { isIsoDate, nowLocalIST, parseLocalIST } from "@/lib/dates";
-import { formatRupees, isPaymentMethod, parseAmount, parseWhole } from "@/lib/expenses/money";
+import { isIsoDate, nowLocalIST } from "@/lib/dates";
+import { formatRupees, parseAmount, parseWhole } from "@/lib/expenses/money";
 import { cleanPlace, isState } from "@/lib/expenses/places";
 import {
   addExpense,
@@ -23,6 +23,7 @@ import {
   EXPENSE_LABELS,
   type ExpenseInput,
 } from "@/lib/expenses/trips";
+import { parsePayment, savePayment } from "@/lib/expenses/paymentInput";
 import { checkTrip, createCheckedTrip, fromForm, parseTrip } from "@/lib/expenses/tripInput";
 import { withFlash } from "../../filters";
 
@@ -199,20 +200,13 @@ export async function recordPayment(fd: FormData) {
   const back = tripPath(trip.trip_no);
   const anchor = party === "driver" ? "#driver-payments" : "#customer-payments";
 
-  const amount = parseAmount(fd.get("amount"), { allowZero: false });
-  const method = String(fd.get("method"));
-  const paidAt = parseLocalIST(fd.get("paid_at"));
-  if (amount === null || amount === "invalid") redirect(withFlash(back, "amount-invalid") + anchor);
-  if (!isPaymentMethod(method)) redirect(withFlash(back, "invalid") + anchor);
-  if (!paidAt) redirect(withFlash(back, "paid-at-invalid") + anchor);
-  const note = optional(fd, "note", 120);
-
-  const saved = await addPayment(trip.id, { party, amount, method, paidAt, note }, user.name);
-  if (!saved) redirect(withFlash(back, "trip-not-active") + anchor);
-  await logActivity(user, party === "driver" ? "payment.driver_paid" : "payment.received", trip.trip_no,
-    `${paymentText({ amount, method, note })}${party === "driver" ? ` · to ${trip.driver_name}` : ""}`);
+  // The checks and the saving are shared with Annapurna Assist's payment drafts (lib/expenses/paymentInput.ts)
+  const parsed = parsePayment(fromForm(fd));
+  if (!parsed.ok) redirect(withFlash(back, parsed.problem) + anchor);
+  const { payment } = parsed;
+  if (!(await savePayment(trip, payment, user))) redirect(withFlash(back, "trip-not-active") + anchor);
   refresh();
-  redirect(withFlash(back, party === "driver" ? "driver-paid" : "payment-added", formatRupees(amount).replace("₹", "Rs ")) + anchor);
+  redirect(withFlash(back, party === "driver" ? "driver-paid" : "payment-added", formatRupees(payment.amount).replace("₹", "Rs ")) + anchor);
 }
 
 export async function deletePayment(fd: FormData) {

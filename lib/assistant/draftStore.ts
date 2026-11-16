@@ -107,10 +107,20 @@ export function afterDraft(d: Draft): string {
   const what = `the ${KIND_NAMES[d.kind]} draft`;
   if (d.status === "confirmed") {
     return d.result
-      ? `[After this answer: the admin pressed Confirm and ${what} was saved as ${d.result}.]`
+      ? `[After this answer: the admin pressed Confirm and ${what} was saved ${d.kind === "booking" ? "as" : "on"} ${d.result}.]`
       : `[After this answer: the admin pressed Confirm and ${what} is being saved.]`;
   }
   if (d.status === "cancelled") return `[After this answer: the admin cancelled ${what}. Nothing was saved.]`;
   if (d.expired) return `[After this answer: ${what} expired without being confirmed. Nothing was saved.]`;
   return `[After this answer: ${what} is still waiting for the admin's Confirm. Nothing is saved yet.]`;
+}
+
+/**
+ * The admin a tool is keeping a draft for: the signed-in admin's id, which the API route passes to every tool
+ * (configurable.userId). Never from the model or the browser. Throws without it rather than keep a draft nobody owns.
+ */
+export function draftOwner(config: { configurable?: Record<string, unknown> } | undefined, tool: string): number {
+  const userId = config?.configurable?.userId;
+  if (typeof userId !== "number") throw new Error(`${tool} needs the signed-in admin's id (configurable.userId)`);
+  return userId;
 }

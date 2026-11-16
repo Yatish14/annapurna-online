@@ -135,7 +135,7 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
               notify(VIEW_ONLY.form);
             }}
           >
-            <Icon name="edit" size={16} /> Open in form
+            <Icon name="edit" size={16} /> {card.formLabel ?? "Open in form"}
           </Link>
           <button type="button" className="ap-btn ap-btn-ghost" onClick={() => onCancel(card)} disabled={card.saving} {...locked}>
             Cancel

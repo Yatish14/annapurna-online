@@ -32,6 +32,7 @@ const STEPS: Record<string, (args: Args) => ToolStep> = {
   print_orders: () => ({ label: "Checked printouts", icon: "printer" }),
   report: (a) => ({ label: `Read ${monthName(a.month)}'s report`, icon: "chart" }),
   draft_booking: () => ({ label: "Checked the booking details", icon: "plus" }),
+  draft_payment: () => ({ label: "Checked the payment details", icon: "rupee" }),
   // Neutral words: the chip shows before the tool runs, and the booking may not exist or may have no total yet
   expense_statement: (a) => ({ label: `Statement for ${text(a.number).toUpperCase() || "a booking"}`, icon: "receipt" }),
 };

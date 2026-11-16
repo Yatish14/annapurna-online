@@ -44,7 +44,40 @@ type ReadyBooking = {
   draft_id: string;
 };
 
+type ReadyPayment = {
+  ready: boolean;
+  payment: Record<"booking" | "who" | "amount" | "method" | "when" | "after", string> & { note: string | null };
+  warning: string | null;
+  draft_id: string;
+};
+
 const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | null> = {
+  // A payment ready to confirm (4.9): the same card as a booking, with the payment's checked values
+  draft_payment: (args, result) => {
+    const { ready, payment: p, warning, draft_id } = result.data as ReadyPayment;
+    if (!ready) return null;
+    const driver = args.party === "driver";
+    const tripNo = p.booking.split(" · ")[0];
+    return {
+      kind: "draft",
+      id: draft_id,
+      title: driver ? "Payment to the driver" : "Payment received",
+      icon: "rupee",
+      status: "pending",
+      // The booking's page, where its payments are: there's no separate payment form to fill in
+      formHref: `/admin/expenses/bookings/${tripNo}#${driver ? "driver-payments" : "customer-payments"}`,
+      formLabel: "Open the booking",
+      fields: [
+        { label: "Booking", value: p.booking },
+        { label: driver ? "To" : "From", value: p.who },
+        { label: "Amount", value: `${p.amount} · ${p.method}` },
+        { label: "When", value: p.when },
+        ...(p.note ? [{ label: "Note", value: p.note }] : []),
+        { label: "After this", value: capital(p.after) },
+      ],
+      warning: warning ?? undefined,
+    };
+  },
   // A booking ready to confirm (4.4). The card shows the checked values from the tool, not the model's words.
   // The card shows the details, but carries only the draft's id: Confirm (4.6) loads the values from the server.
   draft_booking: (_args, result) => {

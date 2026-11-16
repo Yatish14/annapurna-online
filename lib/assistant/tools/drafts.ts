@@ -7,7 +7,7 @@ import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { STATES } from "@/lib/expenses/places";
 import { checkTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
 import { routeText } from "@/lib/expenses/trips";
-import { saveDraft } from "../draftStore";
+import { draftOwner, saveDraft } from "../draftStore";
 import { choiceNames, matchName, nameAmong, placesNamed } from "../match";
 import { freeText, toolReply } from "./result";
 
@@ -151,9 +151,7 @@ export const draftBooking = tool(
 
     // Kept on the server for the admin who asked (4.5). Their id comes from the signed-in session, passed in by
     // the API route: never from the model or the browser. The card gets only the draft's id.
-    const userId: unknown = config?.configurable?.userId;
-    if (typeof userId !== "number") throw new Error("draft_booking needs the signed-in admin's id (configurable.userId)");
-    const draftId = await saveDraft(userId, "booking", fields);
+    const draftId = await saveDraft(draftOwner(config, "draft_booking"), "booking", fields);
     return toolReply({
       status: "found",
       data: {

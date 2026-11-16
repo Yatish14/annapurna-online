@@ -266,7 +266,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
       result = { ok: false, error: "No answer from the server. Check the Bookings page before trying again." };
     }
     if (result.ok) {
-      settleDraft(card.id, { saving: false, status: "confirmed", result: `Saved as ${result.tripNo}.`, resultHref: result.href });
+      settleDraft(card.id, { saving: false, status: "confirmed", result: result.message, resultHref: result.href });
     } else {
       settled.current.delete(card.id); // still a draft: it can be pressed again after fixing what's wrong
       settleDraft(card.id, { saving: false });

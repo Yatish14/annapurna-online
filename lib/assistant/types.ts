@@ -27,6 +27,8 @@ export type Card =
       /** The saved booking's page, linked from the result */
       resultHref?: string;
       formHref: string;
+      /** The form link's words: "Open in form" unless set (a payment opens its booking's page) */
+      formLabel?: string;
     }
   | {
       kind: "file";

@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { can, currentUser } from "@/lib/auth";
+import { can, currentUser, type SessionUser } from "@/lib/auth";
 import { claimDraft, finishDraft, getDraft, releaseDraft } from "@/lib/assistant/draftStore";
+import { parsePayment, PAYMENT_PROBLEMS, savePayment } from "@/lib/expenses/paymentInput";
 import { checkTrip, createCheckedTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
+import { getTripById } from "@/lib/expenses/trips";
 
 /**
  * Annapurna Assist's Confirm button (4.6). The browser sends only the draft's id: the values to save come from the
@@ -15,46 +17,68 @@ import { checkTrip, createCheckedTrip, fromObject, parseTrip } from "@/lib/expen
  */
 
 export type ConfirmResult =
-  | { ok: true; /** "VB-0042" */ tripNo: string; href: string }
+  | { ok: true; /** "VB-0042" */ tripNo: string; href: string; /** For the card: "Saved as VB-0042." */ message: string }
   | { ok: false; error: string };
+
+type Saved = { ok: true; tripNo: string; href: string; message: string } | { ok: false; error: string };
 
 export async function confirmDraft(id: unknown): Promise<ConfirmResult> {
   const user = await currentUser();
   if (!user) return { ok: false, error: "Please sign in again." };
-  if (!can(user, "useAssistant") || !can(user, "manageExpenses")) return { ok: false, error: "Your role can't save bookings." };
+  if (!can(user, "useAssistant") || !can(user, "manageExpenses")) return { ok: false, error: "Your role can't save bookings or payments." };
   if (typeof id !== "string") return { ok: false, error: "This draft wasn't found." };
 
   // Take it: one statement, so a double-click (or two tabs) saves it once
   const draft = await claimDraft(id, user.id);
   if (!draft) return { ok: false, error: await whyNot(id, user.id) };
-  if (draft.kind !== "booking") {
-    await releaseDraft(id);
-    return { ok: false, error: "Only booking drafts can be confirmed so far." };
+
+  // Each kind is checked again with its own page's rules, on the values kept on the server
+  const saved =
+    draft.kind === "booking"
+      ? await saveBooking(draft.fields, user)
+      : draft.kind === "payment"
+        ? await savePaymentDraft(draft.fields, user)
+        : ({ ok: false, error: "This kind of draft can't be confirmed yet." } as const);
+  if (!saved.ok) {
+    await releaseDraft(id); // still pending: the admin can fix what's wrong, or ask again
+    return { ok: false, error: `${saved.error} Nothing was saved.` };
   }
-
-  // The booking form's checks again, on the values kept on the server
-  const fail = async (error: string): Promise<ConfirmResult> => {
-    await releaseDraft(id); // still pending: the admin can fix it in the form, or ask again
-    return { ok: false, error };
-  };
-  const parsed = parseTrip(fromObject(draft.fields), true);
-  if (!parsed.ok) return fail(parsed.error);
-  const check = await checkTrip(parsed.input, { allowDriverClash: draft.fields.allow_driver_clash === "1" });
-  if (!check.ok) return fail("driverClash" in check ? `${check.driverClash} Nothing was saved.` : `${check.error} Nothing was saved.`);
-
-  // Saved and logged exactly like a booking from the form, plus where it came from
-  const saved = await createCheckedTrip(parsed, check, user, "via Annapurna Assist");
-  if (!saved.ok) return fail(`${saved.error} Nothing was saved.`);
   await finishDraft(id, saved.tripNo);
   revalidatePath("/admin/expenses", "layout"); // the Bookings pages show it straight away
-  return { ok: true, tripNo: saved.tripNo, href: `/admin/expenses/bookings/${saved.tripNo}` };
+  return saved;
+}
+
+/** A booking draft: the booking form's checks again, then saved and logged exactly like one from the form */
+async function saveBooking(fields: Record<string, string>, user: SessionUser): Promise<Saved> {
+  const parsed = parseTrip(fromObject(fields), true);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const check = await checkTrip(parsed.input, { allowDriverClash: fields.allow_driver_clash === "1" });
+  if (!check.ok) return { ok: false, error: "driverClash" in check ? check.driverClash : check.error };
+  const saved = await createCheckedTrip(parsed, check, user, "via Annapurna Assist");
+  if (!saved.ok) return saved;
+  return { ok: true, tripNo: saved.tripNo, href: `/admin/expenses/bookings/${saved.tripNo}`, message: `Saved as ${saved.tripNo}.` };
+}
+
+/** A payment draft (4.9): the booking page's payment checks again, then saved and logged like one from that page */
+async function savePaymentDraft(fields: Record<string, string>, user: SessionUser): Promise<Saved> {
+  const parsed = parsePayment(fromObject(fields));
+  if (!parsed.ok) return { ok: false, error: PAYMENT_PROBLEMS[parsed.problem] };
+  const trip = await getTripById(Number(fields.trip_id));
+  if (!trip) return { ok: false, error: "That booking no longer exists." };
+  if (!(await savePayment(trip, parsed.payment, user, "via Annapurna Assist"))) {
+    return { ok: false, error: `${trip.trip_no} is cancelled, so payments can't be added to it.` };
+  }
+  const anchor = parsed.payment.party === "driver" ? "#driver-payments" : "#customer-payments";
+  return { ok: true, tripNo: trip.trip_no, href: `/admin/expenses/bookings/${trip.trip_no}${anchor}`, message: `Payment saved on ${trip.trip_no}.` };
 }
 
 /** Why a draft couldn't be taken, in words for the admin */
 async function whyNot(id: string, userId: number): Promise<string> {
   const draft = await getDraft(id, userId);
   if (!draft) return "This draft wasn't found.";
-  if (draft.status === "confirmed") return draft.result ? `Already saved as ${draft.result}.` : "It's being saved already.";
+  if (draft.status === "confirmed") {
+    return draft.result ? `Already saved ${draft.kind === "booking" ? "as" : "on"} ${draft.result}.` : "It's being saved already.";
+  }
   if (draft.status === "cancelled") return "This draft was cancelled. Ask again for a new one.";
   return "This draft has expired (drafts last 24 hours). Ask again for a new one.";
 }

@@ -1,5 +1,6 @@
 import { expenseStatement, getBooking, listBookings, searchBookings } from "./bookings";
 import { draftBooking } from "./drafts";
+import { draftPayment } from "./payments";
 import { driverSummary, vehicleSummary } from "./fleet";
 import { balancesDue, monthOverview } from "./money";
 import { printOrders } from "./prints";
@@ -20,4 +21,5 @@ export const TOOLS = [
   report,
   expenseStatement,
   draftBooking,
+  draftPayment,
 ];
