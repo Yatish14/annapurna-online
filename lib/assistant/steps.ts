@@ -23,6 +23,7 @@ const STEPS: Record<string, (args: Args) => ToolStep> = {
   vehicle_summary: () => ({ label: "Checked vehicles", icon: "car" }),
   driver_summary: () => ({ label: "Checked drivers", icon: "steering" }),
   print_orders: () => ({ label: "Checked printouts", icon: "printer" }),
+  report: (a) => ({ label: `Read ${a.month ? monthText(text(a.month)) : "this month"}'s report`, icon: "chart" }),
 };
 
 export function stepFor(name: string, args: Args = {}): ToolStep {

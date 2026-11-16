@@ -127,7 +127,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 ## Step 3 — Reports
 
-- [ ] **3.1** `report` tool (bookings, drivers or repairs, for a month): counts + a link to the existing CSV download.
+- [x] **3.1** `report` tool (bookings, customers, drivers, vehicles or all, for a month): headline numbers + a link to the existing PDF download (the app has PDFs, not CSV).
 - [ ] **3.2** File card with a Download button.
 - [ ] **3.3** "Last month" / "September" → a checked `YYYY-MM` value.
 - [ ] **3.4** Expense statement tool: link to a booking's existing PDF.

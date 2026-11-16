@@ -100,8 +100,9 @@ export const monthOverview = tool(
       "The car business for one month, as the Expense Tracker overview shows it: money in (received from customers), " +
       "money out (drivers, fuel, other expenses, repairs, FASTag, EMI, insurance, each listed) and net (in − out), " +
       "all counting payments made during the month; plus the bookings starting in the month, their km, the amount " +
-      "billed and the driver amounts agreed. Use it for 'how did we do this month', 'profit in October', 'total fuel " +
-      "spend'. For one vehicle's profit, use vehicle_summary.",
+      "billed and the driver amounts agreed. Use it for cash questions: 'how much came in this month', 'what did " +
+      "we spend on fuel'. Net here is cash in − cash out, not profit: for a month's profit, use report (the Reports " +
+      "page's profit, by the bookings starting in the month); for one vehicle's profit, use vehicle_summary.",
     schema: z.object({
       month: z
         .string()
