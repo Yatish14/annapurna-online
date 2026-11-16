@@ -134,7 +134,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 ## Step 4 — Creating data, with your confirmation
 
-- [ ] **4.1** Move the booking checks into `lib/expenses/tripInput.ts`, shared by the form and the assistant. *Learn: reuse.*
+- [x] **4.1** Move the booking checks into `lib/expenses/tripInput.ts`, shared by the form and the assistant (`parseTrip`, `checkTrip`; old and new compared on 33 inputs; new browser test of the form). *Learn: reuse.*
 - [ ] **4.2** `draft_booking` tool: validate, match vehicle/driver names, check they're free. **Saves nothing.**
 - [ ] **4.3** Unclear names ("Ravi" matches two drivers) → the assistant asks which one.
 - [ ] **4.4** Confirmation card (as in the mockup).
