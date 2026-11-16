@@ -7,7 +7,7 @@ import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { STATES } from "@/lib/expenses/places";
 import { checkTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
 import { routeText } from "@/lib/expenses/trips";
-import { matchName, placesNamed } from "../match";
+import { choiceNames, matchName, nameAmong, placesNamed } from "../match";
 import { freeText, toolReply } from "./result";
 
 /**
@@ -22,21 +22,59 @@ import { freeText, toolReply } from "./result";
 
 type Fields = Record<string, string>;
 
+/** Something only the admin can answer: what it's about, why, and the choices when there are some */
+type Question = { about: string; why: string; choices?: string[] };
+const isQuestion = (x: object): x is Question => "why" in x;
+
+/** More choices than this aren't listed: the admin is asked for the full name instead */
+const MAX_CHOICES = 8;
+
+/** Choices as the model may see them: typed by people, so cleaned like any other name (2.15) */
+const shown = (names: string[]) => names.map((n) => freeText(n, 60) ?? "");
+
+/**
+ * The vehicle or driver the admin's words mean, among those in use (switched-off ones can't take new bookings), or
+ * the question to ask: which of several, or which one at all when nothing fits.
+ */
+function pick<T extends { name: string; phone?: string; active: boolean }>(said: string, items: T[], what: "vehicle" | "driver"): T | Question {
+  const inUse = items.filter((i) => i.active);
+  const match = matchName(said, inUse);
+  if (!("candidates" in match)) return match.found;
+  const { candidates } = match;
+  if (candidates.length > MAX_CHOICES) {
+    return { about: what, why: `"${said}" fits ${candidates.length} ${what}s. Ask for the full name.` };
+  }
+  if (candidates.length) {
+    return { about: what, why: `"${said}" could be more than one ${what}.`, choices: shown(choiceNames(candidates)) };
+  }
+  const all = inUse.length <= MAX_CHOICES ? shown(choiceNames(inUse)) : undefined;
+  const off = matchName(said, items.filter((i) => !i.active));
+  if (off.found) {
+    return { about: what, why: `${freeText(off.found.name, 60)} is switched off, so can't take new bookings. Ask for another ${what}.`, choices: all };
+  }
+  return { about: what, why: `No ${what} in use is called "${said}".`, choices: all };
+}
+
 /** A city as the form wants it: with its state, from the state the admin gave or the form's own list of places */
-async function place(city: string | undefined, state: string | undefined, label: string): Promise<{ city: string; state: string } | string> {
+async function place(city: string | undefined, state: string | undefined, label: string): Promise<{ city: string; state: string } | Question> {
   if (!city) return { city: "", state: "" }; // parseTrip says what's missing
   const given = STATES.find((s) => s.toLowerCase() === state?.trim().toLowerCase());
   if (given) return { city: city.trim(), state: given };
   const found = await placesNamed(city);
   if (found.length === 1) return found[0];
-  if (found.length > 1) return `${label} ${city} is in ${found.map((f) => f.state).join(" and ")}. Ask the admin which state.`;
-  return `I couldn't find ${label.toLowerCase()} ${city} in the list of places. Ask the admin for the state it's in.`;
+  const about = `the ${label.toLowerCase()} city's state`;
+  if (found.length > 1) return { about, why: `${label} ${city} is in more than one state.`, choices: found.map((f) => f.state) };
+  return { about, why: `${label} ${city} isn't in the list of places, so its state is needed.` };
 }
 
 const ask = (note: string, missing: string) => toolReply({ status: "failed", data: { ready: false, missing }, note });
 
 export const draftBooking = tool(
   async (a) => {
+    // A one-way trip given only a "destination": that's where it ends (the model mixed the two up once, costing a turn)
+    const dropCity = a.drop_city ?? (a.round_trip ? undefined : a.destination_city);
+    const dropState = a.drop_city ? a.drop_state : (a.drop_state ?? a.destination_state);
+
     // 0. Everything that's missing, in one go: the form's checks stop at the first problem, but in a chat the admin
     //    should be asked for all of it in one question, not one turn at a time
     const missing = [
@@ -46,47 +84,38 @@ export const draftBooking = tool(
       !a.driver && "the driver",
       !a.start_date && "the dates",
       !a.pickup_city && "the pickup city",
-      !(a.round_trip ? a.destination_city : a.drop_city) && (a.round_trip ? "where the round trip goes" : "the drop city"),
+      !(a.round_trip ? a.destination_city : dropCity) && (a.round_trip ? "where the round trip goes" : "the drop city"),
     ].filter(Boolean);
     if (missing.length) {
       return ask(`Still needed: ${missing.join(", ")}. Ask the admin for all of these in one short question; never fill them in yourself.`, "several");
     }
 
-    // 1. Vehicle and driver: the admin's words matched to the ones in use (switched-off ones can't take new bookings)
+    // 1. Vehicle, driver and places: the admin's words matched by our code (match.ts). Everything unclear is asked
+    //    together (4.3): "Ravi" could be two drivers AND Aurangabad is in two states → one question, with the choices.
+    //    The model never chooses: it has the names, but which one the admin meant only the admin knows.
     const { vehicles, drivers } = await fleetChoices();
-    const vehicle = a.vehicle ? matchName(a.vehicle, vehicles.filter((v) => v.active)) : null;
-    const driver = a.driver ? matchName(a.driver, drivers.filter((d) => d.active)) : null;
-    if (vehicle && !vehicle.found) {
-      return ask(
-        vehicle.candidates.length
-          ? `"${a.vehicle}" could be ${vehicle.candidates.map((v) => v.name).join(" or ")}. Ask the admin which.`
-          : `No vehicle in use is called "${a.vehicle}". The vehicles are: ${vehicles.filter((v) => v.active).map((v) => v.name).join(", ")}.`,
-        "vehicle",
-      );
-    }
-    if (driver && !driver.found) {
-      return ask(
-        driver.candidates.length
-          ? `"${a.driver}" could be ${driver.candidates.map((d) => d.name).join(" or ")}. Ask the admin which.`
-          : `No driver in use is called "${a.driver}". The drivers are: ${drivers.filter((d) => d.active).map((d) => d.name).join(", ")}.`,
-        "driver",
-      );
-    }
-
-    // 2. Places: each city with its state
+    const vehicle = pick(a.vehicle!, vehicles, "vehicle"); // "!": step 0 made sure both were given
+    const driver = pick(a.driver!, drivers, "driver");
     const pickup = await place(a.pickup_city, a.pickup_state, "Pickup");
-    if (typeof pickup === "string") return ask(pickup, "pickup_state");
     const other = a.round_trip
       ? await place(a.destination_city, a.destination_state, "Destination")
-      : await place(a.drop_city, a.drop_state, "Drop");
-    if (typeof other === "string") return ask(other, a.round_trip ? "dest_state" : "drop_state");
+      : await place(dropCity, dropState, "Drop");
+    if (isQuestion(vehicle) || isQuestion(driver) || isQuestion(pickup) || isQuestion(other)) {
+      return toolReply({
+        status: "failed",
+        data: { ready: false, ask_about: [vehicle, driver, pickup, other].filter(isQuestion) },
+        note:
+          "Ask the admin all of these in one short question, listing the choices. Never choose for them, even if one " +
+          "seems likelier. When they answer, call again with the choice exactly as listed.",
+      });
+    }
 
-    // 3. Everything as the booking form's fields, then the form's own checks
+    // 2. Everything as the booking form's fields, then the form's own checks
     const fields: Fields = {
       customer_name: a.customer_name ?? "",
       customer_phone: a.customer_phone ?? "",
-      vehicle_id: vehicle?.found ? String(vehicle.found.id) : "",
-      driver_id: driver?.found ? String(driver.found.id) : "",
+      vehicle_id: String(vehicle.id),
+      driver_id: String(driver.id),
       start_date: a.start_date ?? "",
       // "For 3 days" from the 16th ends on the 18th: counted by our code (the model got it wrong once: 16th–19th)
       end_date: a.end_date ?? (a.start_date && a.days ? addDays(a.start_date, a.days - 1) : (a.start_date ?? "")),
@@ -109,7 +138,7 @@ export const draftBooking = tool(
     }
     if (!check.ok) return ask(check.error, check.field);
 
-    // 4. Ready: the booking as the admin will check it. Still nothing saved.
+    // 3. Ready: the booking as the admin will check it. Still nothing saved.
     const { input } = parsed;
     const days = diffDays(input.startDate, input.endDate) + 1;
     return toolReply({
@@ -119,8 +148,9 @@ export const draftBooking = tool(
         booking: {
           customer: freeText(input.customerName, 60),
           phone: formatPhone(input.customerPhone),
-          vehicle: check.vehicle.name,
-          driver: check.driver.name,
+          vehicle: freeText(check.vehicle.name, 60),
+          // With the phone if another driver in use has the same name, so the admin can see which Ravi Kumar it is
+          driver: freeText(nameAmong(driver, drivers.filter((d) => d.active)), 60),
           dates: `${fmtRange(input.startDate, input.endDate)} (${daysText(days)})`,
           route: routeText({ pickup_city: input.pickupCity, drop_city: input.dropCity, round_trip: input.roundTrip, dest_city: input.destCity }),
           total: parsed.totalAmount !== null ? formatRupees(parsed.totalAmount) : "not set yet",
