@@ -23,6 +23,7 @@ import {
   EXPENSE_LABELS,
   type ExpenseInput,
 } from "@/lib/expenses/trips";
+import { parseFuel, saveFuel } from "@/lib/expenses/fuelInput";
 import { parsePayment, savePayment } from "@/lib/expenses/paymentInput";
 import { checkTrip, createCheckedTrip, fromForm, parseTrip } from "@/lib/expenses/tripInput";
 import { withFlash } from "../../filters";
@@ -248,16 +249,22 @@ export async function recordExpense(fd: FormData) {
   const back = trip ? tripPath(trip.trip_no) : page ? (isIsoDate(spentOn) ? `${page}?month=${spentOn.slice(0, 7)}` : page) : vehiclePath(vehicleId);
   if (!trip && (!Number.isSafeInteger(vehicleId) || vehicleId <= 0)) redirect(withFlash(back, "vehicle-missing") + anchor);
 
+  // Fuel: checks and saving shared with Annapurna Assist's fuel drafts (lib/expenses/fuelInput.ts)
+  if (kind === "fuel") {
+    const parsed = parseFuel(fromForm(fd));
+    if (!parsed.ok) redirect(withFlash(back, parsed.problem) + anchor);
+    const saved = await saveFuel(trip ? { tripId: trip.id } : { vehicleId }, parsed.fuel, user);
+    if (!saved) redirect(withFlash(back, trip ? "trip-not-active" : "not-found") + anchor);
+    refresh();
+    redirect(withFlash(back, FLASH_ADDED.fuel, saved.vehicle_name) + anchor);
+  }
+
   const amount = parseAmount(fd.get("amount"), { allowZero: false });
   if (amount === null || amount === "invalid") redirect(withFlash(back, "amount-invalid") + anchor);
   if (!isIsoDate(spentOn) || spentOn < "2020-01-01" || spentOn > "2099-12-31") redirect(withFlash(back, "date-invalid") + anchor);
 
   const input: ExpenseInput = { kind, amount, spentOn, litres: null, description: null, shopName: null, shopState: null, shopCity: null, note: optional(fd, "note", 200) };
-  if (kind === "fuel") {
-    const litres = parseAmount(fd.get("litres"), { allowZero: false });
-    if (litres === "invalid" || (litres !== null && litres > 9999)) redirect(withFlash(back, "litres-invalid") + anchor);
-    input.litres = litres;
-  } else if (kind === "fastag") {
+  if (kind === "fastag") {
     input.description = optional(fd, "description", 80);
   } else if (kind === "other") {
     input.description = optional(fd, "description", 60);

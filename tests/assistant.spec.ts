@@ -281,6 +281,36 @@ test("a payment draft is saved once by Confirm, even on a double-click, and the 
   await expect(page.locator("#customer-payments .xp-ledger li")).toHaveCount(2);
 });
 
+// 4.10: a fuel draft, checked with the fuel form's rules (lib/expenses/fuelInput.ts)
+test("a fuel draft is saved by Confirm on the booking's vehicle, and the booking page's fuel form still works", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const card = chat.locator(".as-msg.is-assistant").last().locator(".as-draft");
+  await chat.getByLabel("Your question").fill('[tool:draft_fuel {"booking":"VB-0002","amount":3150,"litres":30}] Diesel');
+  await chat.getByLabel("Your question").press("Enter");
+  await expect(card).toContainText("Fuel");
+  await expect(card).toContainText("VB-0002 · Test Customer Two");
+  await expect(card).toContainText("Test Carens"); // the booking's vehicle
+  await expect(card).toContainText("30 L (₹105 a litre)"); // worked out by our code
+  await expect(card.getByRole("link", { name: "Open the booking" })).toHaveAttribute("href", "/admin/expenses/bookings/VB-0002#fuel");
+
+  await card.getByRole("button", { name: "Confirm" }).click();
+  await expect(card).toContainText("Fuel saved on VB-0002.");
+  await page.goto("/admin/expenses/activity");
+  await expect(page.getByText("₹3,150 · 30 L · Test Carens · via Annapurna Assist")).toHaveCount(1);
+
+  // The booking page's own fuel form, now on the shared checks too, still saves
+  await page.goto("/admin/expenses/bookings/VB-0002");
+  const fuel = page.locator("#fuel");
+  await expect(fuel).toContainText("₹3,150");
+  await fuel.getByText("Add fuel").click();
+  await fuel.locator('input[name="amount"]').fill("1000");
+  await fuel.getByRole("button", { name: "Save fuel" }).click();
+  await expect(page.getByText("Fuel added for Test Carens.")).toBeVisible();
+  await expect(page.locator("#fuel")).toContainText("₹1,000");
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { can, currentUser, type SessionUser } from "@/lib/auth";
 import { claimDraft, finishDraft, getDraft, releaseDraft } from "@/lib/assistant/draftStore";
+import { FUEL_PROBLEMS, parseFuel, saveFuel } from "@/lib/expenses/fuelInput";
 import { parsePayment, PAYMENT_PROBLEMS, savePayment } from "@/lib/expenses/paymentInput";
 import { checkTrip, createCheckedTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
 import { getTripById } from "@/lib/expenses/trips";
@@ -17,15 +18,22 @@ import { getTripById } from "@/lib/expenses/trips";
  */
 
 export type ConfirmResult =
-  | { ok: true; /** "VB-0042" */ tripNo: string; href: string; /** For the card: "Saved as VB-0042." */ message: string }
+  | {
+      ok: true;
+      /** What it became, kept on the draft: the new booking "VB-0042", or the booking or vehicle it went on */
+      result: string;
+      href: string;
+      /** For the card: "Saved as VB-0042." */
+      message: string;
+    }
   | { ok: false; error: string };
 
-type Saved = { ok: true; tripNo: string; href: string; message: string } | { ok: false; error: string };
+type Saved = ConfirmResult;
 
 export async function confirmDraft(id: unknown): Promise<ConfirmResult> {
   const user = await currentUser();
   if (!user) return { ok: false, error: "Please sign in again." };
-  if (!can(user, "useAssistant") || !can(user, "manageExpenses")) return { ok: false, error: "Your role can't save bookings or payments." };
+  if (!can(user, "useAssistant") || !can(user, "manageExpenses")) return { ok: false, error: "Your role can't save bookings, payments or fuel." };
   if (typeof id !== "string") return { ok: false, error: "This draft wasn't found." };
 
   // Take it: one statement, so a double-click (or two tabs) saves it once
@@ -38,12 +46,12 @@ export async function confirmDraft(id: unknown): Promise<ConfirmResult> {
       ? await saveBooking(draft.fields, user)
       : draft.kind === "payment"
         ? await savePaymentDraft(draft.fields, user)
-        : ({ ok: false, error: "This kind of draft can't be confirmed yet." } as const);
+        : await saveFuelDraft(draft.fields, user);
   if (!saved.ok) {
     await releaseDraft(id); // still pending: the admin can fix what's wrong, or ask again
     return { ok: false, error: `${saved.error} Nothing was saved.` };
   }
-  await finishDraft(id, saved.tripNo);
+  await finishDraft(id, saved.result);
   revalidatePath("/admin/expenses", "layout"); // the Bookings pages show it straight away
   return saved;
 }
@@ -56,7 +64,7 @@ async function saveBooking(fields: Record<string, string>, user: SessionUser): P
   if (!check.ok) return { ok: false, error: "driverClash" in check ? check.driverClash : check.error };
   const saved = await createCheckedTrip(parsed, check, user, "via Annapurna Assist");
   if (!saved.ok) return saved;
-  return { ok: true, tripNo: saved.tripNo, href: `/admin/expenses/bookings/${saved.tripNo}`, message: `Saved as ${saved.tripNo}.` };
+  return { ok: true, result: saved.tripNo, href: `/admin/expenses/bookings/${saved.tripNo}`, message: `Saved as ${saved.tripNo}.` };
 }
 
 /** A payment draft (4.9): the booking page's payment checks again, then saved and logged like one from that page */
@@ -69,7 +77,21 @@ async function savePaymentDraft(fields: Record<string, string>, user: SessionUse
     return { ok: false, error: `${trip.trip_no} is cancelled, so payments can't be added to it.` };
   }
   const anchor = parsed.payment.party === "driver" ? "#driver-payments" : "#customer-payments";
-  return { ok: true, tripNo: trip.trip_no, href: `/admin/expenses/bookings/${trip.trip_no}${anchor}`, message: `Payment saved on ${trip.trip_no}.` };
+  return { ok: true, result: trip.trip_no, href: `/admin/expenses/bookings/${trip.trip_no}${anchor}`, message: `Payment saved on ${trip.trip_no}.` };
+}
+
+/** A fuel draft (4.10): the fuel form's checks again, then saved and logged like one from the booking or vehicle page */
+async function saveFuelDraft(fields: Record<string, string>, user: SessionUser): Promise<Saved> {
+  const parsed = parseFuel(fromObject(fields));
+  if (!parsed.ok) return { ok: false, error: FUEL_PROBLEMS[parsed.problem] };
+  const target = fields.trip_id ? { tripId: Number(fields.trip_id) } : { vehicleId: Number(fields.vehicle_id) };
+  const saved = await saveFuel(target, parsed.fuel, user, "via Annapurna Assist");
+  if (!saved) {
+    return { ok: false, error: fields.trip_id ? `${fields.trip_no} is cancelled, so fuel can't be added to it.` : "That vehicle no longer exists." };
+  }
+  return saved.trip_no
+    ? { ok: true, result: saved.trip_no, href: `/admin/expenses/bookings/${saved.trip_no}#fuel`, message: `Fuel saved on ${saved.trip_no}.` }
+    : { ok: true, result: saved.vehicle_name, href: `/admin/expenses/fleet/${fields.vehicle_id}#fuel`, message: `Fuel saved for ${saved.vehicle_name}.` };
 }
 
 /** Why a draft couldn't be taken, in words for the admin */

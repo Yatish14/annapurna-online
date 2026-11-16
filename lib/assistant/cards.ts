@@ -51,7 +51,38 @@ type ReadyPayment = {
   draft_id: string;
 };
 
+type ReadyFuel = {
+  ready: boolean;
+  fuel: Record<"for" | "vehicle" | "amount" | "litres" | "when", string> & { note: string | null };
+  warning: string | null;
+  draft_id: string;
+  page: string;
+};
+
 const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | null> = {
+  // A fuel fill ready to confirm (4.10)
+  draft_fuel: (_args, result) => {
+    const { ready, fuel: f, warning, draft_id, page } = result.data as ReadyFuel;
+    if (!ready) return null;
+    return {
+      kind: "draft",
+      id: draft_id,
+      title: "Fuel",
+      icon: "fuel",
+      status: "pending",
+      formHref: page,
+      formLabel: page.includes("/bookings/") ? "Open the booking" : "Open the vehicle",
+      fields: [
+        { label: "For", value: f.for },
+        { label: "Vehicle", value: f.vehicle },
+        { label: "Amount", value: f.amount },
+        { label: "Litres", value: capital(f.litres) },
+        { label: "When", value: f.when },
+        ...(f.note ? [{ label: "Note", value: f.note }] : []),
+      ],
+      warning: warning ?? undefined,
+    };
+  },
   // A payment ready to confirm (4.9): the same card as a booking, with the payment's checked values
   draft_payment: (args, result) => {
     const { ready, payment: p, warning, draft_id } = result.data as ReadyPayment;
