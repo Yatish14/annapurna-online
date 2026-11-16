@@ -24,7 +24,15 @@ export type Card =
       result?: string;
       formHref: string;
     }
-  | { kind: "file"; name: string; detail: string; href: string }
+  | {
+      kind: "file";
+      name: string;
+      detail: string;
+      /** The file itself (the Download button) */
+      href: string;
+      /** Optional: the same thing as a page on the website (the View link) */
+      view?: string;
+    }
   | { kind: "sources"; items: { title: string; section: string }[] };
 
 export type Message = {

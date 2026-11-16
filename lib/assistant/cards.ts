@@ -56,6 +56,22 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
       link: { href: tripsHref("all", { q: query }), label: "See in Bookings" },
     };
   },
+  // The report's PDF, with the same file name and link as the Reports page's "Download PDF" button
+  report: (_args, result) => {
+    const { title, reports, pdf, page } = result.data as {
+      title: string;
+      reports: { lists: string }[];
+      pdf: { file: string; url: string };
+      page: string;
+    };
+    return {
+      kind: "file",
+      name: pdf.file, // "annapurna-drivers-report-Oct-2026.pdf"
+      detail: `${title} · ${reports.map((r) => r.lists).join(", ")}`, // "Drivers report · October 2026 · 3 drivers"
+      href: pdf.url,
+      view: page,
+    };
+  },
   balances_due: (_args, result) => {
     const { customer_bookings, bookings_owing } = result.data as { customer_bookings: number; bookings_owing: BookingRow[] };
     if (!bookings_owing.length) return null;

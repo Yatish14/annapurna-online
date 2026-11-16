@@ -85,6 +85,21 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   await expect(latest().locator(".as-steps li .as-step-done")).toHaveCount(2);
   await expect(latest().locator(".as-card", { hasText: "Customers who still owe (2)" })).toBeVisible();
 
+  // A report: a file card whose Download link really gives the PDF (3.2). The month of the first test booking
+  // (3 days from today, in India), so the report has something in it even near the end of a month.
+  const month = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit" })
+    .format(Date.now() + 3 * 86_400_000)
+    .slice(0, 7);
+  await ask(`[tool:report {"which":"bookings","month":"${month}"}] Bookings report please`);
+  const file = latest().locator(".as-file");
+  await expect(file).toContainText(/annapurna-bookings-report-\w{3}-\d{4}\.pdf/);
+  const download = file.getByRole("link", { name: "Download" });
+  await expect(download).toHaveAttribute("href", `/admin/expenses/reports/pdf?month=${month}&tab=bookings`);
+  await expect(file.getByRole("link", { name: /View/ })).toHaveAttribute("href", `/admin/expenses/reports?tab=bookings&month=${month}`);
+  const pdf = await page.request.get((await download.getAttribute("href"))!);
+  expect(pdf.status()).toBe(200);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+
   // A model that keeps asking for tools: stopped after 4 rounds with the graph's own answer, no chip left spinning (2.14)
   await ask("[loop] Keep checking the date");
   await expect(latest()).toContainText("I looked things up several times for this and stopped there");

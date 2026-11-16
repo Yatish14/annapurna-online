@@ -162,6 +162,11 @@ function FileCard({ card }: { card: CardOf<"file"> }) {
         <strong>{card.name}</strong>
         <span>{card.detail}</span>
       </div>
+      {card.view && (
+        <Link href={card.view} className="ap-link">
+          View <Icon name="arrow" size={14} />
+        </Link>
+      )}
       <a href={card.href} className="ap-btn ap-btn-ghost ap-btn-sm" download>
         <Icon name="download" size={15} /> Download
       </a>
