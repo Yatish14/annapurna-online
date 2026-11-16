@@ -381,3 +381,24 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
   questions int    NOT NULL DEFAULT 0 CHECK (questions >= 0),
   PRIMARY KEY (user_id, day)
 );
+
+-- Things the assistant prepared for an admin to confirm: a new booking now, a payment or fuel entry later
+-- (lib/assistant/draftStore.ts). The checked values live here, on the server: the chat's card carries only the id,
+-- so nothing the browser sends can change what gets saved. Only the admin who asked can confirm it, and only
+-- until it expires.
+CREATE TABLE IF NOT EXISTS assistant_drafts (
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  kind         text        NOT NULL CHECK (kind IN ('booking', 'payment', 'fuel')),
+  -- The checked values by the form's field names, exactly what Confirm will save
+  fields       jsonb       NOT NULL,
+  status       text        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  expires_at   timestamptz NOT NULL,
+  settled_at   timestamptz,
+  -- After Confirm: what it became, e.g. the booking number "VB-0042"
+  result       text,
+  CHECK (expires_at > created_at),
+  CHECK ((status = 'pending') = (settled_at IS NULL))
+);
+CREATE INDEX IF NOT EXISTS assistant_drafts_user_idx ON assistant_drafts (user_id, created_at DESC);

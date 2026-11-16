@@ -124,7 +124,13 @@ export async function POST(request: Request) {
     // recursionLimit: the hard stop for the whole run (lib/assistant/graph.ts explains both limits)
     const stream = await graph.stream(
       { messages },
-      { streamMode: ["messages", "updates"], signal: request.signal, recursionLimit: RECURSION_LIMIT },
+      {
+        streamMode: ["messages", "updates"],
+        signal: request.signal,
+        recursionLimit: RECURSION_LIMIT,
+        // Who is asking, from the session: tools that keep something for the admin (draft_booking) read it here
+        configurable: { userId: user.id },
+      },
     );
     pieces = events(stream as AsyncIterable<[string, unknown]>);
     // Wait for the first piece before answering: most failures (bad key, over the free limit) show up here,

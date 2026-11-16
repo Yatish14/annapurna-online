@@ -13,7 +13,7 @@ export type Card =
   | { kind: "stats"; title: string; items: { label: string; value: string; tone?: "green" | "red" | "gold" | "navy" }[] }
   | {
       kind: "draft";
-      /** Later: the id of a row in assistant_drafts. The card never carries the data that gets saved. */
+      /** The id of a row in assistant_drafts (4.5). The card never carries the data that gets saved. */
       id: string;
       title: string;
       icon: IconName;

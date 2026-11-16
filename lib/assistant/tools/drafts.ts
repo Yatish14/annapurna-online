@@ -7,14 +7,15 @@ import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { STATES } from "@/lib/expenses/places";
 import { checkTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
 import { routeText } from "@/lib/expenses/trips";
+import { saveDraft } from "../draftStore";
 import { choiceNames, matchName, nameAmong, placesNamed } from "../match";
 import { freeText, toolReply } from "./result";
 
 /**
  * draft_booking: prepares a new car booking from what the admin said, and checks it with exactly the booking form's
- * rules (parseTrip and checkTrip, lib/expenses/tripInput.ts, task 4.1). It SAVES NOTHING: the model never writes
- * data (design decision 2). Later tasks keep the checked draft on the server (4.5) and save it only when the admin
- * presses Confirm on its card (4.4, 4.6).
+ * rules (parseTrip and checkTrip, lib/expenses/tripInput.ts, task 4.1). It SAVES NO BOOKING: the model never writes
+ * business data (design decision 2). A ready draft is kept on the server for the admin who asked (assistant_drafts,
+ * 4.5), and becomes a booking only when that admin presses Confirm on its card (4.4, 4.6).
  *
  * The model passes plain words ("Innova", "Ramesh", "Vijayawada"); our code turns them into the form's values:
  * the vehicle's and driver's ids, each city's state. Anything missing or wrong comes back as one clear question.
@@ -70,7 +71,7 @@ async function place(city: string | undefined, state: string | undefined, label:
 const ask = (note: string, missing: string) => toolReply({ status: "failed", data: { ready: false, missing }, note });
 
 export const draftBooking = tool(
-  async (a) => {
+  async (a, config) => {
     // A one-way trip given only a "destination": that's where it ends (the model mixed the two up once, costing a turn)
     const dropCity = a.drop_city ?? (a.round_trip ? undefined : a.destination_city);
     const dropState = a.drop_city ? a.drop_state : (a.drop_state ?? a.destination_state);
@@ -138,13 +139,19 @@ export const draftBooking = tool(
     }
     if (!check.ok) return ask(check.error, check.field);
 
-    // 3. Ready: the booking as the admin will check it on the card (4.4). Still nothing saved.
+    // 3. Ready: the booking as the admin will check it on the card (4.4). Kept as a draft; no booking is saved.
     const { input } = parsed;
     const days = diffDays(input.startDate, input.endDate) + 1;
     // A busy driver the admin said to book anyway: the card says which booking they're already on. Checked again,
     // because the model may set driver_is_busy_ok without being told the driver was busy.
     const again = a.driver_is_busy_ok ? await checkTrip(input) : null;
     const driverBusy = again && !again.ok && "driverClash" in again ? again.driverClash : null;
+
+    // Kept on the server for the admin who asked (4.5). Their id comes from the signed-in session, passed in by
+    // the API route: never from the model or the browser. The card gets only the draft's id.
+    const userId: unknown = config?.configurable?.userId;
+    if (typeof userId !== "number") throw new Error("draft_booking needs the signed-in admin's id (configurable.userId)");
+    const draftId = await saveDraft(userId, "booking", fields);
     return toolReply({
       status: "found",
       data: {
@@ -162,12 +169,12 @@ export const draftBooking = tool(
           driver_amount: parsed.driverAmount !== null ? formatRupees(parsed.driverAmount) : "not set yet",
           notes: freeText(input.notes, 300),
         },
-        // The checked values, by the form's field names: kept for saving (4.5, 4.6) and for "Open in booking form" (4.8)
-        fields,
+        // The checked form values stay on the server (assistant_drafts); this id is all the card carries
+        draft_id: draftId,
         driver_busy: driverBusy,
       },
       note:
-        "Checked with the booking form's rules. NOTHING IS SAVED. The admin sees these details on a card under your " +
+        "Checked with the booking form's rules. NO BOOKING IS SAVED. The admin sees these details on a card under your " +
         "answer, with Confirm, Open in form and Cancel buttons; only their Confirm saves it, you can't.",
     });
   },

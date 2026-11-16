@@ -40,17 +40,19 @@ type ReadyBooking = {
     notes: string | null;
   };
   driver_busy: string | null;
+  /** The row in assistant_drafts (4.5): the only thing about the draft that goes to the browser and comes back */
+  draft_id: string;
 };
 
-const CARDS: Record<string, (args: Args, result: ToolResult<unknown>, callId: string) => Card | null> = {
+const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | null> = {
   // A booking ready to confirm (4.4). The card shows the checked values from the tool, not the model's words.
-  // Nothing is saved: Confirm comes in 4.6, and from 4.5 the id is a row in assistant_drafts, not the tool call's id.
-  draft_booking: (_args, result, callId) => {
-    const { ready, booking: b, driver_busy } = result.data as ReadyBooking;
+  // The card shows the details, but carries only the draft's id: Confirm (4.6) loads the values from the server.
+  draft_booking: (_args, result) => {
+    const { ready, booking: b, driver_busy, draft_id } = result.data as ReadyBooking;
     if (!ready) return null;
     return {
       kind: "draft",
-      id: `draft-${callId}`,
+      id: draft_id,
       title: "New booking",
       icon: "bookings",
       status: "pending",
@@ -135,11 +137,11 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>, callId: st
 };
 
 /** The card for one finished tool call, or null. Never throws: a broken card mustn't break the answer. */
-export function cardFor(tool: string, args: Args, artifact: unknown, callId = ""): Card | null {
+export function cardFor(tool: string, args: Args, artifact: unknown): Card | null {
   const result = artifact as ToolResult<unknown> | undefined;
   if (!result || result.status === "failed" || result.status === "none" || !result.data) return null;
   try {
-    return CARDS[tool]?.(args, result, callId) ?? null;
+    return CARDS[tool]?.(args, result) ?? null;
   } catch (err) {
     console.error(`Annapurna Assist: couldn't make a card for ${tool}`, err);
     return null;

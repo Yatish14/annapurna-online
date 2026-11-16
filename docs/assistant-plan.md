@@ -138,7 +138,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **4.2** `draft_booking` tool: validate, match vehicle/driver names, check they're free. **Saves nothing.** (`lib/assistant/match.ts`, `tools/drafts.ts`; asks for everything missing at once; our code finds states and counts days.)
 - [x] **4.3** Unclear names ("Ravi" matches two drivers) → the assistant asks which one. (Every unclear name and place asked in one question, with the choices; drivers with the same name told apart by phone; the model never chooses.)
 - [x] **4.4** Confirmation card (as in the mockup). (Built from the tool's checked values in `cards.ts`; a busy driver booked anyway is a warning on it; Confirm says plainly it saves nothing until 4.6; the mockup's fake save removed.)
-- [ ] **4.5** `assistant_drafts` table (owner, expiry); the card only carries an ID. *Learn: never trust data from the browser.*
+- [x] **4.5** `assistant_drafts` table (owner, expiry); the card only carries an ID. *Learn: never trust data from the browser.* (`lib/assistant/draftStore.ts`: `saveDraft`, `getDraft` for the owner only; the admin's id comes from the session via `configurable`; drafts last 24 hours.)
 - [ ] **4.6** Confirm button → server action re-checks, calls `createTrip`, logs "via Assistant".
 - [ ] **4.7** After confirming, the result goes back into the chat so the conversation continues.
 - [ ] **4.8** "Open in booking form" → the create form, filled in from the draft.
