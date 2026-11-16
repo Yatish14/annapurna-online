@@ -145,7 +145,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **4.9** Payment draft: tool, card, confirm. (`draft_payment` in `tools/payments.ts`: the booking by number or customer name, with choices; payment checks and saving shared with the booking page in `lib/expenses/paymentInput.ts`; Confirm saves it once, logged "via Annapurna Assist".)
 - [x] **4.10** Fuel draft: tool, card, confirm. (`draft_fuel` in `tools/fuel.ts`: on a booking or straight on a vehicle; warns about an odd price per litre; fuel checks and saving shared with the fuel form in `lib/expenses/fuelInput.ts`; booking lookup shared with payments in `tools/findBooking.ts`.)
 - [x] **4.11** Drafts can be cancelled and expire. (Cancel is a server action; a draft found saved, cancelled or expired updates its card; a save that broke off halfway is reported, never retried; settled or expired drafts are deleted after 30 days.)
-- [ ] **4.12** Tests: a draft never writes; confirm writes exactly once, even on a double-click.
+- [x] **4.12** Tests: a draft never writes; confirm writes exactly once, even on a double-click. (`tests/drafts.spec.ts`, no browser, own database: the draft tools change nothing, five Confirms at once save one, owner/cancelled/expired refused, a failed save half-saves nothing; Confirm's code moved to `lib/assistant/confirm.ts` so it can be tested. Checked by breaking the claim on purpose: the test caught the payment saved five times.)
 
 ## Step 5 — Saved conversations
 
