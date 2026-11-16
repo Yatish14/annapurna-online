@@ -1,5 +1,6 @@
 import { fmtShort } from "@/lib/dates";
 import { monthText } from "@/lib/expenses/finance";
+import { resolveMonth } from "./months";
 import type { ToolStep } from "./types";
 
 /**
@@ -10,6 +11,12 @@ import type { ToolStep } from "./types";
 type Args = Record<string, unknown>;
 const text = (v: unknown) => (typeof v === "string" ? v : "");
 
+/** "last month" → "October 2026", as the tool itself will read it (the admin's words if it isn't a month) */
+function monthName(v: unknown): string {
+  const m = resolveMonth(text(v));
+  return m ? monthText(m) : `"${text(v)}"`;
+}
+
 const STEPS: Record<string, (args: Args) => ToolStep> = {
   get_today: () => ({ label: "Checked the date", icon: "calendar" }),
   list_bookings: (a) => ({
@@ -19,11 +26,11 @@ const STEPS: Record<string, (args: Args) => ToolStep> = {
   get_booking: (a) => ({ label: `Opened ${text(a.number).toUpperCase() || "a booking"}`, icon: "bookings" }),
   search_bookings: (a) => ({ label: `Searched bookings for "${text(a.query)}"`, icon: "search" }),
   balances_due: () => ({ label: "Checked balances due", icon: "rupee" }),
-  month_overview: (a) => ({ label: `Checked ${a.month ? monthText(text(a.month)) : "this month"}'s money`, icon: "chart" }),
-  vehicle_summary: () => ({ label: "Checked vehicles", icon: "car" }),
-  driver_summary: () => ({ label: "Checked drivers", icon: "steering" }),
+  month_overview: (a) => ({ label: `Checked ${monthName(a.month)}'s money`, icon: "chart" }),
+  vehicle_summary: (a) => ({ label: `Checked vehicles${a.month ? ` for ${monthName(a.month)}` : ""}`, icon: "car" }),
+  driver_summary: (a) => ({ label: `Checked drivers${a.month ? ` for ${monthName(a.month)}` : ""}`, icon: "steering" }),
   print_orders: () => ({ label: "Checked printouts", icon: "printer" }),
-  report: (a) => ({ label: `Read ${a.month ? monthText(text(a.month)) : "this month"}'s report`, icon: "chart" }),
+  report: (a) => ({ label: `Read ${monthName(a.month)}'s report`, icon: "chart" }),
 };
 
 export function stepFor(name: string, args: Args = {}): ToolStep {

@@ -1,7 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { todayIST } from "@/lib/dates";
 import { buildReports, monthLabel, pdfName, REPORT_VIEWS, viewTitle } from "@/lib/expenses/reports";
+import { monthInput, resolveMonth, unknownMonth } from "../months";
 import { toolReply } from "./result";
 
 /**
@@ -14,7 +14,8 @@ import { toolReply } from "./result";
  */
 export const report = tool(
   async ({ which, month }) => {
-    const m = month ?? todayIST().slice(0, 7);
+    const m = resolveMonth(month); // this month when not given
+    if (!m) return toolReply({ status: "failed", data: null, note: unknownMonth(month ?? "") });
     const reports = await buildReports(which, m);
     const data = {
       title: `${viewTitle(which)} · ${monthLabel(m)}`, // "Drivers report · October 2026"
@@ -45,11 +46,7 @@ export const report = tool(
         .enum(REPORT_VIEWS)
         .default("all")
         .describe("bookings, customers, drivers, vehicles, or all (all four in one file, the default)."),
-      month: z
-        .string()
-        .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "A month like 2026-10")
-        .optional()
-        .describe("The month as YYYY-MM (2026-10 is October 2026). Leave out for this month."),
+      month: monthInput.optional().describe(`${monthInput.description} Leave out for this month.`),
     }),
     responseFormat: "content_and_artifact",
   },

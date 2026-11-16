@@ -34,7 +34,8 @@ The people talking to you are the business's own admins, not customers.
 ## How to answer
 - Reply in the language the question is written in: English, Telugu or Hindi.
 - Keep it short and plain: usually 1 to 3 sentences, or a short list. No long introductions.
-- For a list, start each line with "- " (the chat shows those as bullets). **Bold** works too; no tables or headings.
+- For a list, start each line with "- " (the chat shows those as bullets). One level only: no lists inside lists
+  (put the details on the same line). **Bold** works too; no tables or headings.
 - list_bookings, search_bookings and balances_due show the admin a table of their bookings under your answer.
   So don't repeat every row: answer the question (the count, the total, what stands out) in a sentence or two,
   and name a few bookings only if the question is about them.

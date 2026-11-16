@@ -1,9 +1,9 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { todayIST } from "@/lib/dates";
 import { monthText } from "@/lib/expenses/finance";
 import { moneyOutOf, monthSummary, outstanding } from "@/lib/expenses/overview";
 import { listTrips } from "@/lib/expenses/trips";
+import { monthInput, resolveMonth, unknownMonth } from "../months";
 import { bookingRow, MAX_ROWS } from "./bookings";
 import { toolReply } from "./result";
 
@@ -67,7 +67,8 @@ export const balancesDue = tool(
  */
 export const monthOverview = tool(
   async ({ month }) => {
-    const m = month ?? todayIST().slice(0, 7); // this month when not given
+    const m = resolveMonth(month); // this month when not given
+    if (!m) return toolReply({ status: "failed", data: null, note: unknownMonth(month ?? "") });
     const s = await monthSummary(m);
     const moneyOut = moneyOutOf(s);
     const data = {
@@ -103,13 +104,7 @@ export const monthOverview = tool(
       "billed and the driver amounts agreed. Use it for cash questions: 'how much came in this month', 'what did " +
       "we spend on fuel'. Net here is cash in − cash out, not profit: for a month's profit, use report (the Reports " +
       "page's profit, by the bookings starting in the month); for one vehicle's profit, use vehicle_summary.",
-    schema: z.object({
-      month: z
-        .string()
-        .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "A month like 2026-11")
-        .optional()
-        .describe("The month as YYYY-MM (2026-10 is October 2026). Leave out for this month."),
-    }),
+    schema: z.object({ month: monthInput.optional().describe(`${monthInput.description} Leave out for this month.`) }),
     responseFormat: "content_and_artifact",
   },
 );

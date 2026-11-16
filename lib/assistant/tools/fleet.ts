@@ -4,6 +4,7 @@ import { emiStatus, insuranceStatus, listFinance, monthText } from "@/lib/expens
 import { listDrivers, listVehicles } from "@/lib/expenses/fleet";
 import { vehicleProfit, vehiclesMonth } from "@/lib/expenses/overview";
 import { driversMonth } from "@/lib/expenses/trips";
+import { monthInput, resolveMonth, unknownMonth } from "../months";
 import { toolReply } from "./result";
 
 /**
@@ -12,15 +13,16 @@ import { toolReply } from "./result";
  * same code as the Fleet page, the EMI page and the monthly reports, so the answers match those pages.
  */
 
-/** "2026-11": a month, for "this month", "last month", "in October" */
-const month = z
-  .string()
-  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "A month like 2026-11")
-  .optional()
-  .describe("A month as YYYY-MM (2026-11 is November 2026). Leave out for all-time totals only.");
+/** Optional here: without a month, both tools give all-time totals only */
+const month = monthInput.optional().describe(`${monthInput.description} Leave out for all-time totals only.`);
+
+/** The month asked for ("last month" → "2026-10"), undefined for all-time, or null when the words aren't a month */
+const monthFrom = (words: string | undefined) => (words ? resolveMonth(words) : undefined);
 
 export const vehicleSummary = tool(
-  async ({ month }) => {
+  async ({ month: words }) => {
+    const month = monthFrom(words);
+    if (month === null) return toolReply({ status: "failed", data: null, note: unknownMonth(words ?? "") });
     const [vehicles, finance, monthly] = await Promise.all([listVehicles(), listFinance(), month ? vehiclesMonth(month) : null]);
     if (!vehicles.length) return toolReply({ status: "none", data: null, note: "No vehicles are set up yet." });
 
@@ -77,7 +79,9 @@ export const vehicleSummary = tool(
 );
 
 export const driverSummary = tool(
-  async ({ month }) => {
+  async ({ month: words }) => {
+    const month = monthFrom(words);
+    if (month === null) return toolReply({ status: "failed", data: null, note: unknownMonth(words ?? "") });
     const [drivers, monthly] = await Promise.all([listDrivers(), month ? driversMonth(month) : null]);
     if (!drivers.length) return toolReply({ status: "none", data: null, note: "No drivers are set up yet." });
 
