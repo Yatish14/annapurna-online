@@ -1,6 +1,6 @@
 import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
-import { END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
+import { type BaseCheckpointSaver, END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt";
 import { mainModel } from "./model";
 import { TOOLS } from "./tools";
@@ -58,8 +58,11 @@ const STOPPED =
 /**
  * The graph, with a limit on rounds of tools. The app uses MAX_TOOL_ROUNDS (`graph` below); tests build one with
  * a smaller limit, so the out-of-rounds path runs every time instead of waiting for the model to get stuck.
+ *
+ * `checkpointer`: only for comparing LangGraph's own memory with our saved chats (5.9, docs/assistant-checkpointer.md).
+ * The app passes none: each question runs with the history it's given (lib/assistant/history.ts).
  */
-export function buildGraph(maxRounds = MAX_TOOL_ROUNDS) {
+export function buildGraph(maxRounds = MAX_TOOL_ROUNDS, checkpointer?: BaseCheckpointSaver) {
   /** The "model" node: send all the messages so far to the model, with the list of tools it may ask for */
   async function callModel(state: typeof MessagesAnnotation.State, config: RunnableConfig) {
     // `config` carries the Stop signal and LangGraph's listeners (that's how the reply streams out word by word).
@@ -94,7 +97,7 @@ export function buildGraph(maxRounds = MAX_TOOL_ROUNDS) {
       .addConditionalEdges("model", afterModel, ["tools", END])
       // After the tools: back to the model, which now sees the results
       .addEdge("tools", "model")
-      .compile()
+      .compile({ checkpointer })
   );
 }
 
