@@ -39,6 +39,8 @@ type Listeners = {
   step: (event: Extract<StreamEvent, { type: "step" }>) => void;
   /** A card made from a tool's result (shown under the answer) */
   card: (card: Card) => void;
+  /** A new chat's title, written by Flash-Lite (5.5) */
+  title: (title: string) => void;
 };
 
 /**
@@ -80,6 +82,8 @@ async function ask(question: string, chatId: string, voice: boolean, signal: Abo
       on.step(event);
     } else if (event.type === "card") {
       on.card(event.card);
+    } else if (event.type === "title") {
+      on.title(event.title);
     }
   };
   while (true) {
@@ -215,6 +219,8 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
       },
       // A table from a tool's own data: added under the answer, in the order the tools finished
       card: (card) => updateMessage(chatId, answer.id, (m) => ({ ...m, cards: [...(m.cards ?? []), card] })),
+      // The chat list shows the written title in place of the first question
+      title: (title) => setChats((cs) => cs.map((c) => (c.id === chatId ? { ...c, title } : c))),
     })
       .catch((err) =>
         updateMessage(chatId, answer.id, (m) => {

@@ -9,9 +9,13 @@ import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
 import { USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
 import { titleFrom } from "@/lib/assistant/suggestions";
+import { writeTitle } from "@/lib/assistant/titles";
 import { events, line, NDJSON } from "@/lib/assistant/stream";
 import type { StreamEvent } from "@/lib/assistant/types";
 import { countQuestion } from "@/lib/assistant/usage";
+
+/** How long a finished answer waits for its new chat's written title (5.5) before ending without it */
+const TITLE_WAIT_MS = 1500;
 
 /**
  * Annapurna Assist's API: the browser sends a question, the server asks Gemini and passes the reply on
@@ -63,8 +67,21 @@ export async function POST(request: Request) {
   // Counted, so it's part of the chat now, whatever happens next
   const save = (m: NewMessage) => addMessage(chat.id, user.id, m);
   await save({ role: "user", text: message, voice });
-  // A new chat's first title, for the chat list: its first question, cut short (the same as the chat shows)
-  if (!chat.titled && chat.title === "New chat") await setTitle(chat.id, user.id, titleFrom(message), false);
+  // A new chat: its first title is its first question, cut short (the same as the chat shows), and Flash-Lite
+  // writes a better one alongside the answer (5.5). Saved whatever happens to the answer; sent at its end.
+  const newChat = !chat.titled && chat.title === "New chat";
+  if (newChat) await setTitle(chat.id, user.id, titleFrom(message), false);
+  const written: Promise<string | null> = newChat
+    ? writeTitle(message)
+        .then(async (title) => (title && (await setTitle(chat.id, user.id, title, true)) ? title : null))
+        .catch(() => null) // a title isn't worth an error: the first question stays
+    : Promise.resolve(null);
+  // The answer waits for it at most TITLE_WAIT_MS after its last word; a later title is still saved, and the chat
+  // list shows it the next time it loads
+  const titleLine = async () => {
+    const title = await Promise.race([written, new Promise<null>((done) => setTimeout(() => done(null), TITLE_WAIT_MS))]);
+    return title ? line({ type: "title", title }) : "";
+  };
 
   // 3. Is it about the business? A quick check first (lib/assistant/guard.ts); the main model never sees off-topic
   //    questions. The previous question goes along, so a follow-up like "and for 3?" makes sense.
@@ -73,7 +90,7 @@ export async function POST(request: Request) {
   if (!(await isOnTopic(message, earlier, request.signal))) {
     const text = refusal(message);
     await save({ role: "assistant", text });
-    return new Response(line({ type: "text", text }), { headers: NDJSON });
+    return new Response(line({ type: "text", text }) + (await titleLine()), { headers: NDJSON });
   }
 
   // 4. Run the graph (lib/assistant/graph.ts) with our rules first, then the chat so far, then the new question.
@@ -124,7 +141,12 @@ export async function POST(request: Request) {
     async pull(controller) {
       try {
         const { done, value } = await pieces.next();
-        if (done) return controller.close();
+        if (done) {
+          // The answer is finished: a new chat's written title last (usually ready long before)
+          const title = await titleLine();
+          if (title) controller.enqueue(encoder.encode(title));
+          return controller.close();
+        }
         controller.enqueue(encoder.encode(line(value)));
       } catch (err) {
         // Gemini failed halfway: end the stream with an error, so the browser knows the reply is cut short

@@ -6,6 +6,7 @@ import { addMessage, chatMessages, chatSummary, ensureChat, listChats, type NewM
 import { finishDraft, saveDraft } from "@/lib/assistant/draftStore";
 import { historyFor } from "@/lib/assistant/history";
 import { savedAs } from "@/lib/assistant/replies";
+import { cleanTitle } from "@/lib/assistant/titles";
 import { events } from "@/lib/assistant/stream";
 import { databaseKind, query } from "@/lib/db";
 
@@ -204,4 +205,15 @@ test("a deleted admin's chats and messages go with them", async () => {
   await query("DELETE FROM users WHERE id = $1", [u.id]);
   const [left] = await query<{ n: number }>("SELECT count(*)::int AS n FROM assistant_messages WHERE chat_id = $1", [id]);
   expect(left.n).toBe(0);
+});
+
+// 5.5: whatever Flash-Lite replies, the title is tidied the same way
+test("a written title is tidied: no quotes, no 'Title:', no full stop, one line, not too long", async () => {
+  expect(cleanTitle("Title: Upcoming bookings.")).toBe("Upcoming bookings");
+  expect(cleanTitle('"Booking for Ravi Kumar"')).toBe("Booking for Ravi Kumar");
+  expect(cleanTitle("**Fuel for VB-0012**\nHere is why…")).toBe("Fuel for VB-0012");
+  expect(cleanTitle("  ఈ వారం బుకింగ్‌లు  ")).toBe("ఈ వారం బుకింగ్‌లు");
+  expect(cleanTitle("इस हफ़्ते की बुकिंग।")).toBe("इस हफ़्ते की बुकिंग");
+  expect(cleanTitle("x".repeat(100))).toHaveLength(60);
+  expect(cleanTitle("   \n  ")).toBeNull();
 });

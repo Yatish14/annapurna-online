@@ -1,5 +1,5 @@
 import { ChatGoogle } from "@langchain/google/node";
-import { fakeGuardModel, fakeMainModel } from "./fake";
+import { fakeGuardModel, fakeMainModel, fakeTitleModel } from "./fake";
 
 /**
  * Which AI model Annapurna Assist uses, and its settings, in one place. Server only: it reads
@@ -48,5 +48,19 @@ export function guardModel() {
     // With a tiny cap (we tried 8) a thinking model runs out before it gets to the word.
     maxOutputTokens: 300,
     maxRetries: 0, // if the check fails, the question goes through instead (see guard.ts)
+  });
+}
+
+/**
+ * The model that writes a chat's title from its first question (lib/assistant/titles.ts, 5.5). Flash-Lite: a few
+ * words is an easy job, and it runs once per new chat, alongside the answer.
+ */
+export function titleModel() {
+  if (USE_FAKE) return fakeTitleModel();
+  return new ChatGoogle({
+    model: MODELS.flashLite,
+    temperature: 0.3, // a little room to word it naturally
+    maxOutputTokens: 300, // a few words, but thinking counts towards the cap (see guardModel)
+    maxRetries: 0, // if it fails, the first question stays the title
   });
 }

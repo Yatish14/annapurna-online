@@ -407,6 +407,37 @@ test("the chat list shows your own saved chats, and one opens from it, on the fu
   await expect(fullPage(owner).locator(".as-history-item", { hasText: "A question for the chat list" })).toHaveCount(0);
 });
 
+// 5.5: a new chat's title is written (here by the fake title writer, "About: …") and kept; if writing fails, the
+// first question stays the title
+test("a new chat gets a written title, shown straight away and kept; if writing fails the question stays", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const list = chat.locator(".as-history");
+  async function newChatAsk(question: string) {
+    await chat.getByRole("button", { name: "New chat" }).first().click();
+    await chat.getByLabel("Your question").fill(question);
+    await chat.getByLabel("Your question").press("Enter");
+    await expect(chat.locator(".as-thread")).toContainText(`You asked: "${question}"`);
+    await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+  }
+  await newChatAsk("Which cars are free on Sunday");
+  // Straight after the answer, in place of the question
+  await expect(list.locator(".as-history-item", { hasText: "About: Which cars are free on Sunday" })).toBeVisible();
+  // A second question doesn't change it
+  await chat.getByLabel("Your question").fill("And on Monday?");
+  await chat.getByLabel("Your question").press("Enter");
+  await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+
+  await newChatAsk("[no-title] Who drove VB-0001");
+  await expect(list.locator(".as-history-item", { hasText: "[no-title] Who drove VB-0001" })).toBeVisible();
+
+  // Kept: after a reload, the list (from the database) has both
+  await page.reload();
+  await expect(list.locator(".as-history-item", { hasText: "About: Which cars are free on Sunday" })).toHaveCount(1);
+  await expect(list.locator(".as-history-item", { hasText: "[no-title] Who drove VB-0001" })).toBeVisible();
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");

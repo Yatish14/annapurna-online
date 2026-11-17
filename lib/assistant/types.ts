@@ -74,8 +74,10 @@ export type Chat = {
  * - text: more words of the answer
  * - step: a tool started ("running") or finished ("done"); `id` pairs the two when several run at once
  * - card: a table or other card made from a finished tool's own result (lib/assistant/cards.ts)
+ * - title: a new chat's title, written by Flash-Lite (lib/assistant/titles.ts, 5.5), at the end of its first answer
  */
 export type StreamEvent =
   | { type: "text"; text: string }
   | { type: "step"; state: "running" | "done"; id: string; step: ToolStep }
-  | { type: "card"; card: Card };
+  | { type: "card"; card: Card }
+  | { type: "title"; title: string };

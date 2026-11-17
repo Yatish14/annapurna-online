@@ -18,6 +18,7 @@ import { ChatGenerationChunk, type ChatResult } from "@langchain/core/outputs";
  *   [fail:429]    fails before the first word with that status (429 rate limit, 500 Google down, 401 bad key…)
  *   [cut]         fails after a few words, like a reply cut off halfway
  *   [slow]        writes slowly (about 4 s), so there's time to press Stop
+ *   [no-title]    the chat title writer fails, so the first question stays the title (5.5)
  *   [history]     quotes the end of the previous answer as the model was sent it, so a test can see what the
  *                 server added to the history (e.g. "[After this answer: … saved as VB-0003.]", 4.7)
  */
@@ -161,5 +162,18 @@ export function fakeGuardModel() {
   return new FakeModel(({ question: input }) => {
     const question = /<question>([\s\S]*)<\/question>/.exec(input)?.[1] ?? input;
     return { text: question.includes("[off-topic]") ? "BLOCK" : "ALLOW" };
+  });
+}
+
+/**
+ * Instead of Flash-Lite writing a chat's title (lib/assistant/titles.ts): "About: " and the start of the question,
+ * so a test can tell a written title from the first-question one. "[no-title]" in the question makes it fail, to
+ * test that the first-question title stays.
+ */
+export function fakeTitleModel() {
+  return new FakeModel(({ question: input }) => {
+    const question = /<question>([\s\S]*)<\/question>/.exec(input)?.[1] ?? input;
+    if (question.includes("[no-title]")) throw new Error("Fake title failure");
+    return { text: `About: ${question.replace(/\[[^\]]*\]\s*/g, "").slice(0, 40)}` };
   });
 }
