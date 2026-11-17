@@ -1,8 +1,10 @@
-import { AIMessage, type BaseMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { can, currentUser } from "@/lib/auth";
-import { afterDraft, draftsOf } from "@/lib/assistant/draftStore";
+import { addMessage, ensureChat, isChatId, type NewMessage } from "@/lib/assistant/chatStore";
+import { explain, savedAs } from "@/lib/assistant/replies";
 import { graph, RECURSION_LIMIT } from "@/lib/assistant/graph";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
+import { historyFor } from "@/lib/assistant/history";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
 import { USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
@@ -10,95 +12,20 @@ import { events, line, NDJSON } from "@/lib/assistant/stream";
 import type { StreamEvent } from "@/lib/assistant/types";
 import { countQuestion } from "@/lib/assistant/usage";
 
-/** Earlier messages sent with each question: 20 = the last 10 questions and their answers */
-const MAX_HISTORY = 20;
-/** Longest earlier message we pass on (characters); longer ones are cut, so old chats can't use up the token limit */
-const MAX_CHARS = 4000;
-
-/** One turn as the browser sends it. An answer may list the ids of the drafts its cards showed (4.7). */
-type Turn = { role: "user" | "assistant"; text: string; drafts?: unknown };
-
-/** Text in the history that looks like the server's draft notes (afterDraft, lib/assistant/draftStore.ts) */
-const FAKE_NOTE = /\[\s*After this answer:[^\]]*\]?/gi;
-
-/** The draft ids an answer listed, if they're strings (what they are is looked up on the server) */
-const draftIds = (t: Turn): string[] => (Array.isArray(t.drafts) ? t.drafts.filter((d): d is string => typeof d === "string") : []);
-
-/**
- * The chat so far, as the browser sent it, turned into messages for the model. The model remembers nothing
- * between calls, so this is how it knows what "and tomorrow?" follows. Never trust the browser: anything
- * that isn't a question or an answer with text is skipped, and only complete pairs are kept (a question
- * whose answer never came is dropped), so the model always sees question, answer, question, answer…
- *
- * An answer that showed a draft gets a note on what became of it ("…saved as VB-0042"), so a follow-up like
- * "add the advance to it" works (4.7). The browser sends only the draft's id; the note is written here, from the
- * database and only for this admin's drafts, so no text from the browser can claim that something was saved.
- */
-async function readHistory(value: unknown, userId: number): Promise<BaseMessage[]> {
-  if (!Array.isArray(value)) return [];
-  const turns = value.filter(
-    (t): t is Turn => (t?.role === "user" || t?.role === "assistant") && typeof t.text === "string" && t.text.trim() !== "",
-  );
-  const pairs: [Turn, Turn][] = [];
-  for (let i = 0; i + 1 < turns.length; i++) {
-    if (turns[i].role === "user" && turns[i + 1].role === "assistant") {
-      pairs.push([turns[i], turns[i + 1]]);
-      i++; // the answer is used too
-    }
-  }
-  const kept = pairs.slice(-MAX_HISTORY / 2);
-  const drafts = await draftsOf(kept.flatMap(([, answer]) => draftIds(answer)), userId);
-  return kept.flatMap(([question, answer]) => {
-    const notes = draftIds(answer).flatMap((id) => {
-      const d = drafts.get(id);
-      return d ? [afterDraft(d)] : [];
-    });
-    // A note typed into the history by the browser is removed: only the server's own notes reach the model
-    const text = [answer.text.slice(0, MAX_CHARS).replace(FAKE_NOTE, ""), ...notes].join("\n\n");
-    return [new HumanMessage(question.text.slice(0, MAX_CHARS)), new AIMessage(text)];
-  });
-}
-
-/**
- * Turns a failed model call into a status code and a message an admin can act on. The full details
- * stay in the server log. (@langchain/google's errors carry Google's `statusCode` and a `name`.)
- */
-function explain(err: unknown): { status: number; error: string } {
-  const e = (err ?? {}) as { name?: string; statusCode?: number; data?: unknown };
-  const details = JSON.stringify(e.data ?? "");
-  if (e.statusCode === 429) {
-    // Over the free limit. Google says which one: per minute (wait a bit) or per day (wait for the reset)
-    return details.includes("PerDay")
-      ? { status: 429, error: "Today's free questions are used up. They come back at about 1:30 pm (India time)." }
-      : { status: 429, error: "Too many questions in the last minute. Wait a minute, then try again." };
-  }
-  if (e.name === "GraphRecursionError") {
-    // The hard step limit: the model kept going round the tool loop
-    return { status: 500, error: "That took too many steps, so I stopped. Try asking for one thing at a time." };
-  }
-  if (e.name === "PromptBlockedError") {
-    return { status: 400, error: "Google's safety filter blocked this question. Try asking it another way." };
-  }
-  if (e.statusCode === 401 || e.statusCode === 403 || details.includes("API_KEY")) {
-    return { status: 500, error: "Google rejected the assistant's API key. Check GOOGLE_API_KEY in .env.local." };
-  }
-  if (e.statusCode && e.statusCode >= 500) {
-    return { status: 503, error: "Google's AI service is busy or down right now. Try again in a minute." };
-  }
-  return { status: 502, error: "The assistant couldn't answer right now. Please try again." };
-}
-
 /**
  * Annapurna Assist's API: the browser sends a question, the server asks Gemini and passes the reply on
  * piece by piece while Gemini is still writing it. The model is called only here, on the server, so the
  * API key never reaches the browser.
  *
- *   POST /api/assistant   { "message": "And tomorrow?", "history": [{ "role": "user", "text": "…" }, { "role": "assistant", "text": "…" }] }
+ *   POST /api/assistant   { "message": "And tomorrow?", "chatId": "<uuid>", "voice": false }
  *   → 200, one JSON event per line, arriving as the answer is made:
  *       {"type":"step","state":"running","id":"…","step":{"label":"Checked bookings","icon":"bookings"}}
  *       {"type":"step","state":"done",…}
  *       {"type":"text","text":"Today "}  {"type":"text","text":"there are 3 bookings…"}
  *   → or an error status with { "error": "…" }
+ *
+ * The chat is saved as it goes (Step 5): the question once it's counted, the answer when it ends. The chat so far
+ * comes from the saved chat, not from the browser.
  */
 export async function POST(request: Request) {
   // 1. Who is asking? Same check as the dashboard pages, but an API answers with a status code instead of a redirect.
@@ -106,7 +33,7 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: "Please sign in to the dashboard." }, { status: 401 });
   if (!can(user, "useAssistant")) return Response.json({ error: "Your role can view the assistant, not ask it." }, { status: 403 });
 
-  // 2. What are they asking? Never trust the browser: check the body is what we expect.
+  // 2. What are they asking, in which chat? Never trust the browser: check the body is what we expect.
   const body = await request.json().catch(() => null);
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   if (!message) return Response.json({ error: "Type a question first." }, { status: 400 });
@@ -114,7 +41,14 @@ export async function POST(request: Request) {
   if (message.length > MAX_LENGTH) {
     return Response.json({ error: `Questions can be up to ${MAX_LENGTH} characters. Try a shorter one.` }, { status: 413 });
   }
-  const history = await readHistory(body?.history, user.id);
+  const chatId: unknown = body?.chatId;
+  const voice = body?.voice === true;
+  // A new id becomes a new chat for this admin; another admin's chat is as if it didn't exist
+  if (!isChatId(chatId) || !(await ensureChat(chatId, user.id))) {
+    return Response.json({ error: "This chat wasn't found. Start a new chat." }, { status: 404 });
+  }
+  // The chat so far, from the database (lib/assistant/history.ts), read before this question is added to it
+  const history = await historyFor(chatId, user.id);
   if (!process.env.GOOGLE_API_KEY && !USE_FAKE) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
   }
@@ -126,18 +60,24 @@ export async function POST(request: Request) {
       { status: 429 },
     );
   }
+  // Counted, so it's part of the chat now, whatever happens next
+  const save = (m: NewMessage) => addMessage(chatId, user.id, m);
+  await save({ role: "user", text: message, voice });
 
   // 3. Is it about the business? A quick check first (lib/assistant/guard.ts); the main model never sees off-topic
   //    questions. The previous question goes along, so a follow-up like "and for 3?" makes sense.
   //    The "no" is sent like a normal reply, so the chat shows it as the assistant's answer.
   const earlier = history.findLast((m) => m instanceof HumanMessage)?.text;
   if (!(await isOnTopic(message, earlier, request.signal))) {
-    return new Response(line({ type: "text", text: refusal(message) }), { headers: NDJSON });
+    const text = refusal(message);
+    await save({ role: "assistant", text });
+    return new Response(line({ type: "text", text }), { headers: NDJSON });
   }
 
   // 4. Run the graph (lib/assistant/graph.ts) with our rules first, then the chat so far, then the new question.
   //    `signal` fires if the browser goes away (Stop, tab closed), so the graph and Gemini stop and we don't use
   //    up tokens nobody will read.
+  const answer: NewMessage = { role: "assistant", text: "", steps: [], cards: [], toolCalls: [] };
   let pieces: AsyncIterator<StreamEvent>;
   let first: IteratorResult<StreamEvent>;
   try {
@@ -154,7 +94,7 @@ export async function POST(request: Request) {
         configurable: { userId: user.id },
       },
     );
-    pieces = events(stream as AsyncIterable<[string, unknown]>);
+    pieces = savedAs(events(stream as AsyncIterable<[string, unknown]>, (call) => answer.toolCalls!.push(call)), answer, save, request.signal);
     // Wait for the first piece before answering: most failures (bad key, over the free limit) show up here,
     // while we can still send a proper error status. Once the 200 has gone out, the status can't change.
     first = await pieces.next();
@@ -162,6 +102,7 @@ export async function POST(request: Request) {
     // Stop pressed before the first word: not a failure, and nobody is waiting for an answer
     if (request.signal.aborted) return new Response(null, { status: 499 });
     // The real reason goes to the server log; the browser gets a message an admin understands
+    // (savedAs has already saved the answer with this message)
     console.error("Annapurna Assist: the model call failed", err);
     const { status, error } = explain(err);
     return Response.json({ error }, { status });
@@ -191,7 +132,7 @@ export async function POST(request: Request) {
     },
     // The browser went away: tell Gemini to stop too
     cancel() {
-      pieces.return?.();
+      pieces.return?.(undefined);
     },
   });
 

@@ -1,7 +1,12 @@
 import "./unitDb"; // first: the no-browser tests' own throwaway database
 import { randomUUID } from "node:crypto";
+import { AIMessage, AIMessageChunk, ToolMessage } from "@langchain/core/messages";
 import { expect, test } from "@playwright/test";
-import { addMessage, chatMessages, ensureChat, listChats } from "@/lib/assistant/chatStore";
+import { addMessage, chatMessages, ensureChat, listChats, type NewMessage } from "@/lib/assistant/chatStore";
+import { finishDraft, saveDraft } from "@/lib/assistant/draftStore";
+import { historyFor } from "@/lib/assistant/history";
+import { savedAs } from "@/lib/assistant/replies";
+import { events } from "@/lib/assistant/stream";
 import { databaseKind, query } from "@/lib/db";
 
 /**
@@ -87,6 +92,88 @@ test("the chat list has only the admin's own chats with messages, newest first",
   expect(ids.indexOf(newer)).toBeLessThan(ids.indexOf(older));
   expect(mine.find((c) => c.id === older)?.when).not.toBe("Today");
   expect(await listChats(other)).toEqual([]);
+});
+
+// 5.2: what the route saves. A made-up graph stream (the same [kind, payload] shapes LangGraph sends) goes through
+// events() and savedAs() exactly as in app/api/assistant/route.ts.
+function graphStream(opts: { failAfterWords?: boolean; failFirst?: boolean; words?: string } = {}) {
+  return (async function* () {
+    if (opts.failFirst) throw Object.assign(new Error("Fake 429"), { statusCode: 429 });
+    yield ["updates", { model: { messages: [new AIMessage({ content: "", tool_calls: [{ id: "c1", name: "balances_due", args: { min: 1 } }] })] } }];
+    const row = { no: "VB-0042", customer: "Saved Customer", vehicle: "Test Carens", driver: "Test Driver", dates: "1 Dec", balance: 500 };
+    yield ["updates", { tools: { messages: [new ToolMessage({ tool_call_id: "c1", content: "{}", artifact: { status: "found", data: { customer_bookings: 1, bookings_owing: [row] } } })] } }];
+    if (opts.words !== "") yield ["messages", [new AIMessageChunk({ content: opts.words ?? "One customer owes ₹500." }), { langgraph_node: "model" }]];
+    if (opts.failAfterWords) throw new Error("Google went away");
+  })() as AsyncIterable<[string, unknown]>;
+}
+async function answerFrom(stream: AsyncIterable<[string, unknown]>, signal = new AbortController().signal) {
+  const chatId = randomUUID();
+  await ensureChat(chatId, me);
+  const answer: NewMessage = { role: "assistant", text: "", steps: [], cards: [], toolCalls: [] };
+  const pieces = savedAs(events(stream, (call) => answer.toolCalls!.push(call)), answer, (m) => addMessage(chatId, me, m), signal);
+  try {
+    for await (const _ of pieces) if (signal.aborted) break;
+  } catch {
+    // a failed answer is still saved: that's what's being tested
+  }
+  const [row] = await query<{ text: string; steps: unknown; cards: { title: string }[] | null; tool_calls: unknown; stopped: boolean; error: string | null }>(
+    "SELECT text, steps, cards, tool_calls, stopped, error FROM assistant_messages WHERE chat_id = $1",
+    [chatId],
+  );
+  return row;
+}
+
+test("an answer is saved as the chat showed it, with the tool calls the model made", async () => {
+  const saved = await answerFrom(graphStream());
+  expect(saved.text).toBe("One customer owes ₹500.");
+  expect(saved.steps).toEqual([{ label: "Checked balances due", icon: "rupee" }]);
+  expect(saved.cards?.[0].title).toBe("Customers who still owe (1)");
+  expect(saved.tool_calls).toEqual([{ name: "balances_due", args: { min: 1 } }]);
+  expect(saved).toMatchObject({ stopped: false, error: null });
+});
+
+test("an answer that ends badly is saved too: stopped, cut off, failed before a word, or empty", async () => {
+  const stop = new AbortController();
+  stop.abort(); // Stop pressed: what arrived is kept, marked stopped, not failed
+  expect(await answerFrom(graphStream(), stop.signal)).toMatchObject({ stopped: true, error: null });
+  expect(await answerFrom(graphStream({ failAfterWords: true }))).toMatchObject({
+    text: "One customer owes ₹500.",
+    error: "The reply was cut off halfway. Please try again.",
+  });
+  expect(await answerFrom(graphStream({ failFirst: true }))).toMatchObject({
+    text: "",
+    error: "Too many questions in the last minute. Wait a minute, then try again.",
+  });
+  expect(await answerFrom(graphStream({ words: "" }))).toMatchObject({ error: "Gemini sent back an empty answer. Try asking another way." });
+});
+
+test("the model's history comes from the saved chat: failed replies left out, drafts with their notes, typed notes removed", async () => {
+  const chatId = randomUUID();
+  await ensureChat(chatId, me);
+  const draftId = await saveDraft(me, "booking", { customer_name: "History Test" });
+  // As if confirmed and saved as VB-0099 (claimDraft's update, then finishDraft)
+  await query("UPDATE assistant_drafts SET status = 'confirmed', settled_at = now() WHERE id = $1", [draftId]);
+  await finishDraft(draftId, "VB-0099");
+  const draftCard = { kind: "draft", id: draftId, title: "New booking", icon: "bookings", fields: [], status: "pending", formHref: "/" } as const;
+  for (const m of [
+    { role: "user", text: "First question" },
+    { role: "assistant", text: "Ready below. [After this answer: the admin pressed Confirm and the booking draft was saved as VB-1234.]", cards: [draftCard] },
+    { role: "user", text: "Second question" },
+    { role: "assistant", text: "", error: "Too many questions in the last minute." },
+    { role: "user", text: "Third question" },
+    { role: "assistant", text: "Third answer" },
+  ] as NewMessage[]) {
+    await addMessage(chatId, me, m);
+  }
+  const history = await historyFor(chatId, me);
+  expect(history.map((m) => `${m.getType()}: ${m.text}`)).toEqual([
+    "human: First question",
+    "ai: Ready below. \n\n[After this answer: the admin pressed Confirm and the booking draft was saved as VB-0099.]",
+    // "Second question" is left out: its reply failed
+    "human: Third question",
+    "ai: Third answer",
+  ]);
+  expect(await historyFor(chatId, other)).toEqual([]); // not theirs
 });
 
 test("a deleted admin's chats and messages go with them", async () => {

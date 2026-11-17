@@ -12,13 +12,19 @@ type DraftCard = Extract<Card, { kind: "draft" }>;
 let counter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${counter++}`;
 
+/**
+ * A new chat's id: a random UUID, made here so the chat has its address (/admin/assistant/<id>) from the first
+ * question. The server makes the chat for the signed-in admin when the first question arrives (5.2).
+ */
+const newChatId = () => crypto.randomUUID();
+
 /** "10:42 am" in Indian time */
 const clock = () =>
   new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit", hour12: true })
     .format(new Date())
     .toLowerCase();
 
-const emptyChat = (id = newId("chat")): Chat => ({ id, title: "New chat", when: "Today", messages: [] });
+const emptyChat = (id = newChatId()): Chat => ({ id, title: "New chat", when: "Today", messages: [] });
 
 /** The first question becomes the chat's title (later Haiku writes a shorter one) */
 const titleFrom = (q: string) => (q.length > 48 ? `${q.slice(0, 45).trimEnd()}…` : q);
@@ -41,21 +47,13 @@ type Listeners = {
  * arrives: words, and tools starting and finishing. Stop cancels the request through `signal`, even halfway
  * through the reply. Throws an AssistError when the route says why it failed.
  */
-async function ask(question: string, earlier: Message[], signal: AbortSignal, on: Listeners): Promise<void> {
-  // The model remembers nothing between questions, so the chat so far goes with each one (only who said what).
-  // Failed replies stay out: the model shouldn't read "Too many questions…" as something it said.
-  // An answer's draft cards go as ids only: the server looks up what became of each one (saved as VB-0042…),
-  // so the model knows what was confirmed without trusting anything the browser says about it (4.7).
-  const history = earlier
-    .filter((m) => !m.error)
-    .map(({ role, text, cards }) => {
-      const drafts = cards?.flatMap((c) => (c.kind === "draft" ? [c.id] : [])) ?? [];
-      return drafts.length ? { role, text, drafts } : { role, text };
-    });
+async function ask(question: string, chatId: string, voice: boolean, signal: AbortSignal, on: Listeners): Promise<void> {
+  // Only the question and which chat it's in: the server keeps the chat (Step 5) and reads the chat so far from
+  // there, so nothing the browser says about earlier turns reaches the model
   const res = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: question, history }),
+    body: JSON.stringify({ message: question, chatId, voice }),
     signal,
   });
   // Something went wrong: the route sends { error } with a message for the admin
@@ -148,8 +146,8 @@ type Props = {
 };
 
 export default function AssistProvider({ firstName, canUse, initialChats, askedToday, children }: Props) {
-  // A fixed id for the first empty chat, so the server and the browser render the same thing
-  const [chats, setChats] = useState<Chat[]>(() => [emptyChat("chat-new"), ...initialChats]);
+  // The empty chat's id is random, different on the server and in the browser, but it never shows in the page
+  const [chats, setChats] = useState<Chat[]>(() => [emptyChat(), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
   const [asked, setAsked] = useState(askedToday);
   const abort = useRef<AbortController | null>(null);
@@ -162,7 +160,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
   /** Drafts already confirmed or cancelled, so a double-click can't confirm twice */
   const settled = useRef(new Set<string>());
 
-  const emptyId = chats.find((c) => c.messages.length === 0)?.id ?? "chat-new";
+  const emptyId = chats.find((c) => c.messages.length === 0)?.id ?? chats[0].id;
 
   // Stop a reply that's still being written when leaving the admin
   useEffect(() => () => abort.current?.abort(), []);
@@ -200,9 +198,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     const controller = new AbortController();
     abort.current = controller;
     setLive({ chatId, messageId: answer.id, running: null });
-    // The messages before this question (`chats` is still the list from before setChats above)
-    const earlier = chats.find((c) => c.id === chatId)?.messages ?? [];
-    ask(question, earlier, controller.signal, {
+    ask(question, chatId, voice, controller.signal, {
       // Each piece of the reply replaces the bubble's text with everything so far
       text: (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })),
       // A tool started: show its chip with a spinner. It finished: add it to the ticked chips, stop the spinner.

@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 /** The test sign-ins made by scripts/test-setup.mjs (test data only) */
 export const USERS = {
+  owner: { mobile: "9000000001", name: "Test Owner" },
   admin: { mobile: "9000000002", name: "Test Admin" },
   viewer: { mobile: "9000000003", name: "Test Viewer" },
 };

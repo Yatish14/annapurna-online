@@ -12,7 +12,11 @@ import type { StreamEvent, ToolStep } from "./types";
  *   asked for, which start running now. After the "tools" step: one ToolMessage per finished call, carrying the
  *   call's id (tool_call_id), which is how we know which chip to tick.
  */
-export async function* events(stream: AsyncIterable<[string, unknown]>): AsyncGenerator<StreamEvent> {
+export async function* events(
+  stream: AsyncIterable<[string, unknown]>,
+  /** Told about each tool the model calls, with the inputs it chose (the route saves them with the answer, 5.2) */
+  onToolCall?: (call: { name: string; args: Record<string, unknown> }) => void,
+): AsyncGenerator<StreamEvent> {
   // tool call id → the call (for its card) and its chip, until it's done
   const running = new Map<string, { name: string; args: Record<string, unknown>; step: ToolStep }>();
   for await (const [kind, payload] of stream) {
@@ -28,6 +32,7 @@ export async function* events(stream: AsyncIterable<[string, unknown]>): AsyncGe
         const id = call.id ?? call.name;
         const step = stepFor(call.name, call.args);
         running.set(id, { name: call.name, args: call.args, step });
+        onToolCall?.({ name: call.name, args: call.args });
         yield { type: "step", state: "running", id, step };
       }
     }

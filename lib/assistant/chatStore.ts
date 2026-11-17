@@ -89,6 +89,20 @@ export async function chatMessages(chatId: string, userId: number): Promise<Mess
   }));
 }
 
+/** A saved message as the model's history needs it (lib/assistant/history.ts) */
+export type HistoryRow = { role: "user" | "assistant"; text: string; error: string | null; cards: Card[] | null };
+
+/** A chat's saved messages for the model's history, oldest first. Empty if it isn't this admin's chat. */
+export async function chatHistory(chatId: string, userId: number): Promise<HistoryRow[]> {
+  if (!isChatId(chatId)) return [];
+  return query<HistoryRow>(
+    `SELECT m.role, m.text, m.error, m.cards FROM assistant_messages m
+     JOIN assistant_chats c ON c.id = m.chat_id AND c.user_id = $2
+     WHERE m.chat_id = $1 ORDER BY m.id`,
+    [chatId, userId],
+  );
+}
+
 /** This admin's chats for the list, newest first */
 export async function listChats(userId: number, limit = 100): Promise<ChatSummary[]> {
   const rows = await query<Row>(

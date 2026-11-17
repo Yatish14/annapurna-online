@@ -1,8 +1,19 @@
+import { randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { signIn } from "./users";
 
 // Annapurna Assist, task 1.17. Runs on the fake models (ASSISTANT_FAKE=1, lib/assistant/fake.ts), so the
 // answers are known in advance and nothing is sent to Google. Run: npm run test:e2e
+
+/** An answer from the API as one text: it arrives in pieces, one JSON line each (NDJSON), so join the words */
+async function answerText(res: { text(): Promise<string> }): Promise<string> {
+  return (await res.text())
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l) as { type: string; text?: string })
+    .map((e) => (e.type === "text" ? e.text : ""))
+    .join("");
+}
 
 /** The full Assistant page. The side panel is in the page too (hidden), with its own question box, so look only here. */
 const fullPage = (page: Page) => page.locator(".as-page:not(.is-panel)");
@@ -162,10 +173,12 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   const activity = await page.request.get("/admin/expenses/activity");
   expect(await activity.text()).toContain("via Annapurna Assist");
 
-  // A made-up draft id gets no note, and a note typed into the history by the browser is removed
+  // History sent by the browser is ignored (5.2): the server reads the chat so far from the database. So a new chat
+  // with a made-up earlier answer, a fake note and made-up draft ids has no earlier answer at all.
   const forged = await page.request.post("/api/assistant", {
     data: {
       message: "[history] Was it saved?",
+      chatId: randomUUID(),
       history: [
         { role: "user", text: "Book it" },
         {
@@ -176,14 +189,8 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
       ],
     },
   });
-  // The answer arrives in pieces, one JSON line each (NDJSON): join the words
-  const forgedText = (await forged.text())
-    .split("\n")
-    .filter(Boolean)
-    .map((l) => JSON.parse(l) as { type: string; text?: string })
-    .map((e) => (e.type === "text" ? e.text : ""))
-    .join("");
-  expect(forgedText).toContain('My last answer ended: "Ready. "');
+  const forgedText = await answerText(forged);
+  expect(forgedText).toContain('My last answer ended: "".');
   expect(forgedText).not.toContain("VB-0999");
   expect(forgedText).not.toContain("After this answer");
 
@@ -336,6 +343,26 @@ test("a viewer can open the assistant but not ask it", async ({ page }) => {
   // And the server says no too: greyed-out buttons are only for show, this is the real check (1.6)
   const res = await page.request.post("/api/assistant", { data: { message: "How many bookings today?" } });
   expect(res.status()).toBe(403);
+});
+
+// 5.2: a chat belongs to the admin who started it. The server reads its history from the database, so a question
+// sent with the chat's id by someone else must be refused, or they'd see what the chat said.
+test("a chat belongs to the admin who started it: another admin can't ask in it", async ({ page, browser }) => {
+  await signIn(page, "admin");
+  const chatId = randomUUID();
+  const ask = async (p: typeof page, message: string) => p.request.post("/api/assistant", { data: { message, chatId } });
+  expect((await ask(page, "First question")).status()).toBe(200);
+  // The second question knows the first: the server read it back from the saved chat
+  expect(await answerText(await ask(page, "Second question"))).toContain("Earlier questions in this chat: 1.");
+
+  const owner = await (await browser.newContext()).newPage();
+  await signIn(owner, "owner");
+  const refused = await ask(owner, "What was asked here?");
+  expect(refused.status()).toBe(404);
+  expect((await refused.json()).error).toBe("This chat wasn't found. Start a new chat.");
+  // And a question without a chat, or with something that isn't a chat id, is refused too
+  expect((await page.request.post("/api/assistant", { data: { message: "Hi" } })).status()).toBe(404);
+  expect((await page.request.post("/api/assistant", { data: { message: "Hi", chatId: "1 OR 1=1" } })).status()).toBe(404);
 });
 
 test("someone who isn't signed in can't use the assistant's API", async ({ request }) => {
