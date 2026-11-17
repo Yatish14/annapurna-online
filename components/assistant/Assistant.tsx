@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
-import { SUGGESTIONS } from "@/lib/assistant/sample";
+import { SUGGESTIONS } from "@/lib/assistant/suggestions";
 import type { Chat } from "@/lib/assistant/types";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
 import Composer from "./Composer";
@@ -22,7 +22,7 @@ type Props = {
 
 /** One view of the chats: the chat list, the open chat and the message box */
 export default function Assistant({ variant = "page", onClose, initialChat }: Props) {
-  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, adopt } = useAssist();
+  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, adopt, load } = useAssist();
   /** Viewers: buttons look greyed out but still take the click, to say why (a disabled button can't) */
   const locked = canUse ? {} : { "aria-disabled": true as const };
   const [activeId, setActiveId] = useState(initialChat?.id ?? emptyId);
@@ -46,6 +46,11 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
     chats.find((c) => c.id === emptyId) ??
     chats[0];
   const panel = variant === "panel";
+  // A chat from the list, opened: its messages come from the server (5.4)
+  const waiting = active.unloaded === true;
+  useEffect(() => {
+    if (waiting) load(active.id);
+  }, [waiting, active.id]); // not load: a new function on every render
 
   // Full page: the address follows the open chat, so a reload or a bookmark comes back to it (5.3). A new chat
   // gets its address with its first question. replaceState changes the address without loading anything.
@@ -56,7 +61,7 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
     if (window.location.pathname !== address) window.history.replaceState(null, "", address);
   }, [panel, saved, active.id]);
   const listing = panel && view === "list";
-  const savedCount = chats.filter((c) => c.messages.length > 0).length;
+  const savedCount = chats.filter((c) => c.messages.length > 0 || c.unloaded).length;
   const busy = live !== null;
   // The panel sits on pages that have their own <h1>
   const Title = panel ? "h2" : "h1";
@@ -124,7 +129,6 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
         <Title>Your chats</Title>
         <span className="as-head-sub">
           {savedCount} chat{savedCount === 1 ? "" : "s"}
-          <span className="ap-badge is-sample">Sample</span>
         </span>
       </div>
       <div className="as-head-tools">{closeButton}</div>
@@ -144,7 +148,6 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
         <Title>Annapurna Assist</Title>
         <span className="as-head-sub">
           Your business helper
-          <span className="ap-badge is-sample">Sample</span>
         </span>
       </div>
       {panel ? (
@@ -191,7 +194,9 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
               stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
             }}
           >
-            {active.messages.length === 0 ? (
+            {waiting ? (
+              <p className="ap-empty-sm as-loading">Loading chat…</p>
+            ) : active.messages.length === 0 ? (
               <div className="as-welcome">
                 <span className="as-welcome-mark" aria-hidden="true">
                   <Icon name="sparkle" size={30} />
@@ -200,7 +205,7 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
                 <p>
                   {canUse
                     ? "Ask about bookings, money, drivers and vehicles, print orders, or how to use the admin. Before anything is saved, you'll see a draft to confirm."
-                    : "You can read the chats here. Asking questions and confirming drafts is for admins."}
+                    : "You can look around here. Asking questions and confirming drafts is for admins."}
                 </p>
                 <div className="as-suggest">
                   {SUGGESTIONS.map((s) => (
@@ -227,7 +232,8 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
             )}
           </div>
 
-          <Composer busy={busy} onSend={ask} onStop={stop} left={DAILY_LIMIT - asked} />
+          {/* Waits while a chat's messages load, so a question can't land in it before its history */}
+          <Composer busy={busy || waiting} onSend={ask} onStop={stop} left={DAILY_LIMIT - asked} />
         </div>
       </section>
     </div>

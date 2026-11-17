@@ -373,13 +373,49 @@ test("a saved chat opens again at its own address, with its chips, cards and its
   expect((await owner.goto(address))?.status()).toBe(404);
 });
 
+// 5.4: the chat list is the admin's own saved chats, from the database; a chat opens from it with its messages
+test("the chat list shows your own saved chats, and one opens from it, on the full page and in the side panel", async ({ page, browser }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  await chat.getByLabel("Your question").fill("A question for the chat list");
+  await chat.getByLabel("Your question").press("Enter");
+  await expect(chat.locator(".as-thread")).toContainText('You asked: "A question for the chat list"');
+  await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+
+  // A fresh page: the list comes from the database, and the chat is in it (its title: the first question)
+  await page.goto("/admin/assistant");
+  const item = chat.locator(".as-history-item", { hasText: "A question for the chat list" });
+  await expect(item).toBeVisible();
+  await item.click();
+  await expect(chat.locator(".as-thread")).toContainText('You asked: "A question for the chat list"'); // loaded from the server
+  await expect(page).toHaveURL(/\/admin\/assistant\/[0-9a-f-]{36}$/);
+
+  // The side panel on another page has the same list, and opens the chat too
+  await page.goto("/admin/expenses");
+  await page.getByRole("button", { name: "Ask Annapurna Assist" }).click();
+  const panel = page.locator(".as-page.is-panel");
+  await panel.getByRole("button", { name: "Your chats" }).click();
+  await panel.locator(".as-history-item", { hasText: "A question for the chat list" }).click();
+  await expect(panel.locator(".as-thread")).toContainText('You asked: "A question for the chat list"');
+
+  // Another admin's list doesn't have it
+  const owner = await (await browser.newContext()).newPage();
+  await signIn(owner, "owner");
+  await owner.goto("/admin/assistant");
+  await expect(fullPage(owner).locator(".as-history")).toBeVisible();
+  await expect(fullPage(owner).locator(".as-history-item", { hasText: "A question for the chat list" })).toHaveCount(0);
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");
 
   // The page is there, view only
   const chat = fullPage(page);
-  await expect(chat.getByText("View only: you can read these chats")).toBeVisible();
+  await expect(chat.getByText("View only: asking questions is for admins.")).toBeVisible();
+  // Viewers can't ask, so they have no chats of their own (5.4: each admin sees only their own)
+  await expect(chat.locator(".as-history")).toContainText("Your chats will show here.");
   const send = chat.getByRole("button", { name: "Send" });
   await expect(send).toHaveAttribute("aria-disabled", "true");
 

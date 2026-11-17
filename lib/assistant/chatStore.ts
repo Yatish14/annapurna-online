@@ -33,6 +33,20 @@ export async function chatSummary(id: string, userId: number): Promise<ChatSumma
   return chat ? summary(chat) : null;
 }
 
+/**
+ * Sets one of this admin's chats' title. `titled`: written by Flash-Lite (5.5) or the admin (5.6), not just the
+ * first question. A first title (`titled` false) never replaces one that was written.
+ */
+export async function setTitle(id: string, userId: number, title: string, titled: boolean): Promise<boolean> {
+  const clean = title.replace(/\s+/g, " ").trim().slice(0, 80);
+  if (!isChatId(id) || !clean) return false;
+  const rows = await query(
+    `UPDATE assistant_chats SET title = $3, titled = $4 WHERE id = $1 AND user_id = $2 AND (titled = false OR $4) RETURNING id`,
+    [id, userId, clean, titled],
+  );
+  return rows.length === 1;
+}
+
 /** One question or answer to keep, as the chat shows it */
 export type NewMessage = {
   role: "user" | "assistant";

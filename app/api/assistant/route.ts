@@ -1,6 +1,6 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { can, currentUser } from "@/lib/auth";
-import { addMessage, ensureChat, isChatId, type NewMessage } from "@/lib/assistant/chatStore";
+import { addMessage, ensureChat, isChatId, type NewMessage, setTitle } from "@/lib/assistant/chatStore";
 import { explain, savedAs } from "@/lib/assistant/replies";
 import { graph, RECURSION_LIMIT } from "@/lib/assistant/graph";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
@@ -8,6 +8,7 @@ import { historyFor } from "@/lib/assistant/history";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
 import { USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
+import { titleFrom } from "@/lib/assistant/suggestions";
 import { events, line, NDJSON } from "@/lib/assistant/stream";
 import type { StreamEvent } from "@/lib/assistant/types";
 import { countQuestion } from "@/lib/assistant/usage";
@@ -44,11 +45,10 @@ export async function POST(request: Request) {
   const chatId: unknown = body?.chatId;
   const voice = body?.voice === true;
   // A new id becomes a new chat for this admin; another admin's chat is as if it didn't exist
-  if (!isChatId(chatId) || !(await ensureChat(chatId, user.id))) {
-    return Response.json({ error: "This chat wasn't found. Start a new chat." }, { status: 404 });
-  }
+  const chat = isChatId(chatId) ? await ensureChat(chatId, user.id) : null;
+  if (!chat) return Response.json({ error: "This chat wasn't found. Start a new chat." }, { status: 404 });
   // The chat so far, from the database (lib/assistant/history.ts), read before this question is added to it
-  const history = await historyFor(chatId, user.id);
+  const history = await historyFor(chat.id, user.id);
   if (!process.env.GOOGLE_API_KEY && !USE_FAKE) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
   }
@@ -61,8 +61,10 @@ export async function POST(request: Request) {
     );
   }
   // Counted, so it's part of the chat now, whatever happens next
-  const save = (m: NewMessage) => addMessage(chatId, user.id, m);
+  const save = (m: NewMessage) => addMessage(chat.id, user.id, m);
   await save({ role: "user", text: message, voice });
+  // A new chat's first title, for the chat list: its first question, cut short (the same as the chat shows)
+  if (!chat.titled && chat.title === "New chat") await setTitle(chat.id, user.id, titleFrom(message), false);
 
   // 3. Is it about the business? A quick check first (lib/assistant/guard.ts); the main model never sees off-topic
   //    questions. The previous question goes along, so a follow-up like "and for 3?" makes sense.

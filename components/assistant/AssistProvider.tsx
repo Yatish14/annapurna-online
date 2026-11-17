@@ -1,9 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { cancelDraft as cancelOnServer, confirmDraft as confirmOnServer, type DraftActionResult } from "@/app/admin/assistant/actions";
+import { cancelDraft as cancelOnServer, confirmDraft as confirmOnServer, type DraftActionResult, loadChat } from "@/app/admin/assistant/actions";
 import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
+import { titleFrom } from "@/lib/assistant/suggestions";
 import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
@@ -26,8 +27,6 @@ const clock = () =>
 
 const emptyChat = (id = newChatId()): Chat => ({ id, title: "New chat", when: "Today", messages: [] });
 
-/** The first question becomes the chat's title (later Haiku writes a shorter one) */
-const titleFrom = (q: string) => (q.length > 48 ? `${q.slice(0, 45).trimEnd()}…` : q);
 
 /** A failure our route explained (over the free limit, Google down…): its message is meant for the admin */
 class AssistError extends Error {}
@@ -127,6 +126,8 @@ type Store = {
   deleteChat: (id: string) => void;
   /** A saved chat the server loaded (the /admin/assistant/<id> page): kept, unless this browser already has it open */
   adopt: (chat: Chat) => void;
+  /** Fetches the messages of a chat that's listed by title only (5.4) */
+  load: (id: string) => void;
 };
 
 const AssistContext = createContext<Store | null>(null);
@@ -162,7 +163,10 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
   /** Drafts already confirmed or cancelled, so a double-click can't confirm twice */
   const settled = useRef(new Set<string>());
 
-  const emptyId = chats.find((c) => c.messages.length === 0)?.id ?? chats[0].id;
+  // The new chat: no messages, and not a saved chat still waiting for its messages
+  const emptyId = chats.find((c) => c.messages.length === 0 && !c.unloaded)?.id ?? chats[0].id;
+  /** Chats whose messages are being fetched, so each is asked for once */
+  const loading = useRef(new Set<string>());
 
   // Stop a reply that's still being written when leaving the admin
   useEffect(() => () => abort.current?.abort(), []);
@@ -304,6 +308,20 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     });
   }
 
+  async function load(id: string) {
+    if (loading.current.has(id)) return;
+    loading.current.add(id);
+    const chat = await loadChat(id).catch(() => undefined);
+    loading.current.delete(id);
+    if (chat === undefined) return notify("Couldn't open that chat. Check your internet and try again.");
+    // Deleted meanwhile (another tab): gone from the list too
+    if (chat === null) {
+      setChats((cs) => cs.filter((c) => c.id !== id));
+      return notify("That chat isn't there any more.");
+    }
+    setChats((cs) => cs.map((c) => (c.id === id && c.unloaded ? chat : c)));
+  }
+
   const store: Store = {
     firstName,
     canUse,
@@ -318,6 +336,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     cancelDraft,
     deleteChat,
     adopt,
+    load,
   };
   return (
     <AssistContext.Provider value={store}>

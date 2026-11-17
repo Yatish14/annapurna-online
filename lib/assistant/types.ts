@@ -1,5 +1,5 @@
-// What the Annapurna Assist chat page shows. For now the messages come from lib/assistant/sample.ts;
-// later the API route (docs/assistant-plan.md, Step 1–2) sends the same shapes, so the UI doesn't change.
+// What the Annapurna Assist chat page shows: messages from the API route (app/api/assistant/route.ts) as they
+// arrive, and saved chats from the database (lib/assistant/chatStore.ts, Step 5), in the same shapes.
 import type { IconName } from "@/components/admin/Icon";
 
 /** A tool the assistant ran before answering, shown as a small chip: "Checked bookings" */
@@ -68,9 +68,6 @@ export type Chat = {
   /** A saved chat whose messages haven't been fetched yet (the list loads titles only, Step 5) */
   unloaded?: boolean;
 };
-
-/** A reply before it gets an id and a time */
-export type Reply = Pick<Message, "text" | "steps" | "cards">;
 
 /**
  * What /api/assistant sends while it answers: one of these as JSON on each line (NDJSON).

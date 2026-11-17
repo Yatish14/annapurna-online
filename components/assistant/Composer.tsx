@@ -289,7 +289,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
       </form>
       <p className="as-footnote">
         {!canUse
-          ? "View only: you can read these chats, but asking is for admins."
+          ? "View only: asking questions is for admins."
           : left > 0
             ? `${left} questions left today`
             : "No questions left today. The limit resets at midnight."}{" "}

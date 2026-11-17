@@ -2,7 +2,7 @@ import "./unitDb"; // first: the no-browser tests' own throwaway database
 import { randomUUID } from "node:crypto";
 import { AIMessage, AIMessageChunk, ToolMessage } from "@langchain/core/messages";
 import { expect, test } from "@playwright/test";
-import { addMessage, chatMessages, ensureChat, listChats, type NewMessage } from "@/lib/assistant/chatStore";
+import { addMessage, chatMessages, chatSummary, ensureChat, listChats, type NewMessage, setTitle } from "@/lib/assistant/chatStore";
 import { finishDraft, saveDraft } from "@/lib/assistant/draftStore";
 import { historyFor } from "@/lib/assistant/history";
 import { savedAs } from "@/lib/assistant/replies";
@@ -92,6 +92,24 @@ test("the chat list has only the admin's own chats with messages, newest first",
   expect(ids.indexOf(newer)).toBeLessThan(ids.indexOf(older));
   expect(mine.find((c) => c.id === older)?.when).not.toBe("Today");
   expect(await listChats(other)).toEqual([]);
+});
+
+test("titles: spaces tidied (letters kept), at most 80 characters, a written title never replaced by a first one", async () => {
+  const id = randomUUID();
+  await ensureChat(id, me);
+  expect(await setTitle(id, me, "  Which   bookings\nare  upcoming?  ", false)).toBe(true);
+  expect((await chatSummary(id, me))?.title).toBe("Which bookings are upcoming?");
+  expect(await setTitle(id, me, "x".repeat(200), false)).toBe(true);
+  expect((await chatSummary(id, me))?.title).toHaveLength(80);
+  // Written (by Flash-Lite or the admin): a first title can't replace it, a written one can
+  expect(await setTitle(id, me, "Upcoming bookings", true)).toBe(true);
+  expect(await setTitle(id, me, "Some first question", false)).toBe(false);
+  expect(await chatSummary(id, me)).toMatchObject({ title: "Upcoming bookings", titled: true });
+  expect(await setTitle(id, me, "Renamed", true)).toBe(true);
+  // Not theirs, or nothing: no change
+  expect(await setTitle(id, other, "Mine now", true)).toBe(false);
+  expect(await setTitle(id, me, "   ", true)).toBe(false);
+  expect((await chatSummary(id, me))?.title).toBe("Renamed");
 });
 
 // 5.2: what the route saves. A made-up graph stream (the same [kind, payload] shapes LangGraph sends) goes through

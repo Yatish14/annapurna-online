@@ -12,6 +12,8 @@ the chat (1.7, 1.9, 1.11, Stop from 1.12, the length limit and daily count from 
 the report file card (3.2), draft cards with Confirm / Open in form / Cancel (4.4, 4.7, 4.11), the chat list with
 search and delete (5.4, 5.6, 5.8), help sources (6.10) and the mic with English / Telugu / Hindi (7.1–7.4).
 Each of those tasks still needs its server side. When it's real, replace `sampleReply` with the API route and delete `sample.ts`.
+(Done 17 Nov 2026, task 5.4: the chat list comes from the database and `sample.ts` is deleted; help sources and the
+mic still need their server side, Steps 6 and 7.)
 
 ## How we work
 
@@ -152,7 +154,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **5.1** `assistant_chats` and `assistant_messages` tables in `db/schema.sql`. *Learn: schema design.* (`lib/assistant/chatStore.ts`: every function takes the admin and only touches their chats; the chat id is a UUID made by the browser; tests in `tests/chats.spec.ts`.)
 - [x] **5.2** Save each turn, including tool calls. (The question once counted, the answer when it ends, however it ends: words, chips, cards, the tools called, stopped/error. The browser sends only the question and the chat id; the history is read from the saved chat, `lib/assistant/history.ts`; another admin's chat id gets 404.)
 - [x] **5.3** `/admin/assistant/[chatId]` loads an old chat. (`lib/assistant/openChat.ts`: only for its owner, others get 404; draft cards show their status from `assistant_drafts`; on the full page the address follows the open chat, so a reload or a bookmark opens it again.)
-- [ ] **5.4** History sidebar (your own chats only).
+- [x] **5.4** History sidebar (your own chats only). (Titles from the database in the admin layout; a chat's messages load when it's opened, `loadChat` server action; the first question is the first title; `sample.ts` deleted.)
 - [ ] **5.5** Flash-Lite gives each chat a title from its first question.
 - [ ] **5.6** Rename and delete chats.
 - [ ] **5.7** Trim long chats to a token budget. *Learn: context windows.*

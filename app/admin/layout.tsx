@@ -5,10 +5,9 @@ import ViewOnlyGuard from "@/components/admin/ViewOnlyGuard";
 import { MODULES_COOKIE, parseOpenModules, SIDEBAR_COOKIE } from "@/components/admin/sidebarCookie";
 import AssistPanel from "@/components/assistant/AssistPanel";
 import AssistProvider from "@/components/assistant/AssistProvider";
-import { sampleChats } from "@/lib/assistant/sample";
+import { listChats, unloaded } from "@/lib/assistant/chatStore";
 import { questionsToday } from "@/lib/assistant/usage";
 import { can, requireUser, ROLE_LABELS } from "@/lib/auth";
-import { todayIST } from "@/lib/dates";
 import { databaseKind } from "@/lib/db";
 import { initials } from "@/lib/format";
 import { LOCKED } from "@/lib/viewOnly";
@@ -22,8 +21,8 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  const [prints, store, asked] = await Promise.all([printStats(), cookies(), questionsToday(user.id)]);
-  const today = todayIST();
+  // The admin's own saved chats, titles only: a chat's messages load when it's opened (5.4)
+  const [prints, store, asked, chats] = await Promise.all([printStats(), cookies(), questionsToday(user.id), listChats(user.id)]);
 
   // Annapurna Assist looks the same for every role. Viewers can read it, but its buttons are
   // greyed out for them (canUse); the chats live here, above every page, so the side panel and
@@ -32,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <AssistProvider
       firstName={user.name.split(" ")[0]}
       canUse={can(user, "useAssistant")}
-      initialChats={sampleChats(today)}
+      initialChats={chats.map(unloaded)}
       askedToday={asked}
     >
       <ViewOnlyGuard />

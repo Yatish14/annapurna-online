@@ -32,7 +32,8 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
   const locked = canUse ? {} : { "aria-disabled": true as const };
 
   const q = query.trim().toLowerCase();
-  const saved = chats.filter((c) => c.messages.length > 0);
+  // Saved chats: open ones, and ones listed by title whose messages load when opened
+  const saved = chats.filter((c) => c.messages.length > 0 || c.unloaded);
   const shown = q
     ? saved.filter((c) => c.title.toLowerCase().includes(q) || c.messages.some((m) => m.text.toLowerCase().includes(q)))
     : saved;
@@ -131,7 +132,6 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
             <strong>Annapurna Assist</strong>
             <span className="as-head-sub">
               Your business helper
-              <span className="ap-badge is-sample">Sample</span>
             </span>
           </div>
           <button type="button" className="as-iconbtn as-history-close" onClick={onClose} aria-label="Close chats">
