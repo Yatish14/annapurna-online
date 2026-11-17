@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cancelDraftAs, confirmDraftAs, type DraftActionResult } from "@/lib/assistant/confirm";
-import { deleteChat, setTitle } from "@/lib/assistant/chatStore";
+import { deleteChat, type FoundChat, searchChats, setTitle } from "@/lib/assistant/chatStore";
 import { openChat } from "@/lib/assistant/openChat";
 import type { Chat } from "@/lib/assistant/types";
 import { can, currentUser } from "@/lib/auth";
@@ -59,4 +59,11 @@ export async function removeChat(id: unknown): Promise<{ ok: true } | { ok: fals
   if (!can(user, "useAssistant")) return { ok: false, error: "Your role can't delete chats." };
   if (typeof id !== "string" || !(await deleteChat(id, user.id))) return { ok: false, error: "This chat wasn't found." };
   return { ok: true };
+}
+
+/** Search (5.8): the signed-in admin's own chats whose title or messages contain the words */
+export async function findChats(q: unknown): Promise<FoundChat[]> {
+  const user = await currentUser();
+  if (!user || typeof q !== "string") return [];
+  return searchChats(user.id, q);
 }

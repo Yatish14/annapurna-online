@@ -167,3 +167,44 @@ export async function deleteChat(id: string, userId: number): Promise<boolean> {
   const rows = await query("DELETE FROM assistant_chats WHERE id = $1 AND user_id = $2 RETURNING id", [id, userId]);
   return rows.length === 1;
 }
+
+/** A chat found by a search (5.8): with a bit of the message that matched, if the match wasn't only in its title */
+export type FoundChat = ChatSummary & { snippet: string | null };
+
+/** Results shown for one search */
+const MAX_FOUND = 20;
+
+/** A piece of `text` around the first place `q` is in it: "…the Innova for Ravi Kumar, Vijayawada…" */
+export function snippetAround(text: string, q: string): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  const at = flat.toLowerCase().indexOf(q.toLowerCase());
+  if (at < 0) return flat.slice(0, 90) + (flat.length > 90 ? "…" : "");
+  const start = Math.max(0, at - 30);
+  const end = Math.min(flat.length, at + q.length + 60);
+  return `${start > 0 ? "…" : ""}${flat.slice(start, end)}${end < flat.length ? "…" : ""}`;
+}
+
+/**
+ * This admin's chats whose title or messages contain `q` (any case), newest first (5.8). On the server, so it finds
+ * chats whose messages haven't been loaded in the browser. ILIKE reads every message of the admin's chats: fine for
+ * one business's chats; with many thousands, a trigram index (pg_trgm) would make it fast.
+ */
+export async function searchChats(userId: number, q: string): Promise<FoundChat[]> {
+  const text = q.replace(/\s+/g, " ").trim().slice(0, 100);
+  if (text.length < 2) return [];
+  // % and _ mean "anything" in LIKE: typed by the admin they're just characters. So each gets "!" in front, and
+  // ESCAPE '!' tells LIKE that "!" makes the next character plain ("!" itself too, as "!!")
+  const pattern = `%${text.replace(/[!%_]/g, "!$&")}%`;
+  const rows = await query<Row & { hit: string | null }>(
+    `SELECT ${SUMMARY},
+            (SELECT m.text FROM assistant_messages m
+             WHERE m.chat_id = c.id AND m.text ILIKE $2 ESCAPE '!' ORDER BY m.id DESC LIMIT 1) AS hit
+     FROM assistant_chats c
+     WHERE c.user_id = $1
+       AND (c.title ILIKE $2 ESCAPE '!'
+            OR EXISTS (SELECT 1 FROM assistant_messages m WHERE m.chat_id = c.id AND m.text ILIKE $2 ESCAPE '!'))
+     ORDER BY c.updated_at DESC LIMIT $3`,
+    [userId, pattern, MAX_FOUND],
+  );
+  return rows.map((r) => ({ ...summary(r), snippet: r.hit ? snippetAround(r.hit, text) : null }));
+}

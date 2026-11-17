@@ -141,6 +141,8 @@ type Store = {
   adopt: (chat: Chat) => void;
   /** Fetches the messages of a chat that's listed by title only (5.4) */
   load: (id: string) => void;
+  /** A chat a search found (5.8): added to the list by title if it isn't there yet, so it can be opened */
+  reveal: (chat: Pick<Chat, "id" | "title" | "when">) => void;
 };
 
 const AssistContext = createContext<Store | null>(null);
@@ -361,6 +363,10 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     setChats((cs) => cs.map((c) => (c.id === id && c.unloaded ? chat : c)));
   }
 
+  function reveal({ id, title, when }: Pick<Chat, "id" | "title" | "when">) {
+    setChats((cs) => (cs.some((c) => c.id === id) ? cs : [...cs, { id, title, when, messages: [], unloaded: true }]));
+  }
+
   const store: Store = {
     firstName,
     canUse,
@@ -377,6 +383,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     renameChat,
     adopt,
     load,
+    reveal,
   };
   return (
     <AssistContext.Provider value={store}>

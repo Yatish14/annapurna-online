@@ -477,6 +477,31 @@ test("a chat can be renamed (kept after a reload) and deleted (gone for good)", 
   expect((await page.goto(address))?.status()).toBe(404);
 });
 
+// 5.8: search, on the server. (The fake title copies the question, so the word is in the title too; the snippet shows
+// the message matched. A word only in an answer is tested without a browser, in chats.spec.ts.)
+test("search finds a chat by words in its messages, shows where they matched, and opens it", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  await chat.getByRole("button", { name: "New chat" }).first().click();
+  await chat.getByLabel("Your question").fill("[tool:get_today] What's the date, zebracrossing?");
+  await chat.getByLabel("Your question").press("Enter");
+  await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+
+  // After a reload the list has titles only; the search still looks through the messages, on the server
+  await page.goto("/admin/assistant");
+  await chat.getByPlaceholder("Search chats").fill("zebracross");
+  const result = chat.locator(".as-history-item", { hasText: "zebracross" });
+  await expect(result.locator(".as-history-snippet")).toContainText("zebracrossing");
+  await result.click();
+  await expect(chat.locator(".as-thread")).toContainText("Tools used: get_today: found");
+  await expect(page).toHaveURL(/\/admin\/assistant\/[0-9a-f-]{36}$/);
+
+  // Nothing matches: says so
+  await chat.getByPlaceholder("Search chats").fill("nothing-like-this-anywhere");
+  await expect(chat.locator(".as-history")).toContainText("No chats match.");
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");

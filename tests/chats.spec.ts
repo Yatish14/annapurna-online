@@ -2,7 +2,18 @@ import "./unitDb"; // first: the no-browser tests' own throwaway database
 import { randomUUID } from "node:crypto";
 import { AIMessage, AIMessageChunk, ToolMessage } from "@langchain/core/messages";
 import { expect, test } from "@playwright/test";
-import { addMessage, chatMessages, chatSummary, deleteChat, ensureChat, listChats, type NewMessage, setTitle } from "@/lib/assistant/chatStore";
+import {
+  addMessage,
+  chatMessages,
+  chatSummary,
+  deleteChat,
+  ensureChat,
+  listChats,
+  type NewMessage,
+  searchChats,
+  setTitle,
+  snippetAround,
+} from "@/lib/assistant/chatStore";
 import { finishDraft, saveDraft } from "@/lib/assistant/draftStore";
 import { estimateTokens, fitToBudget, HISTORY_TOKENS, historyFor } from "@/lib/assistant/history";
 import { systemPrompt } from "@/lib/assistant/prompt";
@@ -278,4 +289,29 @@ test("deleting a chat removes it and its messages, and only its owner can", asyn
   expect(left.n).toBe(0);
   expect(await deleteChat(id, me)).toBe(false); // already gone
   expect(await deleteChat("1 OR 1=1", me)).toBe(false);
+});
+
+// 5.8: search, on the server, through titles and messages
+test("search finds the admin's own chats by title or message, any case, with a snippet; % and _ are plain", async () => {
+  const [byText, byTitle, theirs] = [randomUUID(), randomUUID(), randomUUID()];
+  await ensureChat(byText, me);
+  await addMessage(byText, me, { role: "user", text: "Who owes money?" });
+  await addMessage(byText, me, { role: "assistant", text: "Padma Latha still owes ₹3,500 on the January trip to Guntur, booked last week." });
+  await ensureChat(byTitle, me);
+  await addMessage(byTitle, me, { role: "user", text: "Something else" });
+  await setTitle(byTitle, me, "Diesel for the Ertiga", "admin");
+  await ensureChat(theirs, other);
+  await addMessage(theirs, other, { role: "user", text: "Padma Latha's trip" });
+
+  const padma = await searchChats(me, "padma LATHA");
+  expect(padma.map((c) => c.id)).toEqual([byText]); // not the other admin's
+  expect(padma[0].snippet).toContain("Padma Latha still owes ₹3,500");
+  expect((await searchChats(me, "ertiga")).map((c) => c.id)).toContain(byTitle);
+  expect((await searchChats(me, "ertiga")).find((c) => c.id === byTitle)?.snippet).toBeNull(); // only its title matched
+  // Too short, and LIKE's wildcards searched as plain characters
+  expect(await searchChats(me, "p")).toEqual([]);
+  expect(await searchChats(me, "%%")).toEqual([]);
+  expect(await searchChats(me, "_a")).toEqual([]);
+
+  expect(snippetAround("a ".repeat(50) + "the needle here " + "b ".repeat(50), "needle")).toMatch(/^….*the needle here.*…$/);
 });

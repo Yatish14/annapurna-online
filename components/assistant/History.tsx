@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { findChats } from "@/app/admin/assistant/actions";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import Icon from "@/components/admin/Icon";
+import type { FoundChat } from "@/lib/assistant/chatStore";
 import type { Chat } from "@/lib/assistant/types";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
 
@@ -17,7 +19,8 @@ type Props = {
   /** Full page on phones: the drawer is open */
   open?: boolean;
   onClose?: () => void;
-  onSelect: (id: string) => void;
+  /** A chat to open: from the list, or found by a search (then maybe not in the list yet) */
+  onSelect: (chat: Pick<Chat, "id" | "title" | "when">) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
@@ -27,7 +30,7 @@ type Props = {
 export default function History({ chats, activeId, inline, open, onClose, onSelect, onNew, onDelete, onRename }: Props) {
   const [query, setQuery] = useState("");
   /** The chat whose delete button was pressed, waiting for "Delete" in the popup */
-  const [deleting, setDeleting] = useState<Chat | null>(null);
+  const [deleting, setDeleting] = useState<Pick<Chat, "id" | "title"> | null>(null);
   /** The chat being renamed (its title is a box), and the name typed so far */
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   /** Enter or leaving the box saves; Escape puts the old name back */
@@ -42,12 +45,30 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
   const q = query.trim().toLowerCase();
   // Saved chats: open ones, and ones listed by title whose messages load when opened
   const saved = chats.filter((c) => c.messages.length > 0 || c.unloaded);
-  const shown = q
-    ? saved.filter((c) => c.title.toLowerCase().includes(q) || c.messages.some((m) => m.text.toLowerCase().includes(q)))
-    : saved;
+  const inList = new Set(saved.map((c) => c.id));
+
+  // Search (5.8): the server looks through every chat's title and messages, a moment after typing stops. Until
+  // its results arrive, the titles already here are filtered as you type.
+  const [found, setFound] = useState<{ q: string; chats: FoundChat[] } | null>(null);
+  useEffect(() => {
+    if (q.length < 2) return;
+    let stale = false;
+    const wait = setTimeout(() => {
+      findChats(q)
+        .then((chats) => !stale && setFound({ q, chats }))
+        .catch(() => undefined); // the titles filtered here stay
+    }, 250);
+    return () => {
+      stale = true; // typed on: an older search's answer mustn't replace a newer one
+      clearTimeout(wait);
+    };
+  }, [q]);
+  const fromServer = q.length >= 2 && found?.q === q ? found.chats : null;
+  const shown: (Pick<Chat, "id" | "title" | "when"> & { snippet?: string | null })[] =
+    fromServer ?? (q ? saved.filter((c) => c.title.toLowerCase().includes(q)) : saved);
 
   // "Today" → [chats], "Yesterday" → [chats] … in the order they first appear
-  const groups = new Map<string, Chat[]>();
+  const groups = new Map<string, typeof shown>();
   for (const c of shown) groups.set(c.when, [...(groups.get(c.when) ?? []), c]);
 
   const search = (
@@ -86,10 +107,15 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
                     }}
                   />
                 ) : (
-                  <button type="button" className="as-history-item" onClick={() => onSelect(c.id)}>
+                  <button type="button" className="as-history-item" onClick={() => onSelect(c)}>
                     {c.title}
+                    {/* A search result: the bit of a message that matched */}
+                    {c.snippet && <small className="as-history-snippet">{c.snippet}</small>}
                   </button>
                 )}
+                {/* Rename and delete: chats in the list (a search can find older ones; open those first) */}
+                {inList.has(c.id) && (
+                  <>
                 <button
                   type="button"
                   className="as-history-rename"
@@ -117,6 +143,8 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
                 >
                   <Icon name="trash" size={14} />
                 </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>

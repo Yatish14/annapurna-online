@@ -22,7 +22,7 @@ type Props = {
 
 /** One view of the chats: the chat list, the open chat and the message box */
 export default function Assistant({ variant = "page", onClose, initialChat }: Props) {
-  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, renameChat, adopt, load } = useAssist();
+  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, renameChat, adopt, load, reveal } = useAssist();
   /** Viewers: buttons look greyed out but still take the click, to say why (a disabled button can't) */
   const locked = canUse ? {} : { "aria-disabled": true as const };
   const [activeId, setActiveId] = useState(initialChat?.id ?? emptyId);
@@ -105,10 +105,11 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
     setActiveId(emptyId);
   }
 
-  function selectChat(id: string) {
+  function selectChat(chat: Pick<Chat, "id" | "title" | "when">) {
+    reveal(chat); // a search can find a chat that isn't in the list yet
     setHistoryOpen(false);
     setView("chat");
-    setActiveId(id);
+    setActiveId(chat.id);
   }
 
   const fullPageHref = saved ? `/admin/assistant/${active.id}` : "/admin/assistant";
