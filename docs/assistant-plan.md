@@ -156,7 +156,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **5.3** `/admin/assistant/[chatId]` loads an old chat. (`lib/assistant/openChat.ts`: only for its owner, others get 404; draft cards show their status from `assistant_drafts`; on the full page the address follows the open chat, so a reload or a bookmark opens it again.)
 - [x] **5.4** History sidebar (your own chats only). (Titles from the database in the admin layout; a chat's messages load when it's opened, `loadChat` server action; the first question is the first title; `sample.ts` deleted.)
 - [x] **5.5** Flash-Lite gives each chat a title from its first question. (`lib/assistant/titles.ts`: alongside the answer, in the question's language, tidied by `cleanTitle`; saved as written, sent as a `title` event; the answer waits for it at most 1.5 s; if it fails the first question stays. Real check: English, Telugu and Hindi titles, 1–7 s.)
-- [ ] **5.6** Rename and delete chats.
+- [x] **5.6** Rename and delete chats. (Server actions `renameChat` and `removeChat`, owner only; rename in place in the chat list, Enter saves, Escape cancels; a title says who named it, so Flash-Lite's late title never replaces the admin's name; delete removes the messages too.)
 - [ ] **5.7** Trim long chats to a token budget. *Learn: context windows.*
 - [ ] **5.8** Search chats.
 - [ ] **5.9** *(Optional)* Compare with LangGraph's Postgres checkpointer.

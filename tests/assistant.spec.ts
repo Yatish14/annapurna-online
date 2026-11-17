@@ -438,6 +438,45 @@ test("a new chat gets a written title, shown straight away and kept; if writing 
   await expect(list.locator(".as-history-item", { hasText: "[no-title] Who drove VB-0001" })).toBeVisible();
 });
 
+// 5.6: rename and delete, on the server
+test("a chat can be renamed (kept after a reload) and deleted (gone for good)", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const list = chat.locator(".as-history");
+  await chat.getByRole("button", { name: "New chat" }).first().click();
+  await chat.getByLabel("Your question").fill("A chat to rename and delete");
+  await chat.getByLabel("Your question").press("Enter");
+  await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/admin\/assistant\/[0-9a-f-]{36}$/);
+  const address = page.url();
+  const row = list.locator("li", { hasText: "About: A chat to rename and delete" });
+  await expect(row).toBeVisible();
+
+  // Escape cancels a rename
+  await row.getByRole("button", { name: /^Rename/ }).click();
+  await list.getByLabel("New name for the chat").fill("Not this name");
+  await list.getByLabel("New name for the chat").press("Escape");
+  await expect(list.locator(".as-history-item", { hasText: "About: A chat to rename and delete" })).toBeVisible();
+
+  // Enter saves it: shown straight away and after a reload
+  await row.getByRole("button", { name: /^Rename/ }).click();
+  await list.getByLabel("New name for the chat").fill("Sunday trips");
+  await list.getByLabel("New name for the chat").press("Enter");
+  await expect(list.locator(".as-history-item", { hasText: "Sunday trips" })).toBeVisible();
+  await page.reload();
+  const renamed = list.locator("li", { hasText: "Sunday trips" });
+  await expect(renamed).toBeVisible();
+
+  // Deleted after "Delete?": gone from the list, after a reload, and its address
+  await renamed.getByRole("button", { name: /^Delete/ }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(list.locator(".as-history-item", { hasText: "Sunday trips" })).toHaveCount(0);
+  await page.reload();
+  await expect(list.locator(".as-history-item", { hasText: "Sunday trips" })).toHaveCount(0);
+  expect((await page.goto(address))?.status()).toBe(404);
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");

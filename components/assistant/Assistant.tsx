@@ -22,7 +22,7 @@ type Props = {
 
 /** One view of the chats: the chat list, the open chat and the message box */
 export default function Assistant({ variant = "page", onClose, initialChat }: Props) {
-  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, adopt, load } = useAssist();
+  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, renameChat, adopt, load } = useAssist();
   /** Viewers: buttons look greyed out but still take the click, to say why (a disabled button can't) */
   const locked = canUse ? {} : { "aria-disabled": true as const };
   const [activeId, setActiveId] = useState(initialChat?.id ?? emptyId);
@@ -83,6 +83,8 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
     if (!historyOpen && !listing) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || document.querySelector(".xp-modal-backdrop")) return;
+      // Escape in a chat's name box (renaming) only cancels the rename
+      if (e.target instanceof HTMLElement && e.target.classList.contains("as-history-name")) return;
       e.preventDefault();
       setHistoryOpen(false);
       setView("chat");
@@ -171,7 +173,7 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
     </header>
   );
 
-  const historyProps = { chats, activeId: active.id, onSelect: selectChat, onNew: newChat, onDelete: deleteChat };
+  const historyProps = { chats, activeId: active.id, onSelect: selectChat, onNew: newChat, onDelete: deleteChat, onRename: renameChat };
 
   return (
     <div className={`as-page ${panel ? "is-panel" : ""}`}>

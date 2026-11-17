@@ -1,7 +1,14 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { cancelDraft as cancelOnServer, confirmDraft as confirmOnServer, type DraftActionResult, loadChat } from "@/app/admin/assistant/actions";
+import {
+  cancelDraft as cancelOnServer,
+  confirmDraft as confirmOnServer,
+  type DraftActionResult,
+  loadChat,
+  removeChat,
+  renameChat as renameOnServer,
+} from "@/app/admin/assistant/actions";
 import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { titleFrom } from "@/lib/assistant/suggestions";
@@ -107,6 +114,7 @@ export const VIEW_ONLY = {
   ask: "Viewers can read Annapurna Assist but can't ask questions. Ask the super admin if you need access.",
   newChat: "Viewers can't start new chats. Ask the super admin if you need access.",
   deleteChat: "Viewers can't delete chats. Ask the super admin if you need access.",
+  renameChat: "Viewers can't rename chats. Ask the super admin if you need access.",
   draft: "Viewers can't confirm or cancel drafts. Ask the super admin if you need access.",
   form: "Viewers can't create or change bookings. Ask the super admin if you need access.",
 };
@@ -128,6 +136,7 @@ type Store = {
   confirmDraft: (card: DraftCard) => void;
   cancelDraft: (card: DraftCard) => void;
   deleteChat: (id: string) => void;
+  renameChat: (id: string, title: string) => void;
   /** A saved chat the server loaded (the /admin/assistant/<id> page): kept, unless this browser already has it open */
   adopt: (chat: Chat) => void;
   /** Fetches the messages of a chat that's listed by title only (5.4) */
@@ -295,13 +304,37 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     void onServer(card, cancelOnServer, () => ({ status: "cancelled" }));
   }
 
-  function deleteChat(id: string) {
+  /** Delete (5.6): on the server first, then gone from the list. The empty new chat was never saved. */
+  async function deleteChat(id: string) {
     if (!canUse) return notify(VIEW_ONLY.deleteChat);
+    const chat = chats.find((c) => c.id === id);
+    if (!chat) return;
     if (live?.chatId === id) abort.current?.abort();
+    if (chat.messages.length > 0 || chat.unloaded) {
+      const result = await removeChat(id).catch(() => ({ ok: false as const, error: "Couldn't reach the server. Try again." }));
+      // "Not found": deleted already (another tab), so it goes from this list too
+      if (!result.ok && result.error !== "This chat wasn't found.") return toasts.notify(result.error, "error");
+    }
     setChats((cs) => {
       const left = cs.filter((c) => c.id !== id);
-      return left.some((c) => c.messages.length === 0) ? left : [emptyChat(), ...left];
+      return left.some((c) => c.messages.length === 0 && !c.unloaded) ? left : [emptyChat(), ...left];
     });
+  }
+
+  /** Rename (5.6): shown straight away, put back if the server says no */
+  async function renameChat(id: string, title: string) {
+    if (!canUse) return notify(VIEW_ONLY.renameChat);
+    const before = chats.find((c) => c.id === id)?.title;
+    const name = title.trim();
+    if (!before || !name || name === before) return;
+    const setName = (t: string) => setChats((cs) => cs.map((c) => (c.id === id ? { ...c, title: t } : c)));
+    setName(name);
+    const result = await renameOnServer(id, name).catch(() => ({ ok: false as const, error: "Couldn't reach the server. Try again." }));
+    if (result.ok) setName(result.title);
+    else {
+      setName(before);
+      toasts.notify(result.error, "error");
+    }
   }
 
   function adopt(chat: Chat) {
@@ -341,6 +374,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     confirmDraft,
     cancelDraft,
     deleteChat,
+    renameChat,
     adopt,
     load,
   };

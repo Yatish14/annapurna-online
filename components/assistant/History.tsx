@@ -20,13 +20,21 @@ type Props = {
   onSelect: (id: string) => void;
   onNew: () => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, title: string) => void;
 };
 
 /** Your earlier chats, newest first, grouped by day, with a search box */
-export default function History({ chats, activeId, inline, open, onClose, onSelect, onNew, onDelete }: Props) {
+export default function History({ chats, activeId, inline, open, onClose, onSelect, onNew, onDelete, onRename }: Props) {
   const [query, setQuery] = useState("");
   /** The chat whose delete button was pressed, waiting for "Delete" in the popup */
   const [deleting, setDeleting] = useState<Chat | null>(null);
+  /** The chat being renamed (its title is a box), and the name typed so far */
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  /** Enter or leaving the box saves; Escape puts the old name back */
+  function finishRename(save: boolean) {
+    if (renaming && save) onRename(renaming.id, renaming.name);
+    setRenaming(null);
+  }
   const { canUse, notify } = useAssist();
   /** Viewers: greyed out, but the click still says why */
   const locked = canUse ? {} : { "aria-disabled": true as const };
@@ -58,8 +66,42 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
           <ul>
             {items.map((c) => (
               <li key={c.id} className={c.id === activeId ? "is-active" : ""}>
-                <button type="button" className="as-history-item" onClick={() => onSelect(c.id)}>
-                  {c.title}
+                {renaming?.id === c.id ? (
+                  <input
+                    className="as-history-name"
+                    aria-label="New name for the chat"
+                    value={renaming.name}
+                    maxLength={80}
+                    autoFocus
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setRenaming({ id: c.id, name: e.target.value })}
+                    onBlur={() => finishRename(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") finishRename(true);
+                      if (e.key === "Escape") {
+                        e.preventDefault(); // the chat list stays open: this Escape was for the name
+                        e.stopPropagation();
+                        finishRename(false);
+                      }
+                    }}
+                  />
+                ) : (
+                  <button type="button" className="as-history-item" onClick={() => onSelect(c.id)}>
+                    {c.title}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="as-history-rename"
+                  aria-label={`Rename “${c.title}”`}
+                  title="Rename chat"
+                  {...locked}
+                  onClick={() => {
+                    if (!canUse) return notify(VIEW_ONLY.renameChat);
+                    setRenaming({ id: c.id, name: c.title });
+                  }}
+                >
+                  <Icon name="edit" size={14} />
                 </button>
                 <button
                   type="button"

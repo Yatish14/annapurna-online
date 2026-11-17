@@ -34,15 +34,23 @@ export async function chatSummary(id: string, userId: number): Promise<ChatSumma
 }
 
 /**
- * Sets one of this admin's chats' title. `titled`: written by Flash-Lite (5.5) or the admin (5.6), not just the
- * first question. A first title (`titled` false) never replaces one that was written.
+ * Who is naming a chat:
+ * - "question": its first question, cut short (5.4)
+ * - "writer": Flash-Lite, from that question (5.5)
+ * - "admin": the admin renaming it (5.6)
+ * The first two only name a chat nobody has named yet, so neither can replace the admin's name, even when
+ * Flash-Lite's title arrives after a quick rename. The admin's name always applies.
  */
-export async function setTitle(id: string, userId: number, title: string, titled: boolean): Promise<boolean> {
+export type TitleBy = "question" | "writer" | "admin";
+
+/** Sets one of this admin's chats' title. False if it isn't theirs, there's no title, or it's already named (above). */
+export async function setTitle(id: string, userId: number, title: string, by: TitleBy): Promise<boolean> {
   const clean = title.replace(/\s+/g, " ").trim().slice(0, 80);
   if (!isChatId(id) || !clean) return false;
   const rows = await query(
-    `UPDATE assistant_chats SET title = $3, titled = $4 WHERE id = $1 AND user_id = $2 AND (titled = false OR $4) RETURNING id`,
-    [id, userId, clean, titled],
+    `UPDATE assistant_chats SET title = $3, titled = $4
+     WHERE id = $1 AND user_id = $2 AND ($5 OR titled = false) RETURNING id`,
+    [id, userId, clean, by !== "question", by === "admin"],
   );
   return rows.length === 1;
 }
@@ -152,3 +160,10 @@ function whenText(day: string): string {
 }
 
 const summary = (r: Row): ChatSummary => ({ id: r.id, title: r.title, titled: r.titled, when: whenText(r.day) });
+
+/** Deletes one of this admin's chats and all its messages (5.6). False if it isn't theirs. */
+export async function deleteChat(id: string, userId: number): Promise<boolean> {
+  if (!isChatId(id)) return false;
+  const rows = await query("DELETE FROM assistant_chats WHERE id = $1 AND user_id = $2 RETURNING id", [id, userId]);
+  return rows.length === 1;
+}

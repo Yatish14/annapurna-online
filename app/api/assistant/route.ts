@@ -70,10 +70,10 @@ export async function POST(request: Request) {
   // A new chat: its first title is its first question, cut short (the same as the chat shows), and Flash-Lite
   // writes a better one alongside the answer (5.5). Saved whatever happens to the answer; sent at its end.
   const newChat = !chat.titled && chat.title === "New chat";
-  if (newChat) await setTitle(chat.id, user.id, titleFrom(message), false);
+  if (newChat) await setTitle(chat.id, user.id, titleFrom(message), "question");
   const written: Promise<string | null> = newChat
     ? writeTitle(message)
-        .then(async (title) => (title && (await setTitle(chat.id, user.id, title, true)) ? title : null))
+        .then(async (title) => (title && (await setTitle(chat.id, user.id, title, "writer")) ? title : null))
         .catch(() => null) // a title isn't worth an error: the first question stays
     : Promise.resolve(null);
   // The answer waits for it at most TITLE_WAIT_MS after its last word; a later title is still saved, and the chat
