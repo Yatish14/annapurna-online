@@ -402,3 +402,39 @@ CREATE TABLE IF NOT EXISTS assistant_drafts (
   CHECK ((status = 'pending') = (settled_at IS NULL))
 );
 CREATE INDEX IF NOT EXISTS assistant_drafts_user_idx ON assistant_drafts (user_id, created_at DESC);
+
+-- Annapurna Assist's saved chats (Step 5, lib/assistant/chatStore.ts). Each admin sees only their own. The chat's
+-- id is made by the browser (a random UUID, so the chat has its address from the first question); the server
+-- creates the row for the signed-in admin and refuses an id that's someone else's.
+CREATE TABLE IF NOT EXISTS assistant_chats (
+  id          uuid        PRIMARY KEY,
+  user_id     bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  title       text        NOT NULL DEFAULT 'New chat' CHECK (length(title) BETWEEN 1 AND 80),
+  -- false: the title is still the first question, cut short; true: Flash-Lite (5.5) or the admin (5.6) wrote it
+  titled      boolean     NOT NULL DEFAULT false,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  -- The last question or answer: the chat list is newest first
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assistant_chats_user_idx ON assistant_chats (user_id, updated_at DESC);
+
+-- Every question and answer, in order. An answer keeps what the chat showed with it, so an old chat opens as it was:
+-- the tool chips (steps), the cards under it (tables, files, drafts), and the tools the model called (tool_calls,
+-- the names and inputs it chose: what happened, for Step 8's evals). Draft cards get their status from
+-- assistant_drafts when the chat is opened, so one confirmed later shows "Saved".
+CREATE TABLE IF NOT EXISTS assistant_messages (
+  id          bigserial   PRIMARY KEY,
+  chat_id     uuid        NOT NULL REFERENCES assistant_chats (id) ON DELETE CASCADE,
+  role        text        NOT NULL CHECK (role IN ('user', 'assistant')),
+  text        text        NOT NULL,
+  steps       jsonb,
+  cards       jsonb,
+  tool_calls  jsonb,
+  voice       boolean     NOT NULL DEFAULT false,
+  -- The reply was cut short with Stop
+  stopped     boolean     NOT NULL DEFAULT false,
+  -- Why the reply failed (shown in red; failed replies are never sent back to the model)
+  error       text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assistant_messages_chat_idx ON assistant_messages (chat_id, id);

@@ -59,7 +59,15 @@ export type Message = {
   error?: string;
 };
 
-export type Chat = { id: string; title: string; /** "Today", "Yesterday", "12 Oct" */ when: string; messages: Message[] };
+export type Chat = {
+  id: string;
+  title: string;
+  /** "Today", "Yesterday", "12 Oct" */
+  when: string;
+  messages: Message[];
+  /** A saved chat whose messages haven't been fetched yet (the list loads titles only, Step 5) */
+  unloaded?: boolean;
+};
 
 /** A reply before it gets an id and a time */
 export type Reply = Pick<Message, "text" | "steps" | "cards">;

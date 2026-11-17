@@ -149,7 +149,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 ## Step 5 — Saved conversations
 
-- [ ] **5.1** `assistant_chats` and `assistant_messages` tables in `db/schema.sql`. *Learn: schema design.*
+- [x] **5.1** `assistant_chats` and `assistant_messages` tables in `db/schema.sql`. *Learn: schema design.* (`lib/assistant/chatStore.ts`: every function takes the admin and only touches their chats; the chat id is a UUID made by the browser; tests in `tests/chats.spec.ts`.)
 - [ ] **5.2** Save each turn, including tool calls.
 - [ ] **5.3** `/admin/assistant/[chatId]` loads an old chat.
 - [ ] **5.4** History sidebar (your own chats only).

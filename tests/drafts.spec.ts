@@ -1,4 +1,4 @@
-import { rmSync } from "node:fs";
+import "./unitDb"; // first: the no-browser tests' own throwaway database
 import { expect, test } from "@playwright/test";
 import { cancelDraftAs, confirmDraftAs } from "@/lib/assistant/confirm";
 import { draftBooking } from "@/lib/assistant/tools/drafts";
@@ -15,14 +15,10 @@ import { databaseKind, query } from "@/lib/db";
  * - only the admin who asked can confirm or cancel; cancelled and expired drafts can't be confirmed
  * - a save that fails puts the draft back, and nothing is half-saved
  *
- * Its own throwaway database (PGlite in .data/pglite-drafts, made fresh every run), not the browser tests' one
- * and never the Docker database or Neon. The confirm code is lib/assistant/confirm.ts, which the Confirm and Cancel
+ * The no-browser tests' throwaway database (tests/unitDb.ts), not the browser tests' one and never the Docker
+ * database or Neon. The confirm code is lib/assistant/confirm.ts, which the Confirm and Cancel
  * server actions call after checking who is signed in.
  */
-
-const DB = "./.data/pglite-drafts";
-rmSync(DB, { recursive: true, force: true });
-process.env.DATABASE_URL = `pglite:${DB}`; // before the first query: lib/db.ts connects on first use
 
 test.describe.configure({ mode: "serial" });
 
@@ -73,7 +69,7 @@ test.beforeAll(async () => {
   for (const [mobile, name] of [["9000000201", "Drafts Admin"], ["9000000202", "Other Admin"]]) {
     await query("INSERT INTO users (mobile, name, role, password_hash, created_by) VALUES ($1, $2, 'admin', 'not-a-real-hash', 'tests')", [mobile, name]);
   }
-  const users = await query<SessionUser>("SELECT id::int AS id, mobile, name, role FROM users ORDER BY mobile");
+  const users = await query<SessionUser>("SELECT id::int AS id, mobile, name, role FROM users WHERE mobile IN ('9000000201', '9000000202') ORDER BY mobile");
   [admin, other] = users;
   const [v] = await query<{ id: number }>("INSERT INTO vehicles (name) VALUES ('Test Carens') RETURNING id::int AS id");
   const [d] = await query<{ id: number }>("INSERT INTO drivers (name, phone) VALUES ('Test Driver', '9000000209') RETURNING id::int AS id");
