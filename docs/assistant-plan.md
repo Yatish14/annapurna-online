@@ -151,7 +151,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 - [x] **5.1** `assistant_chats` and `assistant_messages` tables in `db/schema.sql`. *Learn: schema design.* (`lib/assistant/chatStore.ts`: every function takes the admin and only touches their chats; the chat id is a UUID made by the browser; tests in `tests/chats.spec.ts`.)
 - [x] **5.2** Save each turn, including tool calls. (The question once counted, the answer when it ends, however it ends: words, chips, cards, the tools called, stopped/error. The browser sends only the question and the chat id; the history is read from the saved chat, `lib/assistant/history.ts`; another admin's chat id gets 404.)
-- [ ] **5.3** `/admin/assistant/[chatId]` loads an old chat.
+- [x] **5.3** `/admin/assistant/[chatId]` loads an old chat. (`lib/assistant/openChat.ts`: only for its owner, others get 404; draft cards show their status from `assistant_drafts`; on the full page the address follows the open chat, so a reload or a bookmark opens it again.)
 - [ ] **5.4** History sidebar (your own chats only).
 - [ ] **5.5** Flash-Lite gives each chat a title from its first question.
 - [ ] **5.6** Rename and delete chats.

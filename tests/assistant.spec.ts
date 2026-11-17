@@ -325,6 +325,54 @@ test("a fuel draft is saved by Confirm on the booking's vehicle, and the booking
   await expect(page.locator("#fuel")).toContainText("₹1,000");
 });
 
+// 5.3: a saved chat has its own address, and opens again from it as it was
+test("a saved chat opens again at its own address, with its chips, cards and its draft's status", async ({ page, browser }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const box = chat.getByLabel("Your question");
+  const latest = () => chat.locator(".as-msg.is-assistant").last();
+  async function ask(question: string) {
+    await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+    await box.fill(question);
+    await box.press("Enter");
+  }
+
+  // The first question gives the chat its address
+  await ask('[tool:list_bookings {"status":"upcoming"}] Upcoming bookings, to open again');
+  await expect(latest()).toContainText("Tools used: list_bookings");
+  await expect(page).toHaveURL(/\/admin\/assistant\/[0-9a-f-]{36}$/);
+  const address = page.url();
+
+  // A draft, cancelled (60 days from now: the Test Carens is free)
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(Date.now() + 60 * 86_400_000);
+  const draft = { customer_name: "Reload Customer", customer_phone: "9876500060", vehicle: "Carens", driver: "Test Driver", start_date: day, pickup_city: "Vijayawada", drop_city: "Guntur" };
+  await ask(`[tool:draft_booking ${JSON.stringify(draft)}] Book it`);
+  await latest().locator(".as-draft").getByRole("button", { name: "Cancel" }).click();
+  await expect(latest().locator(".as-draft")).toContainText("Cancelled. Nothing was saved.");
+  // The answer's last words may still be arriving: an answer is saved when it ends, so wait for that
+  await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+
+  // A reload opens it as it was: the question, the ticked chip, the table, and the draft as it is in the database
+  await page.reload();
+  await expect(page).toHaveURL(address);
+  const thread = chat.locator(".as-thread");
+  await expect(thread).toContainText("Upcoming bookings, to open again");
+  await expect(thread.locator(".as-steps li", { hasText: "Checked upcoming bookings" }).locator(".as-step-done")).toBeVisible();
+  await expect(thread.locator(".as-card", { hasText: "Upcoming bookings (" })).toBeVisible();
+  await expect(thread.locator(".as-draft .ap-badge")).toHaveText("Cancelled");
+  await expect(thread.locator(".as-draft")).toContainText("Reload Customer · 98765 00060");
+
+  // It carries on from there: the next question knows the two before it (read from the saved chat)
+  await ask("And after a reload?");
+  await expect(latest()).toContainText("Earlier questions in this chat: 2.");
+
+  // Someone else's chat doesn't exist for them
+  const owner = await (await browser.newContext()).newPage();
+  await signIn(owner, "owner");
+  expect((await owner.goto(address))?.status()).toBe(404);
+});
+
 test("a viewer can open the assistant but not ask it", async ({ page }) => {
   await signIn(page, "viewer");
   await page.goto("/admin/assistant");

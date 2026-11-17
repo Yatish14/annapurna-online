@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { SUGGESTIONS } from "@/lib/assistant/sample";
+import type { Chat } from "@/lib/assistant/types";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
 import Composer from "./Composer";
 import History from "./History";
@@ -15,16 +16,16 @@ type Props = {
   variant?: "page" | "panel";
   /** Panel only: the close button */
   onClose?: () => void;
-  /** Page only: open this chat first (the panel's "Open the full page" link sends it) */
-  initialChatId?: string;
+  /** Page only: a saved chat the server loaded, for its address /admin/assistant/<id> (5.3) */
+  initialChat?: Chat;
 };
 
 /** One view of the chats: the chat list, the open chat and the message box */
-export default function Assistant({ variant = "page", onClose, initialChatId }: Props) {
-  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat } = useAssist();
+export default function Assistant({ variant = "page", onClose, initialChat }: Props) {
+  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, adopt } = useAssist();
   /** Viewers: buttons look greyed out but still take the click, to say why (a disabled button can't) */
   const locked = canUse ? {} : { "aria-disabled": true as const };
-  const [activeId, setActiveId] = useState(initialChatId ?? emptyId);
+  const [activeId, setActiveId] = useState(initialChat?.id ?? emptyId);
   /** Full page on phones: the chat list drawer is open */
   const [historyOpen, setHistoryOpen] = useState(false);
   /** Side panel: showing the chat, or the list of chats in its place */
@@ -33,9 +34,27 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
   /** Follow new text to the bottom, unless you scrolled up to read */
   const stick = useRef(true);
 
-  // A deleted (or unknown) chat falls back to the empty one
-  const active = chats.find((c) => c.id === activeId) ?? chats.find((c) => c.id === emptyId) ?? chats[0];
+  // The chat the server loaded joins the chats here (shared with the side panel)…
+  useEffect(() => {
+    if (initialChat) adopt(initialChat);
+  }, [initialChat]); // not adopt: it's a new function on every render, and only a new chat should run this
+
+  // …and shows straight away, before that. A deleted (or unknown) chat falls back to the empty one.
+  const stored = chats.find((c) => c.id === activeId);
+  const active =
+    (stored && !stored.unloaded ? stored : initialChat?.id === activeId ? initialChat : stored) ??
+    chats.find((c) => c.id === emptyId) ??
+    chats[0];
   const panel = variant === "panel";
+
+  // Full page: the address follows the open chat, so a reload or a bookmark comes back to it (5.3). A new chat
+  // gets its address with its first question. replaceState changes the address without loading anything.
+  const saved = active.messages.length > 0 || active.unloaded;
+  useEffect(() => {
+    if (panel) return;
+    const address = saved ? `/admin/assistant/${active.id}` : "/admin/assistant";
+    if (window.location.pathname !== address) window.history.replaceState(null, "", address);
+  }, [panel, saved, active.id]);
   const listing = panel && view === "list";
   const savedCount = chats.filter((c) => c.messages.length > 0).length;
   const busy = live !== null;
@@ -85,7 +104,7 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
     setActiveId(id);
   }
 
-  const fullPageHref = active.messages.length ? `/admin/assistant?chat=${encodeURIComponent(active.id)}` : "/admin/assistant";
+  const fullPageHref = saved ? `/admin/assistant/${active.id}` : "/admin/assistant";
 
   const closeButton = (
     <>

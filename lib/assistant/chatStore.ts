@@ -26,6 +26,13 @@ export async function ensureChat(id: string, userId: number): Promise<ChatSummar
   return chat ? summary(chat) : null;
 }
 
+/** One of this admin's chats (title and when), or null. Unlike ensureChat, never makes one. */
+export async function chatSummary(id: string, userId: number): Promise<ChatSummary | null> {
+  if (!isChatId(id)) return null;
+  const [chat] = await query<Row>(`SELECT ${SUMMARY} FROM assistant_chats WHERE id = $1 AND user_id = $2`, [id, userId]);
+  return chat ? summary(chat) : null;
+}
+
 /** One question or answer to keep, as the chat shows it */
 export type NewMessage = {
   role: "user" | "assistant";

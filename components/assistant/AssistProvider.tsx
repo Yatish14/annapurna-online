@@ -125,6 +125,8 @@ type Store = {
   confirmDraft: (card: DraftCard) => void;
   cancelDraft: (card: DraftCard) => void;
   deleteChat: (id: string) => void;
+  /** A saved chat the server loaded (the /admin/assistant/<id> page): kept, unless this browser already has it open */
+  adopt: (chat: Chat) => void;
 };
 
 const AssistContext = createContext<Store | null>(null);
@@ -292,6 +294,16 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     });
   }
 
+  function adopt(chat: Chat) {
+    setChats((cs) => {
+      const known = cs.find((c) => c.id === chat.id);
+      // Already open here (maybe still answering): this browser's copy is the newer one
+      if (known && !known.unloaded) return cs;
+      // In the list by title only: now with its messages. Not in the list (an older chat): at the end.
+      return known ? cs.map((c) => (c.id === chat.id ? chat : c)) : [...cs, chat];
+    });
+  }
+
   const store: Store = {
     firstName,
     canUse,
@@ -305,6 +317,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
     confirmDraft,
     cancelDraft,
     deleteChat,
+    adopt,
   };
   return (
     <AssistContext.Provider value={store}>

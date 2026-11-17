@@ -65,6 +65,17 @@ export async function cancelDraftAs(user: SessionUser, id: unknown): Promise<Dra
   return whyNot(id, user.id);
 }
 
+/**
+ * What a draft's card should show, from the database: saved (with what it became and its link), cancelled or
+ * expired. Null while it's still waiting for Confirm, or while it's being saved. Used when Confirm or Cancel finds
+ * it settled already, and when a saved chat is opened (5.3), so an old card shows what became of it.
+ */
+export function cardState(d: Draft): CardState | null {
+  if (d.status === "confirmed") return d.result ? { status: "confirmed", ...savedText(d.kind, d.fields, d.result) } : null;
+  if (d.status === "cancelled") return { status: "cancelled" };
+  return d.expired ? { status: "expired" } : null;
+}
+
 /** "Saved as VB-0042." and where to see it: the same words on the card after Confirm and when it was saved elsewhere */
 function savedText(kind: Draft["kind"], fields: Record<string, string>, result: string): { result: string; resultHref: string } {
   if (kind === "booking") return { result: `Saved as ${result}.`, resultHref: `/admin/expenses/bookings/${result}` };
@@ -115,11 +126,9 @@ async function saveFuelDraft(fields: Record<string, string>, user: SessionUser):
 async function whyNot(id: string, userId: number): Promise<DraftActionResult> {
   const draft = await getDraft(id, userId);
   if (!draft) return { ok: false, error: "This draft wasn't found." };
-  if (draft.status === "confirmed" && draft.result) {
-    const done = savedText(draft.kind, draft.fields, draft.result);
-    // The card shows what it became ("Saved as VB-0042.", with its link); the message just says why nothing happened
-    return { ok: false, error: "This draft was already saved.", card: { status: "confirmed", ...done } };
-  }
+  const card = cardState(draft);
+  // The card shows what it became ("Saved as VB-0042.", with its link); the message just says why nothing happened
+  if (card?.status === "confirmed") return { ok: false, error: "This draft was already saved.", card };
   if (draft.status === "confirmed") {
     // Taken for saving, but the save never finished. It may or may not have been saved, so it isn't simply put
     // back: pressing Confirm again could save it twice.
