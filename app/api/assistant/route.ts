@@ -52,7 +52,8 @@ export async function POST(request: Request) {
   const chat = isChatId(chatId) ? await ensureChat(chatId, user.id) : null;
   if (!chat) return Response.json({ error: "This chat wasn't found. Start a new chat." }, { status: 404 });
   // The chat so far, from the database (lib/assistant/history.ts), read before this question is added to it
-  const history = await historyFor(chat.id, user.id);
+  // (the newest turns that fit the token budget, 5.7; `left` older ones didn't, and the model is told)
+  const { messages: history, left } = await historyFor(chat.id, user.id);
   if (!process.env.GOOGLE_API_KEY && !USE_FAKE) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
   }
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
   let pieces: AsyncIterator<StreamEvent>;
   let first: IteratorResult<StreamEvent>;
   try {
-    const messages = [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0] })), ...history, new HumanMessage(message)];
+    const messages = [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0], leftOut: left })), ...history, new HumanMessage(message)];
     // Two stream modes at once: the answer's words ("messages") and each step's results ("updates", for the chips)
     // recursionLimit: the hard stop for the whole run (lib/assistant/graph.ts explains both limits)
     const stream = await graph.stream(

@@ -84,15 +84,22 @@ The people talking to you are the business's own admins, not customers.
 type Options = {
   /** The admin's first name, so answers can be friendly */
   firstName?: string;
+  /** How many of the chat's oldest questions and answers were left out to keep it within the token budget (5.7) */
+  leftOut?: number;
 };
 
 /** The full system prompt for one request: the rules, then today's date and time in India */
-export function systemPrompt({ firstName }: Options = {}): string {
+export function systemPrompt({ firstName, leftOut = 0 }: Options = {}): string {
   const today = todayIST(); // "2026-11-10"
   const time = nowLocalIST().slice(11); // "15:20"
   const now = `## Right now
 - Today is ${fmtShort(today)} ${today.slice(0, 4)} (${today}), and the time is ${time} in India (IST).
   "Today", "tomorrow", "this week" and "last month" are counted from this date.`;
   const who = firstName ? `\n- You're talking to ${firstName}.` : "";
-  return `${RULES}\n\n${now}${who}`;
+  // A long chat: its oldest turns aren't sent (5.7), so the model mustn't act as if it remembered them
+  const turns = leftOut === 1 ? "question and answer" : "questions and answers";
+  const long = leftOut
+    ? `\n- This is a long chat: its first ${leftOut} ${turns} aren't included here. If the admin refers to something you can't see, ask them, or look it up again with a tool.`
+    : "";
+  return `${RULES}\n\n${now}${who}${long}`;
 }

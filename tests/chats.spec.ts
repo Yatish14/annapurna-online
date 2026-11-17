@@ -4,7 +4,8 @@ import { AIMessage, AIMessageChunk, ToolMessage } from "@langchain/core/messages
 import { expect, test } from "@playwright/test";
 import { addMessage, chatMessages, chatSummary, deleteChat, ensureChat, listChats, type NewMessage, setTitle } from "@/lib/assistant/chatStore";
 import { finishDraft, saveDraft } from "@/lib/assistant/draftStore";
-import { historyFor } from "@/lib/assistant/history";
+import { estimateTokens, fitToBudget, HISTORY_TOKENS, historyFor } from "@/lib/assistant/history";
+import { systemPrompt } from "@/lib/assistant/prompt";
 import { savedAs } from "@/lib/assistant/replies";
 import { cleanTitle } from "@/lib/assistant/titles";
 import { events } from "@/lib/assistant/stream";
@@ -194,7 +195,8 @@ test("the model's history comes from the saved chat: failed replies left out, dr
   ] as NewMessage[]) {
     await addMessage(chatId, me, m);
   }
-  const history = await historyFor(chatId, me);
+  const { messages: history, left } = await historyFor(chatId, me);
+  expect(left).toBe(0); // a short chat: nothing left out
   expect(history.map((m) => `${m.getType()}: ${m.text}`)).toEqual([
     "human: First question",
     "ai: Ready below. \n\n[After this answer: the admin pressed Confirm and the booking draft was saved as VB-0099.]",
@@ -202,7 +204,42 @@ test("the model's history comes from the saved chat: failed replies left out, dr
     "human: Third question",
     "ai: Third answer",
   ]);
-  expect(await historyFor(chatId, other)).toEqual([]); // not theirs
+  expect((await historyFor(chatId, other)).messages).toEqual([]); // not theirs
+});
+
+// 5.7: a long chat is trimmed to the token budget, newest turns kept, in whole pairs
+test("token budget: estimates, the newest turns that fit, always in pairs, and the model is told", async () => {
+  // About 4 English letters a token; Telugu and Hindi letters count heavier (3 bytes each in UTF-8)
+  expect(estimateTokens("a".repeat(400))).toBe(100);
+  expect(estimateTokens("బుకింగ్".repeat(10))).toBeGreaterThan(estimateTokens("booking".repeat(10)));
+
+  // fitToBudget: the newest that fit, oldest first; the newest is kept even if it alone is too big
+  const tokens = (n: number) => n;
+  expect(fitToBudget([100, 200, 300], tokens, 500)).toEqual({ kept: [200, 300], left: 1 });
+  expect(fitToBudget([100, 200, 300], tokens, 600)).toEqual({ kept: [100, 200, 300], left: 0 });
+  expect(fitToBudget([100, 900], tokens, 500)).toEqual({ kept: [900], left: 1 });
+  expect(fitToBudget([], tokens, 500)).toEqual({ kept: [], left: 0 });
+
+  // A real long chat: 30 turns of about 400 tokens each → only the newest that fit in HISTORY_TOKENS go
+  const chatId = randomUUID();
+  await ensureChat(chatId, me);
+  for (let i = 1; i <= 30; i++) {
+    await addMessage(chatId, me, { role: "user", text: `Question ${i}` });
+    await addMessage(chatId, me, { role: "assistant", text: `Answer ${i}: ${"x".repeat(1600)}` });
+  }
+  const { messages, left } = await historyFor(chatId, me);
+  expect(left).toBeGreaterThan(0);
+  expect(messages.length % 2).toBe(0); // whole pairs
+  expect(messages[0].getType()).toBe("human");
+  expect(messages.at(-2)?.text).toBe("Question 30"); // the newest is there
+  expect(messages[0].text).toBe(`Question ${left + 1}`); // and it starts right after what was left out
+  const used = messages.reduce((n, m) => n + estimateTokens(m.text), 0);
+  expect(used).toBeLessThanOrEqual(HISTORY_TOKENS);
+  expect(left + messages.length / 2).toBe(30);
+
+  // The model is told how many were left out
+  expect(systemPrompt({ leftOut: left })).toContain(`its first ${left} questions and answers aren't included here`);
+  expect(systemPrompt({ leftOut: 0 })).not.toContain("This is a long chat");
 });
 
 test("a deleted admin's chats and messages go with them", async () => {
