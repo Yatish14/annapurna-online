@@ -49,6 +49,21 @@ const MIC_ERRORS: Record<string, string> = {
   "language-not-supported": "This browser can't listen in that language. Try English.",
 };
 
+/**
+ * 9.6: what goes to Google, under the chat box (the longer version on hover). Voice too: Chrome's speech recognition
+ * sends the sound to Google's speech service to turn it into words.
+ */
+const PRIVACY_NOTE = {
+  strict: {
+    short: "Privacy mode: your data stays here. What you type or say goes to Google.",
+    long: "Privacy mode is on: Google's AI sees only what you type or say, and the status of each lookup, never the bookings, names, phones or amounts it finds (those are on the cards). Voice uses Google's speech service too.",
+  },
+  normal: {
+    short: "What you type or say, and what the assistant looks up, goes to Google.",
+    long: "Google's Gemini gets your question and the results of each lookup (names, phones, amounts) to answer. Use sample data only, or turn on privacy-first mode (ASSISTANT_PRIVACY=strict). Voice uses Google's speech service too.",
+  },
+};
+
 /** Where this browser remembers the "send when I stop talking" choice (7.5): a convenience, so per browser is enough */
 const AUTO_SEND_KEY = "annapurna-assist-auto-send";
 
@@ -81,7 +96,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   const box = useRef<HTMLTextAreaElement>(null);
   const voice = useRef<HTMLDivElement>(null);
   const language = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
-  const { canUse, notify } = useAssist();
+  const { canUse, strictPrivacy, notify } = useAssist();
   /** Viewers: everything looks the same but greyed out; touching it says why */
   const locked = canUse ? {} : { "aria-disabled": true as const };
   const tellViewer = () => notify(VIEW_ONLY.ask);
@@ -330,7 +345,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
           : left > 0
             ? `${left} questions left today`
             : "No questions left today. The limit resets at midnight."}{" "}
-        · Gemini answers, but can&apos;t see your data yet.
+        · <span title={strictPrivacy ? PRIVACY_NOTE.strict.long : PRIVACY_NOTE.normal.long}>{strictPrivacy ? PRIVACY_NOTE.strict.short : PRIVACY_NOTE.normal.short}</span>
       </p>
     </div>
   );

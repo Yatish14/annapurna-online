@@ -576,3 +576,13 @@ test("someone who isn't signed in can't use the assistant's API", async ({ reque
   const res = await request.post("/api/assistant", { data: { message: "How many bookings today?" } });
   expect(res.status()).toBe(401);
 });
+
+// 9.6: the note under the chat box says what goes to Google (the test server runs in normal mode)
+test("the chat box says what is sent to Google", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const note = fullPage(page).locator(".as-footnote");
+  await expect(note).toContainText("What you type or say, and what the assistant looks up, goes to Google.");
+  await expect(note.locator("span[title]")).toHaveAttribute("title", /Voice uses Google's speech service too/);
+  await expect(note).not.toContainText("can't see your data");
+});

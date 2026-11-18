@@ -5,6 +5,7 @@ import ViewOnlyGuard from "@/components/admin/ViewOnlyGuard";
 import { MODULES_COOKIE, parseOpenModules, SIDEBAR_COOKIE } from "@/components/admin/sidebarCookie";
 import AssistPanel from "@/components/assistant/AssistPanel";
 import AssistProvider from "@/components/assistant/AssistProvider";
+import { isStrict } from "@/lib/assistant/privacy";
 import { listChats, unloaded } from "@/lib/assistant/chatStore";
 import { questionsToday } from "@/lib/assistant/usage";
 import { can, requireUser, ROLE_LABELS } from "@/lib/auth";
@@ -32,6 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       firstName={user.name.split(" ")[0]}
       canUse={can(user, "useAssistant")}
       canSeeUsage={can(user, "viewAssistantUsage")}
+      strictPrivacy={isStrict()}
       initialChats={chats.map(unloaded)}
       askedToday={asked}
     >

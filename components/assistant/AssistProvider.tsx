@@ -128,6 +128,8 @@ type Store = {
   canUse: boolean;
   /** Can open the usage page (the super admin, 8.3): a link shows in the full page's header */
   canSeeUsage: boolean;
+  /** Privacy-first mode is on (Step 9): the note under the chat box says what is and isn't sent to Google */
+  strictPrivacy: boolean;
   /** Shows a short message at the bottom of the screen */
   notify: (message: string) => void;
   chats: Chat[];
@@ -163,13 +165,14 @@ type Props = {
   firstName: string;
   canUse: boolean;
   canSeeUsage?: boolean;
+  strictPrivacy?: boolean;
   initialChats: Chat[];
   /** Questions already asked today (from the database), so the count is right after a reload */
   askedToday: number;
   children: React.ReactNode;
 };
 
-export default function AssistProvider({ firstName, canUse, canSeeUsage = false, initialChats, askedToday, children }: Props) {
+export default function AssistProvider({ firstName, canUse, canSeeUsage = false, strictPrivacy = false, initialChats, askedToday, children }: Props) {
   // The empty chat's id is random, different on the server and in the browser, but it never shows in the page
   const [chats, setChats] = useState<Chat[]>(() => [emptyChat(), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
@@ -382,6 +385,7 @@ export default function AssistProvider({ firstName, canUse, canSeeUsage = false,
     firstName,
     canUse,
     canSeeUsage,
+    strictPrivacy,
     notify,
     chats,
     emptyId,
