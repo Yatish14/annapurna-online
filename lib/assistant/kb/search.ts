@@ -24,13 +24,17 @@ export const TOP_K = 5;
 
 /** The `k` sections closest to a question */
 export async function searchGuides(run: Run, embedder: EmbeddingsInterface, question: string, k = TOP_K): Promise<HelpHit[]> {
-  const vector = vectorText(await embedder.embedQuery(question));
+  return searchByVector(run, await embedder.embedQuery(question), k);
+}
+
+/** The `k` sections closest to an already embedded question (the retrieval eval embeds all its questions at once) */
+export async function searchByVector(run: Run, vector: number[], k = TOP_K): Promise<HelpHit[]> {
   const rows = await run<HelpHit>(
     `SELECT source, guide, section, text, 1 - (embedding <=> $1) AS score
      FROM kb_chunks
      ORDER BY embedding <=> $1
      LIMIT $2`,
-    [vector, k],
+    [vectorText(vector), k],
   );
   return rows.map((r) => ({ ...r, score: Number(r.score) }));
 }
