@@ -53,10 +53,14 @@ function strings(value: unknown): string[] {
   return [];
 }
 
-/** Turns a tool's result into LangChain's [content for the model, artifact for our code] pair */
-export function toolReply<T>(result: ToolResult<T>): [string, ToolResult<T>] {
+/**
+ * Turns a tool's result into LangChain's [content for the model, artifact for our code] pair.
+ * `ownText`: the result is only the business's own text (the help guides, Step 6), which nobody outside can type
+ * into, so it isn't checked for instructions (a guide's "You must enter a phone number" isn't an attack).
+ */
+export function toolReply<T>(result: ToolResult<T>, { ownText = false } = {}): [string, ToolResult<T>] {
   // A warning goes with the content only: the model needs it, the screen doesn't
-  const flagged = strings(result.data).filter((s) => LOOKS_LIKE_INSTRUCTIONS.test(s));
+  const flagged = ownText ? [] : strings(result.data).filter((s) => LOOKS_LIKE_INSTRUCTIONS.test(s));
   const forModel = flagged.length
     ? {
         ...result,

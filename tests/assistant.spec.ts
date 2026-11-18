@@ -201,6 +201,27 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
   await expect(latest().locator(".as-steps li.is-running")).toHaveCount(0);
 });
 
+// Step 6: search_help finds the help guides' sections (knowledge/*.md, put in the test database with fake embeddings by
+// playwright.config.ts)
+test("help questions search the guides", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const box = chat.getByLabel("Your question");
+  const latest = () => chat.locator(".as-msg.is-assistant").last();
+
+  await box.fill('[tool:search_help {"question":"How do I record fuel on a booking?"}] How do I add fuel?');
+  await box.press("Enter");
+  await expect(latest()).toContainText("Tools used: search_help: found.");
+  await expect(latest().locator(".as-steps li", { hasText: "Searched the help guides" }).locator(".as-step-done")).toBeVisible();
+
+  // A question no guide has a word of: "none"
+  await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+  await box.fill('[tool:search_help {"question":"zzqx wibble"}] Something odd');
+  await box.press("Enter");
+  await expect(latest()).toContainText("Tools used: search_help: none.");
+});
+
 // 4.8: "Open in form" fills the booking form from the draft kept on the server, and saving the form uses the draft
 // up, so the chat's Confirm can't save the same booking again
 test("Open in form fills the booking form from a draft, and the draft becomes one booking only", async ({ page }) => {

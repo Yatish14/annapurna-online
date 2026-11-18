@@ -3,6 +3,7 @@ import { draftBooking } from "./drafts";
 import { draftFuel } from "./fuel";
 import { draftPayment } from "./payments";
 import { driverSummary, vehicleSummary } from "./fleet";
+import { searchHelp } from "./help";
 import { balancesDue, monthOverview } from "./money";
 import { printOrders } from "./prints";
 import { report } from "./reports";
@@ -24,4 +25,5 @@ export const TOOLS = [
   draftBooking,
   draftPayment,
   draftFuel,
+  searchHelp,
 ];

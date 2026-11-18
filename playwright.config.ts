@@ -8,6 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
  * Values set here win over .env.local (Next.js never replaces a variable that's already set).
  */
 const PORT = 3100;
+const KB_INGEST = "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-paths.mjs scripts/kb-ingest.ts";
 
 export default defineConfig({
   testDir: "./tests",
@@ -26,7 +27,8 @@ export default defineConfig({
   // A Windows Application Control policy here blocks Playwright's browsers (found 12 Nov 2026), but allows Chrome.
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], channel: "chrome" } }],
   webServer: {
-    command: `node scripts/test-setup.mjs && npx next dev --port ${PORT}`,
+    // The help guides go into the test database too (6.9), with the fake embeddings (ASSISTANT_FAKE=1 below): free
+    command: `node scripts/test-setup.mjs && ${KB_INGEST} && npx next dev --port ${PORT}`,
     url: `http://localhost:${PORT}/login`,
     reuseExistingServer: false, // always a fresh database and the fake models
     timeout: 180_000,
