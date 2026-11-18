@@ -110,6 +110,31 @@ models can't be compared, so the search found nothing, and the judge saw an answ
 made another help answer look like "general knowledge". Fixed: the judge uses the same embeddings as the guides.
 Lesson: check the judge's inputs before trusting its verdicts.
 
+## Two models compared (8.10)
+
+The plan was Gemini 3.8 Flash against 3.5 Flash-Lite. **3.8 Flash couldn't be measured on 18 Nov 2026**: 5 of 6 cases
+failed with Google's "This model is currently experiencing high demand" (an overload on Google's side, not our
+limit), and the retries took 22 minutes for 3 requests (`evals/results/tools-gemini-3.8-flash.json`). A real lesson
+for production: a model can be unavailable for a while, so the app needs a fallback model or a clear "try again"
+message (it has the message: `lib/assistant/replies.ts`).
+
+So the comparison is with **Gemini 3.1 Flash-Lite**, an older model on the same free tier with its own daily limit,
+on the first 30 cases that aren't off-topic checks (those always use 3.5 Flash-Lite):
+
+| Model | Passed | Seconds a case | Requests | Tokens in (cached) | Out |
+|---|---|---|---|---|---|
+| 3.5 Flash-Lite (the app's) | 30 | 5.6 | 65 | 3,73,903 (26%) | 2,386 |
+| 3.1 Flash-Lite | 30 | 5.5 | 61 | 3,49,306 (35%) | 2,746 |
+
+- **Both choose the right tools on all 30**, so this set doesn't separate them; the 100-case set with the hard and
+  injection cases would, at the cost of a day's requests.
+- **Where they differ is the extra calls**: 3.5 opened the found booking after a search (`search_bookings` then
+  `get_booking`), used `get_today` for "today" and "tomorrow" as the prompt asks, and checked the drivers before
+  asking which one. 3.1 stopped earlier and worked out "tomorrow" from the date in the prompt, which happened to be
+  right. Fewer calls is cheaper; following the "use get_today" rule is safer for date arithmetic.
+- The cost column is left out: 3.1 Flash-Lite isn't in our price table (`lib/assistant/prices.ts` has only the
+  models we use), so the usage page and reports would show it as incomplete.
+
 ## Caching (8.11)
 
 Gemini caches by itself ("implicit caching"): when a request starts with the same tokens as a recent one, part of that

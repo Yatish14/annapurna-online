@@ -1,0 +1,855 @@
+{
+  "ran": "2026-11-18T09:29:57.963Z",
+  "model": "gemini-3.1-flash-lite",
+  "cases": 30,
+  "passed": 30,
+  "accuracy": 1,
+  "tools_right": 1,
+  "by_tag": {
+    "bookings": {
+      "cases": 14,
+      "passed": 14,
+      "accuracy": 1
+    },
+    "money": {
+      "cases": 6,
+      "passed": 6,
+      "accuracy": 1
+    },
+    "reports": {
+      "cases": 1,
+      "passed": 1,
+      "accuracy": 1
+    },
+    "fleet": {
+      "cases": 2,
+      "passed": 2,
+      "accuracy": 1
+    },
+    "prints": {
+      "cases": 1,
+      "passed": 1,
+      "accuracy": 1
+    },
+    "dates": {
+      "cases": 2,
+      "passed": 2,
+      "accuracy": 1
+    },
+    "drafts": {
+      "cases": 4,
+      "passed": 4,
+      "accuracy": 1
+    },
+    "help": {
+      "cases": 2,
+      "passed": 2,
+      "accuracy": 1
+    },
+    "chat": {
+      "cases": 1,
+      "passed": 1,
+      "accuracy": 1
+    },
+    "telugu": {
+      "cases": 1,
+      "passed": 1,
+      "accuracy": 1
+    },
+    "hindi": {
+      "cases": 1,
+      "passed": 1,
+      "accuracy": 1
+    }
+  },
+  "average_seconds": 5.49,
+  "requests": 61,
+  "tokens": {
+    "input": 349306,
+    "output": 2746,
+    "cached": 120755
+  },
+  "would_cost_inr": 0,
+  "privacy": "normal",
+  "failures": [],
+  "results": [
+    {
+      "id": "upcoming",
+      "tags": [
+        "bookings"
+      ],
+      "question": "Which bookings are coming up?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "upcoming"
+          }
+        }
+      ],
+      "answer": "There are 6 upcoming bookings:\n\n- **VB-0021**: Ramya Sri, 21 Nov\n- **VB-0022**: Chandra Sekhar, 24–25 Nov\n- **VB-0023**: Usha Rani, 28–30 Nov\n- **VB-0024**: Vamsi Krishna, 3–6 Dec\n- **VB-0025**: Jyothi, 8–9 Dec\n- **VB-0026**: Gopal Varma, 6–7 Jun",
+      "ms": 4535,
+      "requests": 2,
+      "input": 11709,
+      "output": 140,
+      "cached": 4027,
+      "inr": 0
+    },
+    {
+      "id": "owed",
+      "tags": [
+        "money"
+      ],
+      "question": "Who still owes us money?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "balances_due",
+          "args": {}
+        }
+      ],
+      "answer": "Ten customers currently owe a total of ₹79,300. The largest balances are:\n\n- **Usha Rani** (VB-0023): ₹14,000\n- **Vamsi Krishna** (VB-0024): ₹12,900\n- **Satyanarayana** (VB-0020): ₹12,400\n- **Chandra Sekhar** (VB-0022): ₹8,200\n- **Gopal Varma** (VB-0026): ₹8,000\n\nThe full list of bookings with outstanding balances is shown below.",
+      "ms": 4387,
+      "requests": 2,
+      "input": 11713,
+      "output": 155,
+      "cached": 6040,
+      "inr": 0
+    },
+    {
+      "id": "profit-last-month",
+      "tags": [
+        "money"
+      ],
+      "question": "What was our profit last month?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "report",
+          "args": {
+            "which": "bookings",
+            "month": "last month"
+          }
+        }
+      ],
+      "answer": "Last month (October 2026), the bookings profit was ₹18,993. After accounting for all costs including repairs, FASTag, and EMI/insurance, there was a total loss of ₹56,407.\n\nThe full report is available below.",
+      "ms": 4546,
+      "requests": 2,
+      "input": 11307,
+      "output": 81,
+      "cached": 4024,
+      "inr": 0
+    },
+    {
+      "id": "cash-this-month",
+      "tags": [
+        "money"
+      ],
+      "question": "How much cash came in this month?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "month_overview",
+          "args": {
+            "month": "this month"
+          }
+        }
+      ],
+      "answer": "A total of ₹57,200 has been received from customers so far this month.",
+      "ms": 5131,
+      "requests": 2,
+      "input": 11192,
+      "output": 37,
+      "cached": 4023,
+      "inr": 0
+    },
+    {
+      "id": "find-customer",
+      "tags": [
+        "bookings"
+      ],
+      "question": "Show me Ravi Kumar's booking",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "search_bookings",
+          "args": {
+            "query": "Ravi Kumar"
+          }
+        }
+      ],
+      "answer": "Ravi Kumar has one completed booking, VB-0001, for a trip from Vijayawada to Tirupati and back from 30 Aug to 1 Sep. The total was ₹16,400, which is fully paid.",
+      "ms": 4132,
+      "requests": 2,
+      "input": 11188,
+      "output": 71,
+      "cached": 4023,
+      "inr": 0
+    },
+    {
+      "id": "open-number",
+      "tags": [
+        "bookings"
+      ],
+      "question": "Open VB-0003",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "get_booking",
+          "args": {
+            "number": "VB-0003"
+          }
+        }
+      ],
+      "answer": "Booking VB-0003 for Mohammed Imran (Hyderabad → Vijayawada) is completed. The total was ₹10,700, with ₹6,500 received, leaving a balance of ₹4,200. The driver, Suresh Babu, has been paid in full.",
+      "ms": 7132,
+      "requests": 2,
+      "input": 11486,
+      "output": 84,
+      "cached": 4025,
+      "inr": 0
+    },
+    {
+      "id": "statement",
+      "tags": [
+        "reports"
+      ],
+      "question": "Give me the expense statement for VB-0002",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "expense_statement",
+          "args": {
+            "number": "VB-0002"
+          }
+        }
+      ],
+      "answer": "The expense statement for booking VB-0002 (Lakshmi Prasanna) is ready below. The total amount was ₹9,600, which has been fully paid.",
+      "ms": 6376,
+      "requests": 2,
+      "input": 11160,
+      "output": 59,
+      "cached": 2010,
+      "inr": 0
+    },
+    {
+      "id": "cars-october",
+      "tags": [
+        "fleet"
+      ],
+      "question": "How did each car do in October?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "vehicle_summary",
+          "args": {
+            "month": "October"
+          }
+        }
+      ],
+      "answer": "In October 2026, the performance for each vehicle was as follows:\n\n- **Innova Crysta**: 3 bookings, 1,760 km, and a loss of ₹9,974.\n- **Kia Carens**: 1 booking, 1,327 km, and a loss of ₹18,418.\n- **Maruti Ertiga**: 2 bookings, 1,197 km, and a loss of ₹28,015.",
+      "ms": 5425,
+      "requests": 2,
+      "input": 11789,
+      "output": 127,
+      "cached": 6041,
+      "inr": 0
+    },
+    {
+      "id": "drivers-month",
+      "tags": [
+        "fleet"
+      ],
+      "question": "Which driver did the most trips this month?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "driver_summary",
+          "args": {
+            "month": "this month"
+          }
+        }
+      ],
+      "answer": "Ramesh Naidu has done the most trips this month with 4 bookings.",
+      "ms": 3827,
+      "requests": 2,
+      "input": 11412,
+      "output": 33,
+      "cached": 4025,
+      "inr": 0
+    },
+    {
+      "id": "new-prints",
+      "tags": [
+        "prints"
+      ],
+      "question": "Any new printouts waiting?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "print_orders",
+          "args": {
+            "status": "new"
+          }
+        }
+      ],
+      "answer": "There are no new printout orders waiting at the moment.",
+      "ms": 6804,
+      "requests": 2,
+      "input": 11099,
+      "output": 28,
+      "cached": 4023,
+      "inr": 0
+    },
+    {
+      "id": "date-math",
+      "tags": [
+        "dates"
+      ],
+      "question": "What date is it 10 days from today?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "get_today",
+          "args": {
+            "plus_days": 10
+          }
+        }
+      ],
+      "answer": "10 days from today is Sat, 28 Nov 2026.",
+      "ms": 5102,
+      "requests": 2,
+      "input": 11121,
+      "output": 35,
+      "cached": 4023,
+      "inr": 0
+    },
+    {
+      "id": "draft-booking",
+      "tags": [
+        "drafts"
+      ],
+      "question": "Book the Carens for Ravi Kumar, 98480 22338, from tomorrow for 2 days, Vijayawada to Guntur, total 9000",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "draft_booking",
+          "args": {
+            "days": 2,
+            "pickup_city": "Vijayawada",
+            "start_date": "2026-11-19",
+            "destination_city": "Guntur",
+            "vehicle": "Carens",
+            "total_amount": 9000,
+            "round_trip": false
+          }
+        },
+        {
+          "name": "draft_booking",
+          "args": {
+            "total_amount": 9000,
+            "days": 2,
+            "round_trip": false,
+            "destination_city": "Guntur",
+            "customer_phone": "98480 22338",
+            "pickup_city": "Vijayawada",
+            "vehicle": "Carens",
+            "driver_is_busy_ok": false,
+            "customer_name": "Ravi Kumar",
+            "start_date": "2026-11-19"
+          }
+        }
+      ],
+      "answer": "The booking for Ravi Kumar is almost ready, but I still need to know which driver you would like to assign. Please let me know the driver's name.",
+      "ms": 8229,
+      "requests": 3,
+      "input": 17089,
+      "output": 215,
+      "cached": 4021,
+      "inr": 0
+    },
+    {
+      "id": "customer-paid",
+      "tags": [
+        "drafts"
+      ],
+      "question": "Lakshmi Prasanna paid 2000 by UPI today",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "draft_payment",
+          "args": {
+            "booking": "Lakshmi Prasanna",
+            "amount": 2000,
+            "party": "customer",
+            "method": "upi"
+          }
+        }
+      ],
+      "answer": "The payment of ₹2,000 via UPI for Lakshmi Prasanna is ready to check below.\n\nPlease note: This is ₹2,000 more than what's left to pay on booking VB-0002. Nothing is saved until you press Confirm on the card.",
+      "ms": 6140,
+      "requests": 2,
+      "input": 11292,
+      "output": 99,
+      "cached": 0,
+      "inr": 0
+    },
+    {
+      "id": "fuel-on-booking",
+      "tags": [
+        "drafts"
+      ],
+      "question": "Filled 3000 rupees of diesel for VB-0004",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "draft_fuel",
+          "args": {
+            "amount": 3000,
+            "booking": "VB-0004"
+          }
+        }
+      ],
+      "answer": "The fuel fill of ₹3,000 for VB-0004 is ready to check below. Please note that nothing is saved until you press Confirm.",
+      "ms": 7254,
+      "requests": 2,
+      "input": 11248,
+      "output": 62,
+      "cached": 2011,
+      "inr": 0
+    },
+    {
+      "id": "driver-paid",
+      "tags": [
+        "drafts"
+      ],
+      "question": "Paid the driver 1500 for VB-0001 in cash",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "draft_payment",
+          "args": {
+            "amount": 1500,
+            "party": "driver",
+            "method": "cash",
+            "booking": "VB-0001"
+          }
+        }
+      ],
+      "answer": "The payment of ₹1,500 to the driver for VB-0001 is ready to check below.\n\nPlease note: this is ₹1,500 more than what is left to pay on this booking. Nothing is saved until you press Confirm on the card.",
+      "ms": 7950,
+      "requests": 2,
+      "input": 11307,
+      "output": 99,
+      "cached": 2011,
+      "inr": 0
+    },
+    {
+      "id": "help-add-driver",
+      "tags": [
+        "help"
+      ],
+      "question": "How do I add a new driver?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "search_help",
+          "args": {
+            "question": "How do I add a new driver?"
+          }
+        }
+      ],
+      "answer": "To add a new driver, follow these steps:\n\n1. Open **Expense Tracker → Vehicles & drivers**.\n2. In the **Drivers** panel, fill in the **Driver name** and **Mobile number**.\n3. Press **Add driver**.\n\nYou can also add a driver directly from the booking form by clicking **+ New driver**. (From the Vehicles and Drivers Guide.)",
+      "ms": 4669,
+      "requests": 2,
+      "input": 11813,
+      "output": 102,
+      "cached": 6041,
+      "inr": 0
+    },
+    {
+      "id": "help-term",
+      "tags": [
+        "help"
+      ],
+      "question": "What does driver amount mean?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "search_help",
+          "args": {
+            "question": "What does driver amount mean?"
+          }
+        }
+      ],
+      "answer": "The **driver amount** is the pay agreed with the driver for a specific booking. \n\n- **Still to pay** is the driver amount minus any payments already made to the driver for that booking.\n- **Settled** means the driver has been paid the full agreed amount.\n- **Earned** (on a driver's page) is the sum of their agreed driver amounts across their bookings.\n\n(From the Glossary and Payments Guide.)",
+      "ms": 7018,
+      "requests": 2,
+      "input": 11847,
+      "output": 114,
+      "cached": 4029,
+      "inr": 0
+    },
+    {
+      "id": "who-are-you",
+      "tags": [
+        "chat"
+      ],
+      "question": "Who are you?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [],
+      "answer": "I am Annapurna Assist, the helper inside the admin dashboard of Annapurna Online Services and Annapurna Tours & Travels. I can help you with car bookings, payments, printout orders, monthly reports, and using this dashboard.",
+      "ms": 3088,
+      "requests": 1,
+      "input": 5510,
+      "output": 46,
+      "cached": 0,
+      "inr": 0
+    },
+    {
+      "id": "on-trip-now",
+      "tags": [
+        "bookings"
+      ],
+      "question": "Who's out on a trip right now?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "ongoing"
+          }
+        }
+      ],
+      "answer": "There are 2 bookings on the road right now:\n\n- **Gopi Krishna** (VB-0019) in the Maruti Ertiga with driver Venkat Rao.\n- **Satyanarayana** (VB-0020) in the Innova Crysta with driver Suresh Babu.",
+      "ms": 3250,
+      "requests": 2,
+      "input": 11312,
+      "output": 80,
+      "cached": 4024,
+      "inr": 0
+    },
+    {
+      "id": "cancelled",
+      "tags": [
+        "bookings"
+      ],
+      "question": "Show me the cancelled bookings",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "cancelled"
+          }
+        }
+      ],
+      "answer": "There is 1 cancelled booking:\n\n- **VB-0013**: Naresh Chowdary, Kia Carens, 24–25 Oct, Vijayawada → Hyderabad.",
+      "ms": 21784,
+      "requests": 2,
+      "input": 11178,
+      "output": 57,
+      "cached": 4023,
+      "inr": 0
+    },
+    {
+      "id": "completed",
+      "tags": [
+        "bookings"
+      ],
+      "question": "List the completed trips",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "completed"
+          }
+        }
+      ],
+      "answer": "There are 17 completed trips. Here are the most recent ones:\n\n| Booking | Customer | Dates | Route |\n| :--- | :--- | :--- | :--- |\n| VB-0018 | Sowjanya | 14–15 Nov | Eluru → Hyderabad |\n| VB-0017 | Rajesh Goud | 10–12 Nov | Guntur → Visakhapatnam |\n| VB-0016 | Bhavani Shankar | 6–9 Nov | Vijayawada → Araku Valley → Vijayawada |\n| VB-0015 | Prakash Varma | 3–5 Nov | Guntur → Annavaram → Guntur |\n| VB-0014 | Swathi | 29–30 Oct | Vijayawada → Hyderabad |",
+      "ms": 4847,
+      "requests": 2,
+      "input": 12885,
+      "output": 196,
+      "cached": 6051,
+      "inr": 0
+    },
+    {
+      "id": "payment-due-list",
+      "tags": [
+        "bookings",
+        "money"
+      ],
+      "question": "Which bookings still have payment due?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "balances_due",
+          "args": {}
+        }
+      ],
+      "answer": "There are 10 bookings with a total of ₹79,300 still due from customers. The bookings are listed below, starting with the largest balance:\n\n- **VB-0023** (Usha Rani): ₹14,000\n- **VB-0024** (Vamsi Krishna): ₹12,900\n- **VB-0020** (Satyanarayana): ₹12,400\n- **VB-0022** (Chandra Sekhar): ₹8,200\n- **VB-0026** (Gopal Varma): ₹8,000\n- **VB-0019** (Gopi Krishna): ₹6,800\n- **VB-0016** (Bhavani Shankar): ₹4,700\n- **VB-0012** (Madhavi): ₹4,300\n- **VB-0003** (Mohammed Imran): ₹4,200\n- **VB-0021** (Ramya Sri): ₹3,800",
+      "ms": 3521,
+      "requests": 2,
+      "input": 11715,
+      "output": 260,
+      "cached": 6040,
+      "inr": 0
+    },
+    {
+      "id": "search-phone",
+      "tags": [
+        "bookings"
+      ],
+      "question": "Find the booking for phone number 9866012345",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "search_bookings",
+          "args": {
+            "query": "9866012345"
+          }
+        }
+      ],
+      "answer": "I found one booking for that phone number:\n\n- **VB-0002**: Lakshmi Prasanna, Kia Carens, Vijayawada → Hyderabad, 4–5 Sep, status: Completed.",
+      "ms": 3288,
+      "requests": 2,
+      "input": 11207,
+      "output": 68,
+      "cached": 2013,
+      "inr": 0
+    },
+    {
+      "id": "search-first-name",
+      "tags": [
+        "bookings"
+      ],
+      "question": "What's Padma's trip?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "search_bookings",
+          "args": {
+            "query": "Padma"
+          }
+        }
+      ],
+      "answer": "Padma Latha had a trip from Vijayawada to Chennai from 21–24 Sep (VB-0006). It was completed and fully paid.",
+      "ms": 2915,
+      "requests": 2,
+      "input": 11185,
+      "output": 53,
+      "cached": 4023,
+      "inr": 0
+    },
+    {
+      "id": "open-number-2",
+      "tags": [
+        "bookings"
+      ],
+      "question": "Details of VB-0010 please",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "get_booking",
+          "args": {
+            "number": "VB-0010"
+          }
+        }
+      ],
+      "answer": "Booking VB-0010 for Sai Teja (7396644556) was a 5-day trip from 11–15 Oct, covering the route Vijayawada → Bengaluru → Vijayawada with the Kia Carens driven by Ramesh Naidu (9912345678).\n\nThe total amount was ₹22,100, which has been fully paid. After accounting for the driver's pay (₹3,500), fuel (₹8,213), and other expenses (₹3,805), the trip generated a profit of ₹6,582.",
+      "ms": 4329,
+      "requests": 2,
+      "input": 11610,
+      "output": 162,
+      "cached": 6039,
+      "inr": 0
+    },
+    {
+      "id": "did-she-pay",
+      "tags": [
+        "bookings",
+        "money"
+      ],
+      "question": "Did Anitha Reddy pay the full amount?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "search_bookings",
+          "args": {
+            "query": "Anitha Reddy"
+          }
+        }
+      ],
+      "answer": "Yes, Anitha Reddy has paid the full amount of ₹4,900 for her booking (VB-0004).",
+      "ms": 2193,
+      "requests": 2,
+      "input": 11194,
+      "output": 46,
+      "cached": 4023,
+      "inr": 0
+    },
+    {
+      "id": "te-on-trip",
+      "tags": [
+        "bookings",
+        "telugu"
+      ],
+      "question": "ఇప్పుడు ట్రిప్‌లో ఎవరు ఉన్నారు?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "ongoing"
+          }
+        }
+      ],
+      "answer": "ప్రస్తుతం ఇద్దరు ట్రిప్‌లో ఉన్నారు:\n\n- గోపి కృష్ణ (VB-0019), మారుతి ఎర్టిగాలో వెంకట్ రావుతో కలిసి గుంటూరు నుండి శ్రీశైలం వెళ్తున్నారు.\n- సత్యనారాయణ (VB-0020), ఇన్నోవా క్రిస్టాలో సురేష్ బాబుతో కలిసి విజయవాడ నుండి తిరుపతి వెళ్తున్నారు.",
+      "ms": 2737,
+      "requests": 2,
+      "input": 11310,
+      "output": 110,
+      "cached": 2011,
+      "inr": 0
+    },
+    {
+      "id": "hi-upcoming",
+      "tags": [
+        "bookings",
+        "hindi"
+      ],
+      "question": "आने वाली बुकिंग दिखाओ",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "upcoming"
+          }
+        }
+      ],
+      "answer": "अभी कुल 6 आने वाली बुकिंग हैं। उनकी सूची नीचे दी गई है:",
+      "ms": 3406,
+      "requests": 2,
+      "input": 11709,
+      "output": 32,
+      "cached": 6040,
+      "inr": 0
+    },
+    {
+      "id": "starting-tomorrow",
+      "tags": [
+        "bookings",
+        "dates"
+      ],
+      "question": "Which bookings start tomorrow?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "get_today",
+          "args": {
+            "plus_days": 1
+          }
+        },
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "all",
+            "from": "2026-11-19"
+          }
+        }
+      ],
+      "answer": "There are no bookings starting tomorrow, Thursday, 19 Nov 2026.",
+      "ms": 3404,
+      "requests": 3,
+      "input": 17000,
+      "output": 66,
+      "cached": 6031,
+      "inr": 0
+    },
+    {
+      "id": "pending-customers",
+      "tags": [
+        "money"
+      ],
+      "question": "How much is pending from customers in total?",
+      "pass": true,
+      "toolsRight": true,
+      "reasons": [],
+      "calls": [
+        {
+          "name": "balances_due",
+          "args": {}
+        }
+      ],
+      "answer": "Customers currently owe a total of ₹79,300 across 10 bookings.",
+      "ms": 7395,
+      "requests": 2,
+      "input": 11719,
+      "output": 29,
+      "cached": 6040,
+      "inr": 0
+    }
+  ]
+}

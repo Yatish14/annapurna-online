@@ -19,6 +19,7 @@ const option = (name: string) => (args.includes(`--${name}`) ? args[args.indexOf
 const MODEL = option("model") ?? process.env.ASSISTANT_MODEL ?? "gemini-3.5-flash-lite";
 const LIMIT = Number(option("limit") ?? Infinity);
 const TAGS = option("tags")?.split(",");
+const SKIP_TAGS = option("skip-tags")?.split(",");
 const IDS = option("ids")?.split(",");
 /** Requests a minute to stay under: the free tier allows 15 for Flash-Lite and 5 for 3.8 Flash; 10 leaves room, since a case counts its requests only when it ends */
 const PER_MINUTE = MODEL === "replay" ? Infinity : MODEL.includes("lite") ? 10 : 4;
@@ -55,6 +56,7 @@ const all: Case[] = readFileSync("evals/cases.jsonl", "utf8")
   .map((l) => JSON.parse(l));
 const cases = all
   .filter((c) => !TAGS || c.tags.some((t) => TAGS.includes(t)))
+  .filter((c) => !SKIP_TAGS || !c.tags.some((t) => SKIP_TAGS.includes(t)))
   .filter((c) => !IDS || IDS.includes(c.id))
   .slice(0, LIMIT);
 
@@ -71,6 +73,8 @@ const recording: Recording = (() => {
   }
 })();
 const recorded = recording.cases;
+/** Only the app's own model's answers are recorded: CI replays those. A comparison run (8.10) leaves them alone. */
+const RECORD = MODEL === "gemini-3.5-flash-lite";
 /** Cases that passed when recorded (earlier runs' too, unless run again now) */
 const passingBefore = new Set(recording.passing ?? []);
 const replay = new ReplayModel();
@@ -129,7 +133,7 @@ const done = new Set(results.map((r) => r.id));
 function saveProgress() {
   mkdirSync("evals/results", { recursive: true });
   writeFileSync(PARTIAL, JSON.stringify(results));
-  if (MODEL !== "replay") {
+  if (RECORD) {
     mkdirSync("evals/recordings", { recursive: true });
     // Which cases passed when recorded: a replay (CI) fails only if one of these fails now, a regression
     const passing = new Set(passingBefore);
@@ -185,7 +189,7 @@ for (const c of cases) {
       answer = turns.at(-1)?.text ?? "";
       grade = gradeCase(c.expect, calls, answer, today);
     }
-    if (MODEL !== "replay") recorded[c.id] = turns;
+    if (RECORD) recorded[c.id] = turns;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     grade = { pass: false, toolsRight: false, reasons: [`error: ${message.slice(0, 200)}`] };
