@@ -224,5 +224,5 @@ follow-ups need row labels, sentences with numbers come from our code. (Design d
 ## Step 10 — Ship and show
 
 - [ ] **10.1** *(Only if it goes online)* API key in Vercel's environment settings, privacy-first mode on. (Not done: it changes the live site and Neon, the owner's call. The steps, in order, are in `docs/assistant-privacy.md` → Going online: migrate Neon, ingest the guides, the key and `ASSISTANT_PRIVACY=strict` in Vercel, and why a paid key is safer for real data)
-- [ ] **10.2** README section with an architecture diagram and the decisions made.
+- [x] **10.2** README section with an architecture diagram and the decisions made. (README → "Annapurna Assist (AI assistant)": a Mermaid diagram of how a question is answered, the six steps behind it, a table of the decisions with their reasons and docs, the commands, and the results so far; the address table, test notes and project structure list the assistant too)
 - [ ] **10.3** Demo mode on sample data + a 2-minute video.
