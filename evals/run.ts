@@ -10,7 +10,7 @@
 // It runs the real graph, with the real tools on the eval database, so a question that needs two steps (the date,
 // then the bookings) is graded on all its tool calls. The answers' words are saved too, for the AI judge (8.9).
 // Each tool question uses 2–3 model requests; the runner waits as needed to stay under the free tier's per-minute limit.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { BaseMessage } from "@langchain/core/messages";
 
 // ---------- Options ----------
@@ -20,8 +20,8 @@ const MODEL = option("model") ?? process.env.ASSISTANT_MODEL ?? "gemini-3.5-flas
 const LIMIT = Number(option("limit") ?? Infinity);
 const TAGS = option("tags")?.split(",");
 const IDS = option("ids")?.split(",");
-/** Requests a minute to stay under: the free tier allows 15 for Flash-Lite and 5 for 3.8 Flash */
-const PER_MINUTE = MODEL === "replay" ? Infinity : MODEL.includes("lite") ? 13 : 4;
+/** Requests a minute to stay under: the free tier allows 15 for Flash-Lite and 5 for 3.8 Flash; 10 leaves room, since a case counts its requests only when it ends */
+const PER_MINUTE = MODEL === "replay" ? Infinity : MODEL.includes("lite") ? 10 : 4;
 const LABEL = option("label") ?? MODEL;
 
 // Before anything reads them: the eval database, and no real model calls when replaying
@@ -59,15 +59,20 @@ const cases = all
   .slice(0, LIMIT);
 
 // ---------- Recordings: what each real run's model said, so CI can replay it for free ----------
+// The day they were recorded too: "tomorrow" in a recorded answer is that day's tomorrow, so a replay on a later day
+// grades dates and months as of the recording's day
 const RECORDINGS = "evals/recordings/answers.json";
-type Recording = Record<string, Turn[]>;
-const recorded: Recording = (() => {
+type Recording = { recorded_on: string; passing?: string[]; cases: Record<string, Turn[]> };
+const recording: Recording = (() => {
   try {
     return JSON.parse(readFileSync(RECORDINGS, "utf8"));
   } catch {
-    return {};
+    return { recorded_on: todayIST(), cases: {} };
   }
 })();
+const recorded = recording.cases;
+/** Cases that passed when recorded (earlier runs' too, unless run again now) */
+const passingBefore = new Set(recording.passing ?? []);
 const replay = new ReplayModel();
 const graph = buildGraph(MAX_TOOL_ROUNDS, undefined, MODEL === "replay" ? () => replay : mainModel);
 
@@ -89,7 +94,8 @@ if (!admin) {
   console.error("✗ The eval database isn't set up. Run npm run eval:setup first.");
   process.exit(1);
 }
-const today = todayIST();
+// The day the answers are graded as of: today, or the recording's day when replaying
+const today = MODEL === "replay" ? recording.recorded_on : todayIST();
 
 type Result = {
   id: string;
@@ -107,14 +113,39 @@ type Result = {
   cached: number;
   inr: number;
 };
-const results: Result[] = [];
+// Saved after every case, so a long run that's stopped (a closed terminal, Google's daily limit) loses nothing:
+// `--resume` carries on from the cases already done, and tries again the ones that failed with an error (a 429)
+const PARTIAL = `evals/results/.partial-${LABEL.replace(/[^a-z0-9.-]/gi, "_")}.json`;
+const errored = (r: Result) => r.reasons.some((why) => why.startsWith("error:"));
+const results: Result[] = (() => {
+  if (!args.includes("--resume")) return [];
+  try {
+    return (JSON.parse(readFileSync(PARTIAL, "utf8")) as Result[]).filter((r) => !errored(r));
+  } catch {
+    return [];
+  }
+})();
+const done = new Set(results.map((r) => r.id));
+function saveProgress() {
+  mkdirSync("evals/results", { recursive: true });
+  writeFileSync(PARTIAL, JSON.stringify(results));
+  if (MODEL !== "replay") {
+    mkdirSync("evals/recordings", { recursive: true });
+    // Which cases passed when recorded: a replay (CI) fails only if one of these fails now, a regression
+    const passing = new Set(passingBefore);
+    for (const r of results) r.pass ? passing.add(r.id) : passing.delete(r.id);
+    writeFileSync(RECORDINGS, `${JSON.stringify({ recorded_on: todayIST(), passing: [...passing].sort(), cases: recorded }, null, 2)}\n`);
+  }
+}
 const turnsOf = (messages: BaseMessage[]): Turn[] =>
   messages
     .filter((m) => AIMessage.isInstance(m))
     .map((m) => ({ text: m.text, toolCalls: ((m as InstanceType<typeof AIMessage>).tool_calls ?? []).map((c) => ({ name: c.name, args: c.args })) }));
 
 console.log(`${cases.length} cases with ${MODEL}${MODEL === "replay" ? " (recorded answers, no Google)" : ""}, on the eval database\n`);
+if (done.size) console.log(`Resuming: ${done.size} cases already done\n`);
 for (const c of cases) {
+  if (done.has(c.id)) continue;
   const recorder = new UsageRecorder();
   // Timed from after the wait for the per-minute limit: the time an admin would wait, not the runner's pacing
   let started = Date.now();
@@ -136,6 +167,9 @@ for (const c of cases) {
         MODEL === "replay"
           ? recorded[c.id][0].text === "ALLOW"
           : await isOnTopic(c.question, undefined, new AbortController().signal, [recorder]);
+      // The check lets a question through when it fails (guard.ts), so a 429 or a timeout would look like "ALLOW".
+      // No finished call means it never answered: an error to try again (--resume), not a verdict to grade.
+      if (MODEL !== "replay" && !recorder.calls.length) throw new Error("the off-topic check got no answer (over the limit, or too slow)");
       turns = [{ text: allowed ? "ALLOW" : "BLOCK", toolCalls: [] }];
       grade = gradeGuard(c.expect.guard, allowed);
     } else {
@@ -177,6 +211,7 @@ for (const c of cases) {
   console.log(
     `${r.pass ? "✓" : r.toolsRight ? "~" : "✗"} ${c.id.padEnd(22)} ${(r.ms / 1000).toFixed(1).padStart(5)} s  ${calls.map((x) => x.name).join(", ") || (c.expect.guard ? turns[0]?.text : "no tool")}${r.reasons.length ? `\n    ${r.reasons.join("\n    ")}` : ""}`,
   );
+  saveProgress();
 }
 
 // ---------- Report (8.7) ----------
@@ -220,9 +255,9 @@ mkdirSync("evals/results", { recursive: true });
 const file = `evals/results/tools-${LABEL.replace(/[^a-z0-9.-]/gi, "_")}.json`;
 writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`);
 console.log(`Saved to ${file}`);
-if (MODEL !== "replay") {
-  mkdirSync("evals/recordings", { recursive: true });
-  writeFileSync(RECORDINGS, `${JSON.stringify(recorded, null, 2)}\n`);
-}
-// Fewer than all passing isn't a crash: only replay (CI) fails the run, since a recorded answer must keep passing
-process.exit(MODEL === "replay" && passed < results.length ? 1 : 0);
+rmSync(PARTIAL, { force: true }); // finished: the next run starts afresh
+// A real run with failures isn't a crash: it's what the report is for. A replay (CI) fails only on a regression: a
+// case that passed when it was recorded and fails now (a tool, a grader or a case was broken since)
+const regressions = MODEL === "replay" ? results.filter((r) => !r.pass && passingBefore.has(r.id)) : [];
+if (regressions.length) console.error(`✗ ${regressions.length} case(s) passed when recorded and fail now: ${regressions.map((r) => r.id).join(", ")}`);
+process.exit(regressions.length ? 1 : 0);
