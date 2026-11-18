@@ -116,3 +116,42 @@ test("7.4: if the browser blocks the microphone, the chat says how to allow it",
   await expect(chat.getByRole("alert")).toContainText("The microphone is blocked for this site");
   await expect(chat.locator(".as-inputbox")).not.toHaveClass(/is-listening/);
 });
+
+test("7.5: by default the words wait in the box to check; with 'Send when I stop talking' they're sent straight away", async ({ page }) => {
+  await fakeSpeech(page);
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const box = chat.getByLabel("Your question");
+  const say = (t: string) => page.evaluate((t) => (window as unknown as { __say(t: string): void }).__say(t), t);
+  const end = () => page.evaluate(() => (window as unknown as { __end(): void }).__end());
+
+  // Off (the default): listening ends, the words stay in the box, nothing is sent
+  await chat.getByRole("button", { name: /Ask by voice/ }).click();
+  await say("How many bookings this week");
+  await end();
+  await expect(box).toHaveValue("How many bookings this week");
+  await expect(chat.locator(".as-msg.is-user")).toHaveCount(0);
+  await box.fill("");
+
+  // On: sent as soon as listening ends, marked as spoken (the mic beside the time)
+  await chat.getByRole("button", { name: /Language you'll speak/ }).click();
+  const auto = chat.getByRole("menuitemcheckbox", { name: /Send when I stop talking/ });
+  await expect(auto).toHaveAttribute("aria-checked", "false");
+  await auto.click();
+  await expect(auto).toHaveAttribute("aria-checked", "true");
+  await page.keyboard.press("Escape");
+  await chat.getByRole("button", { name: /Ask by voice/ }).click();
+  await say("Which bookings are upcoming");
+  await end();
+  const question = chat.locator(".as-msg.is-user").last();
+  await expect(question).toContainText("Which bookings are upcoming");
+  await expect(question.locator("svg")).toHaveCount(1); // the mic icon: it was spoken
+  await expect(box).toHaveValue("");
+  await expect(chat.locator(".as-msg.is-assistant").last()).toContainText("You asked: \"Which bookings are upcoming\"");
+
+  // Remembered in this browser
+  await page.reload();
+  await fullPage(page).getByRole("button", { name: /Language you'll speak/ }).click();
+  await expect(fullPage(page).getByRole("menuitemcheckbox", { name: /Send when I stop talking/ })).toHaveAttribute("aria-checked", "true");
+});

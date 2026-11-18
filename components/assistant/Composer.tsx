@@ -53,6 +53,9 @@ const MIC_ERRORS: Record<string, string> = {
   "language-not-supported": "This browser can't listen in that language. Try English.",
 };
 
+/** Where this browser remembers the "send when I stop talking" choice (7.5): a convenience, so per browser is enough */
+const AUTO_SEND_KEY = "annapurna-assist-auto-send";
+
 type Props = {
   busy: boolean;
   onSend: (text: string, voice: boolean) => void;
@@ -71,7 +74,12 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   const [micError, setMicError] = useState("");
   const [spoken, setSpoken] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  // 7.5: send the question by itself when you stop talking, or (the default) leave it in the box to check first.
+  // Speech-to-text gets names and numbers wrong often enough that checking first is the safer default.
+  const [autoSend, setAutoSend] = useState(false);
   const recognition = useRef<Recognition | null>(null);
+  /** Everything in the box at the last result, for sending when listening ends (state in the handler would be stale) */
+  const heard = useRef("");
   const box = useRef<HTMLTextAreaElement>(null);
   const voice = useRef<HTMLDivElement>(null);
   const language = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
@@ -104,6 +112,18 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   }, []);
   // Stop listening when leaving the page
   useEffect(() => () => recognition.current?.stop(), []);
+  // The remembered choice (7.5). Storage can be blocked (private windows), so it's only ever a nice-to-have.
+  useEffect(() => {
+    try {
+      setAutoSend(localStorage.getItem(AUTO_SEND_KEY) === "1");
+    } catch {}
+  }, []);
+  function chooseAutoSend(on: boolean) {
+    setAutoSend(on);
+    try {
+      localStorage.setItem(AUTO_SEND_KEY, on ? "1" : "0");
+    } catch {}
+  }
 
   // The box grows with the text, up to a limit (CSS max-height)
   useEffect(() => {
@@ -114,14 +134,16 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   }, [text]);
 
   const tooLong = text.length > MAX_LENGTH;
-  const canSend = Boolean(text.trim()) && !tooLong && !busy && left > 0;
+  const canSendText = (value: string) => Boolean(value.trim()) && value.length <= MAX_LENGTH && !busy && left > 0;
+  const canSend = canSendText(text);
 
-  function send() {
-    if (!canSend) return;
+  function send(value = text, voice = spoken) {
+    if (!canSendText(value)) return;
     recognition.current?.stop();
-    onSend(text.trim(), spoken);
+    onSend(value.trim(), voice);
     setText("");
     setSpoken(false);
+    heard.current = "";
   }
 
   function toggleMic() {
@@ -142,9 +164,11 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
     r.interimResults = true; // words appear while you talk
     r.continuous = false; // stops by itself after a pause
     const before = text.trim();
+    heard.current = "";
     r.onresult = (e) => {
-      const heard = Array.from(e.results, (result) => result[0].transcript).join("");
-      setText(before ? `${before} ${heard}` : heard);
+      const words = Array.from(e.results, (result) => result[0].transcript).join("");
+      heard.current = before ? `${before} ${words}` : words;
+      setText(heard.current);
       setSpoken(true);
     };
     r.onerror = (e) => {
@@ -154,7 +178,9 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
     r.onend = () => {
       setListening(false);
       recognition.current = null;
-      box.current?.focus();
+      // 7.5: sent as soon as you stop talking, if chosen and something was heard; otherwise it waits in the box
+      if (autoSend && heard.current) send(heard.current, true);
+      else box.current?.focus();
     };
     recognition.current = r;
     setMicError("");
@@ -264,6 +290,19 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
                     </button>
                   ))}
                   <p className="as-langmenu-note">The mic writes down what you say in this language.</p>
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={autoSend}
+                    className={`as-langmenu-auto ${autoSend ? "is-selected" : ""}`}
+                    onClick={() => chooseAutoSend(!autoSend)}
+                  >
+                    <span className="as-langmenu-name">
+                      <strong>Send when I stop talking</strong>
+                      <small>{autoSend ? "Sent straight away" : "Off: check the words, then press Send"}</small>
+                    </span>
+                    {autoSend && <Icon name="check" size={15} />}
+                  </button>
                 </div>
               )}
             </div>
