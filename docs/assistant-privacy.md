@@ -86,3 +86,18 @@ So strict mode is right but less helpful: a yes/no question about the data gets 
 Answers are shorter (1,696 output tokens against 2,746) and faster. A middle way, if wanted later: let code, not
 the model, write sentences with numbers from the result ("Paid in full: ₹4,900"), added under the model's answer.
 That's the "sentences with numbers come from our code" trade-off from the start of Step 9.
+
+## Going online (10.1): a checklist for the owner
+
+Not done here: it changes the live site and the real database, which is the owner's decision. In order:
+
+1. **Neon**: `npm run db:migrate` with `DATABASE_URL` pointing at Neon adds the assistant's tables (drafts, chats,
+   messages, usage, help guides) and the pgvector extension (Neon has it). Nothing existing is changed.
+2. **The help guides**: `npm run kb:ingest` with the same `DATABASE_URL` (about 104 embedding requests, once).
+3. **Vercel → Settings → Environment Variables**: `GOOGLE_API_KEY` (never `NEXT_PUBLIC_…`) and
+   `ASSISTANT_PRIVACY=strict`. Redeploy.
+4. **The key's tier.** On Google's free tier, what's sent may be used to improve Google's products; on the paid tier it
+   isn't (pricing page, 18 Nov 2026). With privacy-first mode only the admins' own questions go, but they can still
+   name customers. For real use, a paid key is the safer choice; the usage page shows what it would cost (about
+   ₹0.24 a question with Flash-Lite).
+5. **Try it on the live site** with a viewer and an admin sign-in, then the phone mic over HTTPS (7.6).

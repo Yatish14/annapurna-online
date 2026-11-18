@@ -223,6 +223,6 @@ follow-ups need row labels, sentences with numbers come from our code. (Design d
 
 ## Step 10 — Ship and show
 
-- [ ] **10.1** *(Only if it goes online)* API key in Vercel's environment settings, privacy-first mode on.
+- [ ] **10.1** *(Only if it goes online)* API key in Vercel's environment settings, privacy-first mode on. (Not done: it changes the live site and Neon, the owner's call. The steps, in order, are in `docs/assistant-privacy.md` → Going online: migrate Neon, ingest the guides, the key and `ASSISTANT_PRIVACY=strict` in Vercel, and why a paid key is safer for real data)
 - [ ] **10.2** README section with an architecture diagram and the decisions made.
 - [ ] **10.3** Demo mode on sample data + a 2-minute video.
