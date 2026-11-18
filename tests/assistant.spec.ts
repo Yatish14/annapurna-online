@@ -202,8 +202,8 @@ test("tools: the right tool runs, its chip is ticked, and its card shows the dat
 });
 
 // Step 6: search_help finds the help guides' sections (knowledge/*.md, put in the test database with fake embeddings by
-// playwright.config.ts)
-test("help questions search the guides", async ({ page }) => {
+// playwright.config.ts), and the answer lists the guides it came from
+test("help questions search the guides, and the answer shows which guides it came from", async ({ page }) => {
   await signIn(page, "admin");
   await page.goto("/admin/assistant");
   const chat = fullPage(page);
@@ -214,12 +214,19 @@ test("help questions search the guides", async ({ page }) => {
   await box.press("Enter");
   await expect(latest()).toContainText("Tools used: search_help: found.");
   await expect(latest().locator(".as-steps li", { hasText: "Searched the help guides" }).locator(".as-step-done")).toBeVisible();
+  // 6.10: the sources card, each guide once, its sections in the chip's tooltip; the fuel guide closest
+  const sources = latest().locator(".as-sources");
+  await expect(sources).toContainText("From the help guides");
+  const first = sources.locator(".ap-chip").first();
+  await expect(first).toHaveText("Fuel and Expenses Guide");
+  await expect(first).toHaveAttribute("title", /Recording fuel on a booking/);
 
-  // A question no guide has a word of: "none"
+  // A question no guide has a word of: "none", so no card
   await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
   await box.fill('[tool:search_help {"question":"zzqx wibble"}] Something odd');
   await box.press("Enter");
   await expect(latest()).toContainText("Tools used: search_help: none.");
+  await expect(latest().locator(".as-sources")).toHaveCount(0);
 });
 
 // 4.8: "Open in form" fills the booking form from the draft kept on the server, and saving the form uses the draft

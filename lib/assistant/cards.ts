@@ -59,7 +59,18 @@ type ReadyFuel = {
   page: string;
 };
 
+type HelpSections = { sections: { guide: string; section: string }[] };
+
 const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | null> = {
+  // Which help guides an answer came from (6.10): each guide once, closest first, with the sections found in it
+  search_help: (_args, result) => {
+    const guides = new Map<string, string[]>();
+    for (const { guide, section } of (result.data as HelpSections).sections) {
+      guides.set(guide, [...(guides.get(guide) ?? []), section]);
+    }
+    if (!guides.size) return null;
+    return { kind: "sources", items: [...guides].map(([title, sections]) => ({ title, section: sections.join(" · ") })) };
+  },
   // A fuel fill ready to confirm (4.10)
   draft_fuel: (_args, result) => {
     const { ready, fuel: f, warning, draft_id, page } = result.data as ReadyFuel;

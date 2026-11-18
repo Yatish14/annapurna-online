@@ -172,7 +172,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **6.7** Vector search: `ORDER BY embedding <=> $1 LIMIT 5`. (`lib/assistant/kb/search.ts`: embeds the question as a query, `ORDER BY embedding <=> $1 LIMIT 5`, score = 1 − distance)
 - [x] **6.8** HNSW index. *Learn: approximate search.* (an HNSW index with `vector_cosine_ops` on `kb_chunks.embedding`; with a hundred rows Postgres still reads the whole table, so the test turns that off to see the planner pick the index)
 - [x] **6.9** `search_help` tool. (`lib/assistant/tools/help.ts`: the closest sections scoring at least 0.5 (Gemini) go to the model, otherwise "none"; help text isn't checked for instructions (`toolReply(…, { ownText: true })`) and isn't business data; prompt rules: answer only from the sections, never describe screens from memory. Real check: "record diesel for a trip" and a Telugu "how do I add a user" each found the right section first (0.78, 0.74))
-- [ ] **6.10** Answers say which guide they came from.
+- [x] **6.10** Answers say which guide they came from. (a sources card under the answer (each guide once, its sections in the tooltip) made from the tool's own result, and the model ends with "(From the … guide.)")
 - [ ] **6.11** Retrieval eval: 20 questions → expected guide; measure recall@3.
 - [ ] **6.12** Try two chunk sizes; record which works better.
 - [ ] **6.13** *(Optional)* Hybrid keyword + vector search.
