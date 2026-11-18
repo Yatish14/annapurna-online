@@ -90,3 +90,16 @@ test("ingest embeds only new or changed sections, removes deleted ones, and sear
   expect(hits[0].score).toBeGreaterThan(hits[1].score);
   expect((await searchGuides(query, embedder, "QR code upload", 1))[0].section).toBe("Customer uploads");
 });
+
+test("the vector search can use the HNSW index (6.8)", async () => {
+  // Postgres picks the quickest plan: with a handful of rows that's reading the table, so turn that off to see
+  // that the index is there and fits the query
+  const question = `[${fakeEmbedding("fuel").join(",")}]`;
+  await query("SET enable_seqscan = off");
+  try {
+    const plan = await query<{ "QUERY PLAN": string }>("EXPLAIN SELECT id FROM kb_chunks ORDER BY embedding <=> $1 LIMIT 3", [question]);
+    expect(plan.map((r) => r["QUERY PLAN"]).join("\n")).toContain("Index Scan using kb_chunks_embedding_idx");
+  } finally {
+    await query("SET enable_seqscan = on");
+  }
+});

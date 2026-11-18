@@ -463,3 +463,10 @@ CREATE TABLE IF NOT EXISTS kb_chunks (
   embedding   vector(768)  NOT NULL,
   created_at  timestamptz  NOT NULL DEFAULT now()
 );
+-- 6.8: an HNSW index for the vector search (ORDER BY embedding <=> question). Without an index Postgres compares the
+-- question with every row: exact, and fine for a few hundred sections. HNSW ("hierarchical navigable small world")
+-- links each vector to a few near neighbours in layers, like express and local trains: the search hops from far
+-- to near and checks only a small part of the table. It's approximate (it can, rarely, miss the true closest
+-- match) but stays fast at millions of rows. vector_cosine_ops: built for <=>, the cosine distance we sort by.
+-- With so few rows Postgres usually still reads the whole table (it's quicker); the index is ready for when it grows.
+CREATE INDEX IF NOT EXISTS kb_chunks_embedding_idx ON kb_chunks USING hnsw (embedding vector_cosine_ops);

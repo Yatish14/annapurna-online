@@ -170,7 +170,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **6.5** Split documents by heading. *Learn: chunking trade-offs.* (`lib/assistant/kb/chunks.ts`: one chunk per `##` section, starting with "Guide › Section" so a short step still says what it is about; a section over 2,000 characters is split at its paragraphs; the ten guides make 104 chunks, the longest 841 characters)
 - [x] **6.6** `npm run kb:ingest`: embed and save chunks, skip unchanged ones. (`lib/assistant/kb/ingest.ts` and `scripts/kb-ingest.ts`: compares fingerprints and embeds only new or changed sections (one request per 100), moves sections that only changed place, deletes ones that are gone; the browser tests ingest with the fake embeddings)
 - [x] **6.7** Vector search: `ORDER BY embedding <=> $1 LIMIT 5`. (`lib/assistant/kb/search.ts`: embeds the question as a query, `ORDER BY embedding <=> $1 LIMIT 5`, score = 1 − distance)
-- [ ] **6.8** HNSW index. *Learn: approximate search.*
+- [x] **6.8** HNSW index. *Learn: approximate search.* (an HNSW index with `vector_cosine_ops` on `kb_chunks.embedding`; with a hundred rows Postgres still reads the whole table, so the test turns that off to see the planner pick the index)
 - [ ] **6.9** `search_help` tool.
 - [ ] **6.10** Answers say which guide they came from.
 - [ ] **6.11** Retrieval eval: 20 questions → expected guide; measure recall@3.
