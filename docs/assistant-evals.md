@@ -110,6 +110,35 @@ models can't be compared, so the search found nothing, and the judge saw an answ
 made another help answer look like "general knowledge". Fixed: the judge uses the same embeddings as the guides.
 Lesson: check the judge's inputs before trusting its verdicts.
 
+## Caching (8.11)
+
+Gemini caches by itself ("implicit caching"): when a request starts with the same tokens as a recent one, part of that
+start is served from a cache, reported as `cache_read` in the usage and billed at a tenth of the input price. Our
+prompt is built for it: the fixed rules first, the date and the admin's name last (`lib/assistant/prompt.ts`), and
+the 15 tools' descriptions never change. About 5,500 tokens go with every request, so caching matters.
+
+`npm run ai:cache` sends three different questions with the same prompt and tools; the usage log (8.1) and the eval
+reports record `cached` for every call. What we saw on 18 Nov 2026:
+
+| Requests | Cached |
+|---|---|
+| Three different questions, one after another | 0 of 5,512, each time (twice) |
+| The same request sent twice | 0, then **2,012 of 5,514** (36%) |
+| A question's second model call (after its tool results) | cached in **all 76** eval cases that made 2 or more calls |
+| The 100-case eval run overall | **26.5%** of 10,23,592 input tokens |
+
+- **It works, but it isn't ours to control.** Caching kicked in when a request repeated what was sent seconds before:
+  a question's own second and third calls (the same start, with tool results added at the end). Different questions
+  sharing the same 5,500-token start got nothing in our test. Google says implicit caching is best effort, with no
+  guarantee.
+- **Only part of the start is cached**: about 2,000 of the 5,500 tokens, even for an identical request. It seems to
+  be cached in blocks.
+- **Worth it at paid prices**: 26.5% of input at a tenth of the price cut the 100-case run's input cost by about a
+  quarter (₹23.84 with caching, about ₹30 without; `lib/assistant/prices.ts`).
+- **For guaranteed savings** the paid tier has *explicit* caching: upload the system prompt and tools once as cached
+  content, then refer to it. It has a storage charge per hour (Flash-Lite: $1 per million tokens an hour), so it pays
+  off only with steady traffic. Not needed while it's free.
+
 ## Optional, not done
 
 - **8.13 LangSmith tracing.** LangChain sends a trace of every run to LangSmith by itself when `LANGSMITH_TRACING=true`
