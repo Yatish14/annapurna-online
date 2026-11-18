@@ -168,7 +168,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **6.3** Compare 3 sentences with cosine similarity. *Learn: the intuition behind vector search.* (`npm run kb:compare`: "add diesel for a trip" and "recording a fuel entry" score 0.79 with no words in common, an unrelated weather question 0.45; real scores bunch together, so search takes the closest few rather than a fixed cut-off)
 - [x] **6.4** `CREATE EXTENSION vector` and a `kb_chunks` table. (`kb_chunks` in `db/schema.sql` with a `vector(768)` column. PGlite loads pgvector from `@electric-sql/pglite-pgvector` 0.0.9 (the one built for PGlite 0.5.8); Docker moves to `pgvector/pgvector:0.8.6-pg17`, tried on a throwaway container; run `npm run db:fresh` once after switching)
 - [x] **6.5** Split documents by heading. *Learn: chunking trade-offs.* (`lib/assistant/kb/chunks.ts`: one chunk per `##` section, starting with "Guide › Section" so a short step still says what it is about; a section over 2,000 characters is split at its paragraphs; the ten guides make 104 chunks, the longest 841 characters)
-- [ ] **6.6** `npm run kb:ingest`: embed and save chunks, skip unchanged ones.
+- [x] **6.6** `npm run kb:ingest`: embed and save chunks, skip unchanged ones. (`lib/assistant/kb/ingest.ts` and `scripts/kb-ingest.ts`: compares fingerprints and embeds only new or changed sections (one request per 100), moves sections that only changed place, deletes ones that are gone; the browser tests ingest with the fake embeddings)
 - [ ] **6.7** Vector search: `ORDER BY embedding <=> $1 LIMIT 5`.
 - [ ] **6.8** HNSW index. *Learn: approximate search.*
 - [ ] **6.9** `search_help` tool.
