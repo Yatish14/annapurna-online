@@ -16,3 +16,7 @@ next-env.d.ts
 .next-test/
 test-results/
 playwright-report/
+
+# Annapurna Assist evals: replay runs (CI) are made again every time
+evals/results/tools-replay.json
+evals/results/*-fake.json

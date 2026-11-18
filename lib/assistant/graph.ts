@@ -1,4 +1,5 @@
 import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { type BaseCheckpointSaver, END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt";
@@ -61,18 +62,21 @@ const STOPPED =
  *
  * `checkpointer`: only for comparing LangGraph's own memory with our saved chats (5.9, docs/assistant-checkpointer.md).
  * The app passes none: each question runs with the history it's given (lib/assistant/history.ts).
+ *
+ * `model`: which model answers. The app uses mainModel(); the eval runner (evals/run.ts, Step 8) passes others, to
+ * compare models or to replay recorded answers.
  */
-export function buildGraph(maxRounds = MAX_TOOL_ROUNDS, checkpointer?: BaseCheckpointSaver) {
+export function buildGraph(maxRounds = MAX_TOOL_ROUNDS, checkpointer?: BaseCheckpointSaver, model: () => BaseChatModel = mainModel) {
   /** The "model" node: send all the messages so far to the model, with the list of tools it may ask for */
   async function callModel(state: typeof MessagesAnnotation.State, config: RunnableConfig) {
     // `config` carries the Stop signal and LangGraph's listeners (that's how the reply streams out word by word).
     if (toolRounds(state.messages) < maxRounds) {
       // bindTools: the tools' names, descriptions and inputs go with every request, so the model knows what it can ask for
-      const reply = await mainModel().bindTools(TOOLS).invoke(state.messages, config);
+      const reply = await model().bindTools!(TOOLS).invoke(state.messages, config);
       return { messages: [reply] };
     }
     // Out of tool rounds: no tools offered, and a note saying so
-    const reply = await mainModel().invoke([...state.messages, new HumanMessage(OUT_OF_ROUNDS)], config);
+    const reply = await model().invoke([...state.messages, new HumanMessage(OUT_OF_ROUNDS)], config);
     // Its words (already streamed to the admin) are the answer. If it has none, or still asks for a tool, our code
     // answers instead, and drops the tool call so no chip spins for a tool that will never run.
     if (reply.text.trim() && !reply.tool_calls?.length) return { messages: [reply] };

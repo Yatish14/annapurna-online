@@ -1,0 +1,362 @@
+{
+  "upcoming": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "list_bookings",
+          "args": {
+            "status": "upcoming"
+          }
+        }
+      ]
+    },
+    {
+      "text": "There are 5 upcoming bookings, shown below.",
+      "toolCalls": []
+    }
+  ],
+  "owed": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "balances_due",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "text": "Customers still owe a total of ₹71,300 across 9 bookings. The balance due list is shown below.",
+      "toolCalls": []
+    }
+  ],
+  "profit-last-month": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "report",
+          "args": {
+            "which": "bookings",
+            "month": "last month"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Last month (October 2026), our bookings profit was ₹18,993 (or ₹23,293 once fully paid). After every business cost including repairs, FASTag, EMI, and insurance, there was a total loss of ₹56,407. \n\nThe full PDF report for last month is available below.",
+      "toolCalls": []
+    }
+  ],
+  "cash-this-month": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "month_overview",
+          "args": {
+            "month": "this month"
+          }
+        }
+      ]
+    },
+    {
+      "text": "This month, ₹57,200 has come in.",
+      "toolCalls": []
+    }
+  ],
+  "find-customer": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "search_bookings",
+          "args": {
+            "query": "Ravi Kumar"
+          }
+        }
+      ]
+    },
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "get_booking",
+          "args": {
+            "number": "VB-0001"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Ravi Kumar's booking (VB-0001) for the Innova Crysta from Vijayawada to Tirupati and back ran from Sat, 30 Aug to Tue, 1 Sep 2026. \n\n- Status: Completed (Paid in full, ₹16,400 received)\n- Driver: Suresh Babu (9849012345)\n- Customer phone: 9848022338\n- Distance: 860 km",
+      "toolCalls": []
+    }
+  ],
+  "open-number": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "get_booking",
+          "args": {
+            "number": "VB-0003"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Booking VB-0003 is for Mohammed Imran (Innova Crysta, driver Suresh Babu) from Hyderabad to Vijayawada on 9–10 Sep 2026. The total is ₹10,700, with ₹6,500 received and a balance of ₹4,200 still to be collected.",
+      "toolCalls": []
+    }
+  ],
+  "statement": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "expense_statement",
+          "args": {
+            "number": "VB-0002"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Here is the expense statement for booking VB-0002 (Lakshmi Prasanna) for a total of ₹9,600, with no balance due. You can view and download the PDF below.",
+      "toolCalls": []
+    }
+  ],
+  "cars-october": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "vehicle_summary",
+          "args": {
+            "month": "October"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Here is how each vehicle performed in October 2026:\n\n- **Innova Crysta**: 3 bookings, 1,760 km, ₹33,000 billed, and a loss of ₹9,974 (after fuel of ₹13,849, other expenses of ₹2,625, repairs of ₹1,800, FASTag of ₹2,000, EMI of ₹18,500, and driver pay of ₹4,200).\n- **Kia Carens**: 1 booking, 1,327 km, ₹22,100 billed, and a loss of ₹18,418 (after fuel of ₹8,213, other expenses of ₹3,805, repairs of ₹9,800, EMI of ₹15,200, and driver pay of ₹3,500).\n- **Maruti Ertiga**: 2 bookings, 1,197 km, ₹17,600 billed (₹13,300 received), and a loss of ₹28,015 (after fuel of ₹7,805, other expenses of ₹1,910, repairs of ₹5,600, insurance of ₹21,500, FASTag of ₹1,000, and driver pay of ₹3,500).",
+      "toolCalls": []
+    }
+  ],
+  "drivers-month": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "driver_summary",
+          "args": {
+            "month": "this month"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Ramesh Naidu did the most trips this month with 4 bookings.",
+      "toolCalls": []
+    }
+  ],
+  "new-prints": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "print_orders",
+          "args": {
+            "status": "new"
+          }
+        }
+      ]
+    },
+    {
+      "text": "No, there are no new printout orders waiting right now.",
+      "toolCalls": []
+    }
+  ],
+  "date-math": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "get_today",
+          "args": {
+            "plus_days": 10
+          }
+        }
+      ]
+    },
+    {
+      "text": "Ten days from today will be Sat, 28 Nov 2026.",
+      "toolCalls": []
+    }
+  ],
+  "draft-booking": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "get_today",
+          "args": {
+            "plus_days": 1
+          }
+        }
+      ]
+    },
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "draft_booking",
+          "args": {
+            "round_trip": false,
+            "start_date": "2026-11-19",
+            "days": 2,
+            "total_amount": 9000,
+            "destination_city": "Guntur",
+            "vehicle": "Carens",
+            "pickup_city": "Vijayawada"
+          }
+        }
+      ]
+    },
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "draft_booking",
+          "args": {
+            "days": 2,
+            "customer_name": "Ravi Kumar",
+            "pickup_city": "Vijayawada",
+            "destination_city": "Guntur",
+            "customer_phone": "98480 22338",
+            "vehicle": "Carens",
+            "round_trip": false,
+            "total_amount": 9000,
+            "start_date": "2026-11-19"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Which driver should I assign to this booking?",
+      "toolCalls": []
+    }
+  ],
+  "customer-paid": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "draft_payment",
+          "args": {
+            "booking": "Lakshmi Prasanna",
+            "method": "upi",
+            "amount": 2000,
+            "party": "customer"
+          }
+        }
+      ]
+    },
+    {
+      "text": "This payment is ₹2,000 more than what's left to pay on VB-0002 for Lakshmi Prasanna. \n\nThe payment is ready to check below. Nothing is saved until you press Confirm.",
+      "toolCalls": []
+    }
+  ],
+  "fuel-on-booking": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "draft_fuel",
+          "args": {
+            "booking": "VB-0004",
+            "amount": 3000
+          }
+        }
+      ]
+    },
+    {
+      "text": "I have prepared the fuel fill of ₹3,000 for VB-0004 (Anitha Reddy). Nothing is saved until you press Confirm on the card below.",
+      "toolCalls": []
+    }
+  ],
+  "driver-paid": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "draft_payment",
+          "args": {
+            "method": "cash",
+            "booking": "VB-0001",
+            "amount": 1500,
+            "party": "driver"
+          }
+        }
+      ]
+    },
+    {
+      "text": "Warning: This payment is ₹1,500 more than what's left to pay on VB-0001. \n\nThe payment is ready to check below. Nothing is saved until you press Confirm.",
+      "toolCalls": []
+    }
+  ],
+  "help-add-driver": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "search_help",
+          "args": {
+            "question": "How do I add a new driver"
+          }
+        }
+      ]
+    },
+    {
+      "text": "1. Open **Expense Tracker → Vehicles & drivers**.\n2. In the **Drivers** panel, fill in **Driver name** and **Mobile number**.\n3. Press **Add driver**.\n\n(From the Vehicles and Drivers Guide.)",
+      "toolCalls": []
+    }
+  ],
+  "help-term": [
+    {
+      "text": "",
+      "toolCalls": [
+        {
+          "name": "search_help",
+          "args": {
+            "question": "driver amount"
+          }
+        }
+      ]
+    },
+    {
+      "text": "The **driver amount** (or \"Amount for the driver\") is the pay agreed with the driver for one booking. \n\n(From the Glossary guide.)",
+      "toolCalls": []
+    }
+  ],
+  "who-are-you": [
+    {
+      "text": "I am Annapurna Assist, your helper inside the dashboard for Annapurna Online Services and Annapurna Tours & Travels. I can help you with car bookings, customer payments, balances due, drivers, vehicles, fuel, monthly reports, and printout orders.",
+      "toolCalls": []
+    }
+  ],
+  "guard-poem": [
+    {
+      "text": "BLOCK",
+      "toolCalls": []
+    }
+  ],
+  "guard-allow": [
+    {
+      "text": "ALLOW",
+      "toolCalls": []
+    }
+  ]
+}
