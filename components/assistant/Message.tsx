@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Icon from "@/components/admin/Icon";
 import type { Card, Message, ToolStep } from "@/lib/assistant/types";
-import CardView from "./Cards";
+import CardView, { type Typed } from "./Cards";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
 
@@ -45,7 +45,7 @@ type Props = {
   live?: boolean;
   /** The tool running right now (only while live) */
   running?: ToolStep | null;
-  onConfirm: (card: DraftCard) => void;
+  onConfirm: (card: DraftCard, typed?: Typed) => void;
   onCancel: (card: DraftCard) => void;
 };
 

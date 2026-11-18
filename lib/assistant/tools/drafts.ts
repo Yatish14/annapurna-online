@@ -8,6 +8,7 @@ import { STATES } from "@/lib/expenses/places";
 import { checkTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
 import { routeText } from "@/lib/expenses/trips";
 import { draftOwner, saveDraft } from "../draftStore";
+import { isStrict } from "../privacy";
 import { choiceNames, matchName, nameAmong, placesNamed } from "../match";
 import { freeText, toolReply } from "./result";
 
@@ -68,6 +69,10 @@ async function place(city: string | undefined, state: string | undefined, label:
   return { about, why: `${label} ${city} isn't in the list of places, so its state is needed.` };
 }
 
+/** Stand-ins while the customer is to be typed on the card (9.5): only so the form's other checks can run */
+const CARD_NAME = "Customer on the card";
+const CARD_PHONE = "9000000000";
+
 const ask = (note: string, missing: string) => toolReply({ status: "failed", data: { ready: false, missing }, note });
 
 export const draftBooking = tool(
@@ -78,9 +83,13 @@ export const draftBooking = tool(
 
     // 0. Everything that's missing, in one go: the form's checks stop at the first problem, but in a chat the admin
     //    should be asked for all of it in one question, not one turn at a time
+    // Privacy-first mode (9.5): the customer's name and phone are typed into the card, never the chat, so they aren't
+    // asked for. Until then, stand-ins let the form's other checks run; the draft keeps them empty, and Confirm
+    // needs them from the card (lib/assistant/confirm.ts).
+    const onCard = isStrict() && !a.customer_name && !a.customer_phone;
     const missing = [
-      !a.customer_name && "the customer's name",
-      !a.customer_phone && "the customer's mobile number",
+      !a.customer_name && !onCard && "the customer's name",
+      !a.customer_phone && !onCard && "the customer's mobile number",
       !a.vehicle && "the vehicle",
       !a.driver && "the driver",
       !a.start_date && "the dates",
@@ -113,8 +122,8 @@ export const draftBooking = tool(
 
     // 2. Everything as the booking form's fields, then the form's own checks
     const fields: Fields = {
-      customer_name: a.customer_name ?? "",
-      customer_phone: a.customer_phone ?? "",
+      customer_name: onCard ? CARD_NAME : (a.customer_name ?? ""),
+      customer_phone: onCard ? CARD_PHONE : (a.customer_phone ?? ""),
       vehicle_id: String(vehicle.id),
       driver_id: String(driver.id),
       start_date: a.start_date ?? "",
@@ -151,14 +160,15 @@ export const draftBooking = tool(
 
     // Kept on the server for the admin who asked (4.5). Their id comes from the signed-in session, passed in by
     // the API route: never from the model or the browser. The card gets only the draft's id.
-    const draftId = await saveDraft(draftOwner(config, "draft_booking"), "booking", fields);
+    const kept = onCard ? { ...fields, customer_name: "", customer_phone: "", customer_on_card: "1" } : fields;
+    const draftId = await saveDraft(draftOwner(config, "draft_booking"), "booking", kept);
     return toolReply({
       status: "found",
       data: {
         ready: true,
         booking: {
-          customer: freeText(input.customerName, 60),
-          phone: formatPhone(input.customerPhone),
+          customer: onCard ? null : freeText(input.customerName, 60),
+          phone: onCard ? null : formatPhone(input.customerPhone),
           vehicle: freeText(check.vehicle.name, 60),
           // With the phone if another driver in use has the same name, so the admin can see which Ravi Kumar it is
           driver: freeText(nameAmong(driver, drivers.filter((d) => d.active)), 60),
@@ -172,6 +182,8 @@ export const draftBooking = tool(
         // The checked form values stay on the server (assistant_drafts); this id is all the card carries
         draft_id: draftId,
         driver_busy: driverBusy,
+        // 9.5: the card asks the admin for the customer's name and mobile number
+        customer_on_card: onCard || undefined,
       },
       note:
         "Checked with the booking form's rules. NO BOOKING IS SAVED. The admin sees these details on a card under your " +

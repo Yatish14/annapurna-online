@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { useState } from "react";
 import Icon from "@/components/admin/Icon";
 import { formatRupees } from "@/lib/expenses/money";
 import type { Card } from "@/lib/assistant/types";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
 
 type CardOf<K extends Card["kind"]> = Extract<Card, { kind: K }>;
-type DraftActions = { onConfirm: (card: CardOf<"draft">) => void; onCancel: (card: CardOf<"draft">) => void };
+/** typed: what the admin typed on the card (9.5), sent with Confirm */
+export type Typed = { customer_name?: string; customer_phone?: string };
+type DraftActions = { onConfirm: (card: CardOf<"draft">, typed?: Typed) => void; onCancel: (card: CardOf<"draft">) => void };
 
 /** One card under a reply, picked by its kind */
 export default function CardView({ card, onConfirm, onCancel }: { card: Card } & DraftActions) {
@@ -101,6 +104,10 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
   const { canUse, notify } = useAssist();
   /** Viewers: greyed out, but the click still says why */
   const locked = canUse ? {} : { "aria-disabled": true as const };
+  // Privacy-first mode (9.5): the customer's name and phone, typed here, go to our server only, never to the AI
+  const [typed, setTyped] = useState<Typed>({});
+  const asks = card.status === "pending" ? (card.needs ?? []) : [];
+  const missing = asks.some((k) => !typed[k]?.trim());
   return (
     <section className={`as-card as-draft is-${card.status}`}>
       <header className="as-card-head">
@@ -122,12 +129,41 @@ function DraftCard({ card, onConfirm, onCancel }: { card: CardOf<"draft"> } & Dr
         ))}
       </dl>
 
+      {asks.length > 0 && (
+        <div className="as-draft-typed">
+          {asks.includes("customer_name") && (
+            <label>
+              <span>Customer&apos;s name</span>
+              <input
+                className="as-draft-input"
+                maxLength={80}
+                value={typed.customer_name ?? ""}
+                onChange={(e) => setTyped((t) => ({ ...t, customer_name: e.target.value }))}
+              />
+            </label>
+          )}
+          {asks.includes("customer_phone") && (
+            <label>
+              <span>Mobile number</span>
+              <input
+                className="as-draft-input"
+                inputMode="numeric"
+                maxLength={20}
+                value={typed.customer_phone ?? ""}
+                onChange={(e) => setTyped((t) => ({ ...t, customer_phone: e.target.value }))}
+              />
+            </label>
+          )}
+          <small className="ap-muted">Typed here, these go to this dashboard only, never to the AI.</small>
+        </div>
+      )}
+
       {card.warning && card.status === "pending" && <p className="ap-note ap-note-warn">{card.warning}</p>}
 
       {card.status === "pending" && (
         <div className="as-draft-actions">
           {/* While saving, the buttons wait (the server also saves a draft only once, however often it's pressed) */}
-          <button type="button" className="ap-btn ap-btn-gold" onClick={() => onConfirm(card)} disabled={card.saving} {...locked}>
+          <button type="button" className="ap-btn ap-btn-gold" onClick={() => onConfirm(card, asks.length ? typed : undefined)} disabled={card.saving || missing} {...locked}>
             <Icon name="check" size={16} /> {card.saving ? "Saving…" : "Confirm"}
           </button>
           <Link

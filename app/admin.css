@@ -1270,6 +1270,12 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .as-draft-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; background: #fbf0d4; color: var(--gold-600); }
 .as-draft-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; margin: 4px 0 14px; padding-top: 14px; border-top: 1px dashed rgba(16,26,51,.14); }
 .as-draft-fields dt { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.as-draft-typed { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 0 0 14px; }
+.as-draft-typed label { display: grid; gap: 4px; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.as-draft-input { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: .95rem; letter-spacing: normal; text-transform: none; color: var(--ink, #101a33); background: #fff; }
+.as-draft-input:focus { outline: 2px solid var(--gold-500); outline-offset: 1px; }
+.as-draft-typed small { grid-column: 1 / -1; }
+@media (max-width: 560px) { .as-draft-typed { grid-template-columns: 1fr; } }
 .as-draft-fields dd { margin: 2px 0 0; font-size: .92rem; font-weight: 600; overflow-wrap: anywhere; }
 .as-draft .ap-note { margin-bottom: 14px; }
 .as-draft-actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -32,17 +32,30 @@ type Saved = { ok: true; result: string } | { ok: false; error: string };
 const STUCK_MINUTES = 5;
 
 /** Confirm, for an admin the caller has checked */
-export async function confirmDraftAs(user: SessionUser, id: unknown): Promise<DraftActionResult> {
+export async function confirmDraftAs(user: SessionUser, id: unknown, typed?: unknown): Promise<DraftActionResult> {
   if (typeof id !== "string") return { ok: false, error: "This draft wasn't found." };
+  // Privacy-first mode (9.5): what the admin typed on the card, as plain strings only (it comes from the browser).
+  // The booking form's own checks (parseTrip) then decide whether the name and number are acceptable.
+  const card = typed && typeof typed === "object" ? (typed as Record<string, unknown>) : {};
+  const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const onCard = { customer_name: text(card.customer_name, 80), customer_phone: text(card.customer_phone, 20) };
 
   // Take it: one statement, so a double-click (or two tabs) saves it once. Expired or cancelled ones can't be taken.
   const draft = await claimDraft(id, user.id);
   if (!draft) return whyNot(id, user.id);
 
+  // A booking whose customer is typed on the card (9.5): those two from the card, everything else from the server
+  const toCard = draft.kind === "booking" && draft.fields.customer_on_card === "1";
+  if (toCard && (!onCard.customer_name || !onCard.customer_phone)) {
+    await releaseDraft(id);
+    return { ok: false, error: "Type the customer's name and mobile number on the card first. Nothing was saved." };
+  }
+  const fields = toCard ? { ...draft.fields, ...onCard } : draft.fields;
+
   // Each kind is checked again with its own page's rules, on the values kept on the server
   const saved =
     draft.kind === "booking"
-      ? await saveBooking(draft.fields, user)
+      ? await saveBooking(fields, user)
       : draft.kind === "payment"
         ? await savePaymentDraft(draft.fields, user)
         : await saveFuelDraft(draft.fields, user);

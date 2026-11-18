@@ -15,11 +15,12 @@ import { can, currentUser } from "@/lib/auth";
 
 export type { CardState, DraftActionResult } from "@/lib/assistant/confirm";
 
-export async function confirmDraft(id: unknown): Promise<DraftActionResult> {
+/** typed: the customer's name and phone typed on the card in privacy-first mode (9.5); checked again in confirmDraftAs */
+export async function confirmDraft(id: unknown, typed?: unknown): Promise<DraftActionResult> {
   const user = await currentUser();
   if (!user) return { ok: false, error: "Please sign in again." };
   if (!can(user, "useAssistant") || !can(user, "manageExpenses")) return { ok: false, error: "Your role can't save bookings, payments or fuel." };
-  const result = await confirmDraftAs(user, id);
+  const result = await confirmDraftAs(user, id, typed);
   if (result.ok) revalidatePath("/admin/expenses", "layout"); // the Bookings pages show it straight away
   return result;
 }

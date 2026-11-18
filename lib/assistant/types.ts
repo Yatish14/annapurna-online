@@ -39,6 +39,8 @@ export type Card =
       formHref: string;
       /** The form link's words: "Open in form" unless set (a payment opens its booking's page) */
       formLabel?: string;
+      /** Privacy-first mode (9.5): typed on the card by the admin before Confirm, never in the chat */
+      needs?: readonly ("customer_name" | "customer_phone")[];
     }
   | {
       kind: "file";

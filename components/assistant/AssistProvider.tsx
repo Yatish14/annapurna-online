@@ -13,6 +13,7 @@ import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { titleFrom } from "@/lib/assistant/suggestions";
 import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
+import type { Typed } from "./Cards";
 import type { SpokenLanguage } from "@/lib/assistant/voice";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
@@ -137,7 +138,7 @@ type Store = {
   asked: number;
   send: (chatId: string, question: string, voice?: SpokenLanguage | null) => void;
   stop: () => void;
-  confirmDraft: (card: DraftCard) => void;
+  confirmDraft: (card: DraftCard, typed?: Typed) => void;
   cancelDraft: (card: DraftCard) => void;
   deleteChat: (id: string) => void;
   renameChat: (id: string, title: string) => void;
@@ -278,7 +279,11 @@ export default function AssistProvider({ firstName, canUse, canSeeUsage = false,
    * cancelled so nothing can confirm it later (4.11). A second click while one is working does nothing here, and
    * the server would refuse it anyway.
    */
-  async function onServer(card: DraftCard, action: typeof confirmOnServer, done: (r: Extract<DraftActionResult, { ok: true }>) => Partial<DraftCard>) {
+  async function onServer(
+    card: DraftCard,
+    action: (id: string) => Promise<DraftActionResult>,
+    done: (r: Extract<DraftActionResult, { ok: true }>) => Partial<DraftCard>,
+  ) {
     if (!canUse) return notify(VIEW_ONLY.draft);
     if (settled.current.has(card.id)) return;
     settled.current.add(card.id);
@@ -303,8 +308,9 @@ export default function AssistProvider({ firstName, canUse, canSeeUsage = false,
     }
   }
 
-  function confirmDraft(card: DraftCard) {
-    void onServer(card, confirmOnServer, (r) => ({ status: "confirmed", result: r.message, resultHref: r.href }));
+  /** typed: the customer's name and phone from the card in privacy-first mode (9.5) */
+  function confirmDraft(card: DraftCard, typed?: Typed) {
+    void onServer(card, (id) => confirmOnServer(id, typed), (r) => ({ status: "confirmed", result: r.message, resultHref: r.href }));
   }
 
   function cancelDraft(card: DraftCard) {

@@ -98,7 +98,9 @@ const PRIVACY_RULES = `## Privacy mode (on)
   still missing. Names, phones, amounts and notes are on cards under your answer, which the admin can see and you
   can't. Never guess them: say the details are below.
 - Refer to rows by their number or booking number ("row 2, VB-0012"). When the admin says "the second one", use the
-  booking number of row 2.`;
+  booking number of row 2.
+- For a new booking, don't ask for the customer's name or mobile number: the admin types them into the draft card,
+  so they never reach you. Leave customer_name and customer_phone out of draft_booking.`;
 
 type Options = {
   /** The admin's first name, so answers can be friendly */

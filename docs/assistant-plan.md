@@ -215,7 +215,7 @@ follow-ups need row labels, sentences with numbers come from our code. (Design d
       status, the screen gets the rows. *Learn: separating what the model sees from what the user sees.*
 - [x] **9.3** No database values in the prompt (e.g. the admin's first name from 1.5 is left out in this mode). (in strict mode the admin's first name is left out, and a "Privacy mode (on)" section after the fixed rules (so the cached start stays the same) says the details are on cards it can't see and never to guess them; tested)
 - [x] **9.4** Anonymous row labels ("result A, row 2") so follow-ups like "call the second one" still work. (rows numbered 1, 2, 3… with their booking or printout numbers (not personal: the business's own reference numbers), the same numbers in a # column of the table card in strict mode, and the prompt says to use row 2's booking number for "the second one"; tested)
-- [ ] **9.5** Drafts: the customer's name and phone are typed into the card, not the chat.
+- [x] **9.5** Drafts: the customer's name and phone are typed into the card, not the chat. (in strict mode `draft_booking` doesn't ask for them: the form's other checks run with stand-ins and the draft keeps them empty; the card has two boxes (sent only to our server action), Confirm stays off until both are filled, and `confirmDraftAs` checks them with the booking form's own rules; the prompt says to leave them out; tested)
 - [ ] **9.6** A note under the chat box: what you type or say is sent to Google (voice uses Google's speech service).
 - [ ] **9.7** Test: run every eval question in strict mode and check that no name, phone or amount from the
       database appears in any request sent to Google. *Learn: testing for data leaks.*

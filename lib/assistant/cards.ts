@@ -46,9 +46,13 @@ const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 type ReadyBooking = {
   ready: boolean;
-  booking: Record<"customer" | "phone" | "vehicle" | "driver" | "dates" | "route" | "total" | "advance" | "driver_amount", string> & {
+  booking: Record<"vehicle" | "driver" | "dates" | "route" | "total" | "advance" | "driver_amount", string> & {
+    customer: string | null;
+    phone: string | null;
     notes: string | null;
   };
+  /** Privacy-first mode (9.5): the customer's name and phone are typed on the card */
+  customer_on_card?: boolean;
   driver_busy: string | null;
   /** The row in assistant_drafts (4.5): the only thing about the draft that goes to the browser and comes back */
   draft_id: string;
@@ -133,7 +137,7 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
   // A booking ready to confirm (4.4). The card shows the checked values from the tool, not the model's words.
   // The card shows the details, but carries only the draft's id: Confirm (4.6) loads the values from the server.
   draft_booking: (_args, result) => {
-    const { ready, booking: b, driver_busy, draft_id } = result.data as ReadyBooking;
+    const { ready, booking: b, driver_busy, draft_id, customer_on_card } = result.data as ReadyBooking;
     if (!ready) return null;
     return {
       kind: "draft",
@@ -143,8 +147,9 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
       status: "pending",
       // Only the id: the form page loads the values from the server, for this admin (4.8)
       formHref: `/admin/expenses/bookings/new?draft=${draft_id}`,
+      ...(customer_on_card && { needs: ["customer_name", "customer_phone"] as const }),
       fields: [
-        { label: "Customer", value: `${b.customer} · ${b.phone}` },
+        { label: "Customer", value: customer_on_card ? "Type below (never sent to the AI)" : `${b.customer} · ${b.phone}` },
         { label: "Route", value: b.route },
         { label: "Dates", value: b.dates },
         { label: "Vehicle", value: b.vehicle },

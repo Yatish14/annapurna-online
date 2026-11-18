@@ -3,6 +3,7 @@ import { HumanMessage, ToolMessage } from "@langchain/core/messages";
 import { expect, test } from "@playwright/test";
 import { query } from "@/lib/db";
 import { cardFor } from "@/lib/assistant/cards";
+import { confirmDraftAs } from "@/lib/assistant/confirm";
 import { graph } from "@/lib/assistant/graph";
 import { systemPrompt } from "@/lib/assistant/prompt";
 
@@ -109,4 +110,37 @@ test("strict mode: the admin's name stays out of the prompt, and the prompt expl
   const strict = systemPrompt({ firstName: "Asha" });
   expect(strict).not.toContain("Asha");
   expect(strict).toContain("Privacy mode (on)");
+});
+
+test("strict mode: a booking's customer is typed on the card, never in the chat, and checked by Confirm (9.5)", async () => {
+  process.env.ASSISTANT_PRIVACY = "strict";
+  const [admin] = await query<{ id: number }>(
+    `INSERT INTO users (mobile, name, role, password_hash, created_by) VALUES ('9000000073', 'Privacy Admin', 'admin', 'x', 'tests')
+     ON CONFLICT (mobile) DO UPDATE SET name = EXCLUDED.name RETURNING id::int`,
+  );
+  const user = { id: admin.id, mobile: "9000000073", name: "Privacy Admin", role: "admin" as const };
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(Date.now() + 350 * 86_400_000);
+  const args = { vehicle: "Privacy Test Car", driver: "Privacy Driver Quill", start_date: day, days: 1, pickup_city: "Vijayawada", drop_city: "Guntur" };
+  const out = await graph.invoke(
+    { messages: [new HumanMessage(`[tool:draft_booking ${JSON.stringify(args)}] Book it`)] },
+    { configurable: { userId: admin.id } },
+  );
+  const draft = out.messages.find((m): m is ToolMessage => ToolMessage.isInstance(m))!;
+  // Ready without a name or phone, and the model reads nothing of the booking
+  expect(JSON.parse(draft.text)).toMatchObject({ status: "found", ready: true });
+  const card = cardFor("draft_booking", args, draft.artifact);
+  expect(card).toMatchObject({ kind: "draft", needs: ["customer_name", "customer_phone"] });
+  const id = (card as { id: string }).id;
+
+  // Confirm without them, or with a number the form refuses: nothing saved, and it can be pressed again
+  expect(await confirmDraftAs(user, id)).toMatchObject({ ok: false, error: expect.stringContaining("Type the customer's name") });
+  const bad = await confirmDraftAs(user, id, { customer_name: "Typed Onthecard", customer_phone: "12345" });
+  expect(bad.ok).toBe(false);
+  // With them: saved, with the name typed on the card
+  const saved = await confirmDraftAs(user, id, { customer_name: "Typed Onthecard", customer_phone: "9000000074" });
+  expect(saved).toMatchObject({ ok: true });
+  const [trip] = await query<{ customer_name: string; customer_phone: string }>(
+    "SELECT customer_name, customer_phone FROM trips WHERE customer_phone = '9000000074'",
+  );
+  expect(trip).toEqual({ customer_name: "Typed Onthecard", customer_phone: "9000000074" });
 });
