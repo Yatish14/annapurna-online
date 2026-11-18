@@ -21,13 +21,27 @@ export const EMBEDDING_MODEL = "gemini-embedding-2";
 export const DIMENSIONS = 768;
 
 /**
- * Texts per batch request, and the wait between batches. Google takes up to 100 texts in one request, but the free
- * tier counts **each text** as one of its 100 embedding requests a minute (found 18 Nov 2026: one batch of the
- * guides' 104 sections failed with 429). So: 50 at a time, half a minute apart, which stays under 100 a minute.
+ * Pacing for the free tier. Google takes up to 100 texts in one batch request, but the free tier counts **each
+ * text** as one of its 100 embedding requests a minute (found 18 Nov 2026: one batch of the guides' 104 sections
+ * failed with 429, and so did 30 questions plus two batches of 50 sent 31 s apart). So every text sent is noted
+ * with its time, and a batch waits until it fits under PER_MINUTE in the last 60 s, whichever call sends it.
  */
 const BATCH = 50;
-const BATCH_PAUSE_MS = 31_000;
+const PER_MINUTE = 90; // a little under 100, for clocks that don't agree exactly
+const sent: { at: number; texts: number }[] = [];
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Waits until `texts` more fit in the rolling minute, then notes them as sent */
+async function makeRoom(texts: number) {
+  for (;;) {
+    const now = Date.now();
+    while (sent.length && sent[0].at <= now - 60_000) sent.shift();
+    const used = sent.reduce((sum, s) => sum + s.texts, 0);
+    if (used + texts <= PER_MINUTE) break;
+    await wait(sent[0].at + 60_000 - now + 100); // until the oldest batch leaves the minute
+  }
+  sent.push({ at: Date.now(), texts });
+}
 
 /**
  * What the text is for. The model embeds a question a little differently from the text that answers it, which
@@ -48,11 +62,10 @@ export class GeminiEmbeddings extends Embeddings {
     this.taskType = options.taskType;
   }
 
-  /** Many texts at once, in batches of 50: one request per batch, paced for the free tier's limit (BATCH above) */
+  /** Many texts at once, in batches of 50: one request per batch, paced for the free tier's limit (makeRoom above) */
   async embedDocuments(texts: string[]): Promise<number[][]> {
     const vectors: number[][] = [];
     for (let i = 0; i < texts.length; i += BATCH) {
-      if (i > 0) await wait(BATCH_PAUSE_MS);
       vectors.push(...(await this.caller.call(() => this.batch(texts.slice(i, i + BATCH), this.taskType ?? "RETRIEVAL_DOCUMENT"))));
     }
     return vectors;
@@ -68,6 +81,7 @@ export class GeminiEmbeddings extends Embeddings {
     const key = process.env.GOOGLE_API_KEY;
     if (!key) throw new Error("GOOGLE_API_KEY is missing from .env.local");
     const model = `models/${EMBEDDING_MODEL}`;
+    await makeRoom(texts.length); // inside the retried call: a retry waits for room too
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:batchEmbedContents`, {
       method: "POST",
       // The key goes in a header, not the address: addresses end up in logs
