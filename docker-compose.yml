@@ -14,7 +14,10 @@ services:
       POSTGRES_PASSWORD: annapurna_local
       POSTGRES_DB: annapurna
     ports:
-      - "127.0.0.1:5432:5432"
+      # 5432 unless ANNAPURNA_DB_PORT says otherwise (in .env, which Docker Compose reads by itself): on a computer
+      # where another project's Postgres already uses 5432, set ANNAPURNA_DB_PORT=5433 there, and use that port in
+      # .env.local's DATABASE_URL
+      - "127.0.0.1:${ANNAPURNA_DB_PORT:-5432}:5432"
     volumes:
       - annapurna-pgdata:/var/lib/postgresql/data
     healthcheck:
