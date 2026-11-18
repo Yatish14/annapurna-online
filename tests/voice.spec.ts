@@ -58,3 +58,25 @@ test("7.1: where the browser can't turn speech into text, the mic is greyed out 
   await chat.getByRole("button", { name: /Ask by voice/ }).click();
   await expect(chat.getByRole("alert")).toContainText("This browser can't turn speech into text");
 });
+
+test("7.2: the mic starts and stops, and the words appear in the box while you speak", async ({ page }) => {
+  await fakeSpeech(page);
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const box = chat.getByLabel("Your question");
+  const mic = chat.getByRole("button", { name: /Ask by voice/ });
+  await box.fill("Show me");
+  await mic.click();
+  await expect(chat.getByRole("button", { name: "Stop listening" })).toHaveAttribute("aria-pressed", "true");
+  // Each result replaces the words heard so far, after what was already typed
+  await page.evaluate(() => (window as unknown as { __say(t: string): void }).__say("today's"));
+  await expect(box).toHaveValue("Show me today's");
+  await page.evaluate(() => (window as unknown as { __say(t: string): void }).__say("today's bookings"));
+  await expect(box).toHaveValue("Show me today's bookings");
+  // Stop: back to the mic button; the words stay in the box to send
+  await chat.getByRole("button", { name: "Stop listening" }).click();
+  await expect(mic).toHaveAttribute("aria-pressed", "false");
+  await expect(box).toHaveValue("Show me today's bookings");
+  expect((await speech(page)).started).toBe(1);
+});
