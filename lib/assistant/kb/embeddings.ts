@@ -83,6 +83,24 @@ export class GeminiEmbeddings extends Embeddings {
   }
 }
 
+/**
+ * How alike two vectors are, from -1 to 1: the cosine of the angle between them. 1 = the same direction (the same
+ * meaning), 0 = unrelated, below 0 = opposite (rare for text). It's the dot product (multiply number by number and
+ * add up) divided by both lengths; Gemini's vectors already have length 1, so for them it's just the dot product.
+ * pgvector's `<=>` operator is 1 minus this: the cosine *distance*, where smaller means closer.
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0;
+  let lengthA = 0;
+  let lengthB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    lengthA += a[i] * a[i];
+    lengthB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(lengthA) * Math.sqrt(lengthB) || 1);
+}
+
 // ---------- The fake, for tests (ASSISTANT_FAKE=1) ----------
 
 /** Words too common to say what a text is about */

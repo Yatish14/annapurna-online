@@ -165,7 +165,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 - [x] **6.1** Write the knowledge base in `knowledge/` (how-to guides, business info, glossary). (ten guides in `knowledge/`, about 8,700 words, checked against the code: bookings, payments, fuel and expenses, fleet, reports, printouts, users and roles, the assistant, business info, glossary; one `##` section per topic, each readable on its own)
 - [x] **6.2** Embed one sentence with `gemini-embedding-2` (same key) and print the vector. *Learn: what an embedding is.* (`npm run kb:embed`: 768 numbers, about 0.6 s, already scaled to length 1. `lib/assistant/kb/embeddings.ts` wraps Google's REST API in LangChain's `Embeddings` class (`@langchain/google` has none yet), with a free fake for tests. `scripts/ts-paths.mjs` lets plain Node run the app's TypeScript from scripts)
-- [ ] **6.3** Compare 3 sentences with cosine similarity. *Learn: the intuition behind vector search.*
+- [x] **6.3** Compare 3 sentences with cosine similarity. *Learn: the intuition behind vector search.* (`npm run kb:compare`: "add diesel for a trip" and "recording a fuel entry" score 0.79 with no words in common, an unrelated weather question 0.45; real scores bunch together, so search takes the closest few rather than a fixed cut-off)
 - [ ] **6.4** `CREATE EXTENSION vector` and a `kb_chunks` table.
 - [ ] **6.5** Split documents by heading. *Learn: chunking trade-offs.*
 - [ ] **6.6** `npm run kb:ingest`: embed and save chunks, skip unchanged ones.
