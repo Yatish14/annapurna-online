@@ -28,6 +28,8 @@ const PERMISSIONS = {
   viewUsers: ["super_admin", "admin"],
   /** Annapurna Assist: ask questions, start chats, confirm drafts. Every role can open it; others get it view only. */
   useAssistant: ["super_admin", "admin"],
+  /** Annapurna Assist's usage page (8.3): tokens, time and what it would cost, for every admin */
+  viewAssistantUsage: ["super_admin"],
   /** The activity log: who changed what, when */
   viewActivity: ["super_admin", "admin"],
   deleteUsers: ["super_admin", "admin"],

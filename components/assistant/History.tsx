@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { findChats } from "@/app/admin/assistant/actions";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -38,7 +39,7 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
     if (renaming && save) onRename(renaming.id, renaming.name);
     setRenaming(null);
   }
-  const { canUse, notify } = useAssist();
+  const { canUse, canSeeUsage, notify } = useAssist();
   /** Viewers: greyed out, but the click still says why */
   const locked = canUse ? {} : { "aria-disabled": true as const };
 
@@ -211,6 +212,12 @@ export default function History({ chats, activeId, inline, open, onClose, onSele
         {newChat("ap-btn-block")}
         {search}
         {list}
+        {/* The super admin's usage page (8.3) */}
+        {canSeeUsage && (
+          <Link href="/admin/assistant/usage" className="as-history-usage">
+            <Icon name="chart" size={15} /> Usage and cost
+          </Link>
+        )}
       </aside>
       {popup}
     </>

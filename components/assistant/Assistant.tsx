@@ -23,7 +23,7 @@ type Props = {
 
 /** One view of the chats: the chat list, the open chat and the message box */
 export default function Assistant({ variant = "page", onClose, initialChat }: Props) {
-  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, renameChat, adopt, load, reveal } = useAssist();
+  const { firstName, canUse, canSeeUsage, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, renameChat, adopt, load, reveal } = useAssist();
   /** Viewers: buttons look greyed out but still take the click, to say why (a disabled button can't) */
   const locked = canUse ? {} : { "aria-disabled": true as const };
   const [activeId, setActiveId] = useState(initialChat?.id ?? emptyId);
@@ -168,9 +168,16 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
           {closeButton}
         </div>
       ) : (
-        <button type="button" className="ap-btn ap-btn-ghost ap-btn-sm as-head-new" onClick={newChat} {...locked}>
-          <Icon name="plus" size={15} /> <span className="as-head-new-text">New chat</span>
-        </button>
+        <div className="as-head-tools">
+          {canSeeUsage && (
+            <Link href="/admin/assistant/usage" className="as-tool" aria-label="Usage and cost" title="Usage and cost">
+              <Icon name="chart" size={17} />
+            </Link>
+          )}
+          <button type="button" className="ap-btn ap-btn-ghost ap-btn-sm as-head-new" onClick={newChat} {...locked}>
+            <Icon name="plus" size={15} /> <span className="as-head-new-text">New chat</span>
+          </button>
+        </div>
       )}
     </header>
   );

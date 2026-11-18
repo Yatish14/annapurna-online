@@ -125,6 +125,8 @@ type Store = {
   firstName: string;
   /** Can ask, start chats and confirm drafts (admins). Everyone else sees the same page, view only. */
   canUse: boolean;
+  /** Can open the usage page (the super admin, 8.3): a link shows in the full page's header */
+  canSeeUsage: boolean;
   /** Shows a short message at the bottom of the screen */
   notify: (message: string) => void;
   chats: Chat[];
@@ -159,13 +161,14 @@ export function useAssist(): Store {
 type Props = {
   firstName: string;
   canUse: boolean;
+  canSeeUsage?: boolean;
   initialChats: Chat[];
   /** Questions already asked today (from the database), so the count is right after a reload */
   askedToday: number;
   children: React.ReactNode;
 };
 
-export default function AssistProvider({ firstName, canUse, initialChats, askedToday, children }: Props) {
+export default function AssistProvider({ firstName, canUse, canSeeUsage = false, initialChats, askedToday, children }: Props) {
   // The empty chat's id is random, different on the server and in the browser, but it never shows in the page
   const [chats, setChats] = useState<Chat[]>(() => [emptyChat(), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
@@ -372,6 +375,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
   const store: Store = {
     firstName,
     canUse,
+    canSeeUsage,
     notify,
     chats,
     emptyId,
