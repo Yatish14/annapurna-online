@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { chunkHash, splitGuide } from "@/lib/assistant/kb/chunks";
 import { cosineSimilarity, fakeEmbedding, FakeEmbeddings } from "@/lib/assistant/kb/embeddings";
 import { ingestGuides } from "@/lib/assistant/kb/ingest";
+import { searchGuides } from "@/lib/assistant/kb/search";
 
 /** Step 6: the help guides, split, embedded (fake embeddings: no Google) and searched in PGlite with pgvector */
 
@@ -58,7 +59,7 @@ test("the fake embedding: length 1, and texts sharing words are closer", () => {
   expect(cosineSimilarity(v, fuel)).toBeGreaterThan(cosineSimilarity(v, fakeEmbedding("customer uploads at the counter")));
 });
 
-test("ingest embeds only new or changed sections and removes deleted ones", async () => {
+test("ingest embeds only new or changed sections, removes deleted ones, and search finds the closest", async () => {
   await query("DELETE FROM kb_chunks"); // only this file uses kb_chunks in the no-browser database
   const embedder = new CountingEmbeddings();
   const files = [
@@ -80,4 +81,12 @@ test("ingest embeds only new or changed sections and removes deleted ones", asyn
   expect(embedder.texts).toBe(5);
   const [{ n }] = await query<{ n: number }>("SELECT count(*)::int AS n FROM kb_chunks");
   expect(n).toBe(4);
+
+  // Vector search: ORDER BY embedding <=> question, closest first
+  const hits = await searchGuides(query, embedder, "how do I add a fuel entry?", 2);
+  expect(hits.map((h) => h.section)).toEqual(["Recording a fuel entry", expect.any(String)]);
+  expect(hits[0]).toMatchObject({ source: "fuel.md", guide: "Fuel guide" });
+  expect(hits[0].text).toContain("the litres and the date");
+  expect(hits[0].score).toBeGreaterThan(hits[1].score);
+  expect((await searchGuides(query, embedder, "QR code upload", 1))[0].section).toBe("Customer uploads");
 });
