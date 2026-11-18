@@ -6,6 +6,8 @@
 //   npm run eval -- --tags money,drafts               only cases with these tags
 //   npm run eval -- --model replay                    no Google at all: replays the answers recorded by the last real
 //                                                     run (evals/recordings/), for CI (8.12)
+//   npm run eval -- --privacy strict --leaks          privacy-first mode (Step 9), and the leak test (9.7): fails if
+//                                                     any name, phone or amount from the database is in a request
 //
 // It runs the real graph, with the real tools on the eval database, so a question that needs two steps (the date,
 // then the bookings) is graded on all its tool calls. The answers' words are saved too, for the AI judge (8.9).
@@ -23,12 +25,16 @@ const SKIP_TAGS = option("skip-tags")?.split(",");
 const IDS = option("ids")?.split(",");
 /** Requests a minute to stay under: the free tier allows 15 for Flash-Lite and 5 for 3.8 Flash; 10 leaves room, since a case counts its requests only when it ends */
 const PER_MINUTE = MODEL === "replay" ? Infinity : MODEL.includes("lite") ? 10 : 4;
-const LABEL = option("label") ?? MODEL;
+/** Privacy-first mode (Step 9) for this run, and the leak test (9.7) */
+const STRICT = option("privacy") === "strict";
+const LEAKS = args.includes("--leaks");
+const LABEL = option("label") ?? `${MODEL}${STRICT ? "-strict" : ""}`;
 
 // Before anything reads them: the eval database, and no real model calls when replaying
 process.env.DATABASE_URL = "pglite:./.data/pglite-eval";
 if (MODEL === "replay") process.env.ASSISTANT_FAKE = "1";
 else process.env.ASSISTANT_MODEL = MODEL;
+if (STRICT) process.env.ASSISTANT_PRIVACY = "strict";
 if (MODEL !== "replay" && !process.env.GOOGLE_API_KEY) {
   console.error("✗ GOOGLE_API_KEY is missing. Add it to .env.local, or use --model replay.");
   process.exit(1);
@@ -42,6 +48,7 @@ const { mainModel } = await import("../lib/assistant/model");
 const { systemPrompt } = await import("../lib/assistant/prompt");
 const { questionCostInr } = await import("../lib/assistant/prices");
 const { UsageRecorder } = await import("../lib/assistant/requestLog");
+const { findSecrets, loadSecrets, RequestRecorder } = await import("./leaks");
 const { todayIST } = await import("../lib/dates");
 const { gradeCase, gradeGuard } = await import("./graders");
 const { ReplayModel } = await import("./replay");
@@ -74,7 +81,7 @@ const recording: Recording = (() => {
 })();
 const recorded = recording.cases;
 /** Only the app's own model's answers are recorded: CI replays those. A comparison run (8.10) leaves them alone. */
-const RECORD = MODEL === "gemini-3.5-flash-lite";
+const RECORD = MODEL === "gemini-3.5-flash-lite" && !STRICT;
 /** Cases that passed when recorded (earlier runs' too, unless run again now) */
 const passingBefore = new Set(recording.passing ?? []);
 const replay = new ReplayModel();
@@ -93,7 +100,7 @@ async function makeRoom(requests: number) {
 }
 
 // The admin the drafts belong to (evals/setup.ts)
-const [admin] = await query<{ id: number }>("SELECT id::int FROM users WHERE mobile = '9000000099'");
+const [admin] = await query<{ id: number; name: string }>("SELECT id::int, name FROM users WHERE mobile = '9000000099'");
 if (!admin) {
   console.error("✗ The eval database isn't set up. Run npm run eval:setup first.");
   process.exit(1);
@@ -141,6 +148,8 @@ function saveProgress() {
     writeFileSync(RECORDINGS, `${JSON.stringify({ recorded_on: todayIST(), passing: [...passing].sort(), cases: recorded }, null, 2)}\n`);
   }
 }
+/** What our server put in each case's requests (system prompts, tool results), for the leak test */
+const sentByCase = new Map<string, string[]>();
 const turnsOf = (messages: BaseMessage[]): Turn[] =>
   messages
     .filter((m) => AIMessage.isInstance(m))
@@ -151,6 +160,8 @@ if (done.size) console.log(`Resuming: ${done.size} cases already done\n`);
 for (const c of cases) {
   if (done.has(c.id)) continue;
   const recorder = new UsageRecorder();
+  // Every request the model would get, for the leak test (9.7)
+  const requests = new RequestRecorder();
   // Timed from after the wait for the per-minute limit: the time an admin would wait, not the runner's pacing
   let started = Date.now();
   let calls: Call[] = [];
@@ -170,7 +181,7 @@ for (const c of cases) {
       const allowed =
         MODEL === "replay"
           ? recorded[c.id][0].text === "ALLOW"
-          : await isOnTopic(c.question, undefined, new AbortController().signal, [recorder]);
+          : await isOnTopic(c.question, undefined, new AbortController().signal, [recorder, requests]);
       // The check lets a question through when it fails (guard.ts), so a 429 or a timeout would look like "ALLOW".
       // No finished call means it never answered: an error to try again (--resume), not a verdict to grade.
       if (MODEL !== "replay" && !recorder.calls.length) throw new Error("the off-topic check got no answer (over the limit, or too slow)");
@@ -180,8 +191,10 @@ for (const c of cases) {
       await makeRoom(3);
       started = Date.now();
       const out = await graph.invoke(
-        { messages: [new SystemMessage(systemPrompt({ firstName: "Asha" })), new HumanMessage(c.question)] },
-        { configurable: { userId: admin.id }, callbacks: [recorder], recursionLimit: RECURSION_LIMIT },
+        // The eval admin's real first name from the database, as the app sends it: the leak test checks it's left
+        // out in privacy-first mode (9.3)
+        { messages: [new SystemMessage(systemPrompt({ firstName: admin.name.split(" ")[0] })), new HumanMessage(c.question)] },
+        { configurable: { userId: admin.id }, callbacks: [recorder, requests], recursionLimit: RECURSION_LIMIT },
       );
       turns = turnsOf(out.messages);
       for (const _ of turns) sentAt.push(Date.now());
@@ -192,11 +205,14 @@ for (const c of cases) {
     if (RECORD) recorded[c.id] = turns;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    grade = { pass: false, toolsRight: false, reasons: [`error: ${message.slice(0, 200)}`] };
+    // Google's 429 says which limit in a line further down ("Quota exceeded for metric: …per day…"): keep that line
+    const metric = /Quota exceeded for metric: [^\n]*/.exec(message)?.[0];
+    grade = { pass: false, toolsRight: false, reasons: [`error: ${metric ?? message.slice(0, 200)}`] };
     // Over the per-minute limit anyway: wait a minute before the next case
     if (/429|quota/i.test(message)) await wait(60_000);
   }
   const used = recorder.calls;
+  sentByCase.set(c.id, requests.sent);
   results.push({
     id: c.id,
     tags: c.tags,
@@ -216,6 +232,24 @@ for (const c of cases) {
     `${r.pass ? "✓" : r.toolsRight ? "~" : "✗"} ${c.id.padEnd(22)} ${(r.ms / 1000).toFixed(1).padStart(5)} s  ${calls.map((x) => x.name).join(", ") || (c.expect.guard ? turns[0]?.text : "no tool")}${r.reasons.length ? `\n    ${r.reasons.join("\n    ")}` : ""}`,
   );
   saveProgress();
+}
+
+// ---------- The leak test (9.7) ----------
+const leaks: { id: string; found: string[] }[] = [];
+if (LEAKS) {
+  const secrets = await loadSecrets(query);
+  for (const [id, sent] of sentByCase) {
+    const found = [...new Set(sent.flatMap((text) => findSecrets(text, secrets)))];
+    if (found.length) leaks.push({ id, found });
+  }
+  console.log(
+    `\nLeak test: ${sentByCase.size} cases, ${[...sentByCase.values()].flat().length} system prompts and tool results checked for ` +
+      `${secrets.names.length} names, ${secrets.phones.length} phones, ${secrets.amounts.length} amounts from the database.`,
+  );
+  if (leaks.length) {
+    console.log(`✗ Found in ${leaks.length} cases:`);
+    for (const l of leaks.slice(0, 20)) console.log(`    ${l.id}: ${l.found.slice(0, 6).join(", ")}${l.found.length > 6 ? "…" : ""}`);
+  } else console.log("✓ None found: nothing from the database reached the model.");
 }
 
 // ---------- Report (8.7) ----------
@@ -243,6 +277,8 @@ const report = {
   requests: sum("requests"),
   tokens: { input: sum("input"), output: sum("output"), cached: sum("cached") },
   would_cost_inr: Number(sum("inr").toFixed(4)),
+  privacy: STRICT ? "strict" : "normal",
+  ...(LEAKS && { leaks }),
   failures: results.filter((r) => !r.pass).map(({ id, question, reasons, calls }) => ({ id, question, reasons, calls })),
   results,
 };
@@ -264,4 +300,5 @@ rmSync(PARTIAL, { force: true }); // finished: the next run starts afresh
 // case that passed when it was recorded and fails now (a tool, a grader or a case was broken since)
 const regressions = MODEL === "replay" ? results.filter((r) => !r.pass && passingBefore.has(r.id)) : [];
 if (regressions.length) console.error(`✗ ${regressions.length} case(s) passed when recorded and fail now: ${regressions.map((r) => r.id).join(", ")}`);
-process.exit(regressions.length ? 1 : 0);
+// The leak test fails the run if anything was found (it's what CI runs in strict mode)
+process.exit(regressions.length || (LEAKS && leaks.length) ? 1 : 0);

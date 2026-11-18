@@ -41,3 +41,20 @@ too, since the model can't read it out.
 - What the admin **types or says** still goes to Google (the question itself). So in strict mode the customer's
   name and phone for a new booking are typed into the draft card, not the chat (9.5), and a note under the chat box
   says so (9.6). Voice goes through the browser's speech service (Google, in Chrome).
+
+## The leak test (9.7)
+
+`npm run eval -- --privacy strict --leaks` runs the eval cases in privacy-first mode and records every request the
+model would get (`evals/leaks.ts`). It then searches what our server put in them (the system prompts and the tool
+results) for every customer's, referrer's, driver's and user's name, every phone number, and every amount of ₹500 or
+more in the eval database. The admin's own question isn't searched: they typed it (9.6 says so under the chat box).
+It fails the run if anything is found.
+
+- **Normal mode fails it, as it should**: replaying the recorded answers in normal mode (`npm run eval -- --model
+  replay --leaks`, free) finds names, phones or amounts in all 88 tool cases, and the admin's first name in every
+  prompt. So the test can fail: it passes in strict mode because nothing is there, not because it looks in the wrong place.
+- **Strict mode replayed, all 100 cases** (free, what CI runs on every push): none found.
+- **Strict mode, 18 Nov 2026**, with Gemini 3.1 Flash-Lite answering 30 cases for real: 100 system prompts and tool
+  results checked for 34 names, 33 phones and 85 amounts. **None found.**
+- The admin's name in the prompt is covered too: the runner passes the eval admin's real first name from the database,
+  and strict mode leaves it out (9.3).
