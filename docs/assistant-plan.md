@@ -219,7 +219,7 @@ follow-ups need row labels, sentences with numbers come from our code. (Design d
 - [x] **9.6** A note under the chat box: what you type or say is sent to Google (voice uses Google's speech service). (replaces the old "Gemini can't see your data yet" (untrue since Step 2): normal mode says what you type or say and what the assistant looks up goes to Google; privacy mode says your data stays here and only what you type or say goes; the hover text adds that voice uses Google's speech service; tested)
 - [x] **9.7** Test: run every eval question in strict mode and check that no name, phone or amount from the (`npm run eval -- --privacy strict --leaks` (`evals/leaks.ts`): every system prompt and tool result sent to the model is searched for the database's names, phones and amounts. Normal mode fails it (all 88 tool cases leak), strict mode passes: none found with Gemini answering 30 cases, nor in all 100 replayed; CI runs the replayed check on every push. It also caught a runner bug: in strict mode it was calling the wrong model)
       database appears in any request sent to Google. *Learn: testing for data leaks.*
-- [ ] **9.8** Compare the two modes on the evals (Step 8): what still works, what doesn't.
+- [x] **9.8** Compare the two modes on the evals (Step 8): what still works, what doesn't. (the same 30 cases on the same model (Gemini 3.1 Flash-Lite): right tools 30/30 in both modes, 29 passed in strict only because the model rightly left the customer's name out of the draft (9.5). What changes is the words: the data moves to the cards ("See the booking's card" instead of "Yes, paid in full ₹4,900"); shorter and faster answers; `docs/assistant-privacy.md`)
 
 ## Step 10 — Ship and show
 

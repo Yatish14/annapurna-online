@@ -58,3 +58,31 @@ It fails the run if anything is found.
   results checked for 34 names, 33 phones and 85 amounts. **None found.**
 - The admin's name in the prompt is covered too: the runner passes the eval admin's real first name from the database,
   and strict mode leaves it out (9.3).
+
+## Normal vs strict, compared (9.8)
+
+The same 30 cases (the first 30 that aren't off-topic checks), the same model (Gemini 3.1 Flash-Lite, since 3.5
+Flash-Lite's daily requests were used up that day), each mode once:
+
+| Mode | Right tools | Passed | Seconds a case | Requests | Tokens in | Out |
+|---|---|---|---|---|---|---|
+| Normal | 30/30 | 30 | 5.5 | 61 | 3,49,306 | 2,746 |
+| **Strict** | **30/30** | 29 | 2.6 | 63 | 3,65,219 | 1,696 |
+
+**What still works**: choosing tools (every case), follow-ups by booking number (search, then open the booking it
+found), dates, Telugu and Hindi, help answers (the guides aren't database data), and drafts. The one "failure" is
+the privacy rule working: asked to book for "Ravi Kumar, 98480 22338", the model left the name and phone out of the
+draft, because in strict mode they're typed on the card (9.5). The case expected normal mode's behaviour.
+
+**What changes is the words.** The data moves from the answer to the card:
+
+| Question | Normal | Strict |
+|---|---|---|
+| Who still owes us money? | "Ten customers owe ₹79,300. The largest: Usha Rani (VB-0023) ₹14,000, …" | "There are 10 bookings with balances due. The details and amounts are on the card below." |
+| What was our profit last month? | "The bookings profit was ₹18,993; after all costs, a loss of ₹56,407." | "The profit for last month is shown in the report below." |
+| Did Anitha Reddy pay the full amount? | "Yes, she paid the full ₹4,900 (VB-0004)." | "See the booking's card below: it shows the total, the payments and the balance." |
+
+So strict mode is right but less helpful: a yes/no question about the data gets "see the card" instead of "yes".
+Answers are shorter (1,696 output tokens against 2,746) and faster. A middle way, if wanted later: let code, not
+the model, write sentences with numbers from the result ("Paid in full: ₹4,900"), added under the model's answer.
+That's the "sentences with numbers come from our code" trade-off from the start of Step 9.
