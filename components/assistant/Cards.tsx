@@ -24,6 +24,8 @@ export default function CardView({ card, onConfirm, onCancel }: { card: Card } &
 }
 
 function BookingsCard({ card }: { card: CardOf<"bookings"> }) {
+  // Privacy-first mode numbers the rows (9.4): the model knows them by these numbers
+  const numbered = card.rows.some((r) => r.row);
   return (
     <section className="as-card">
       <header className="as-card-head">
@@ -38,6 +40,7 @@ function BookingsCard({ card }: { card: CardOf<"bookings"> }) {
         <table className="xp-table">
           <thead>
             <tr>
+              {numbered && <th>#</th>}
               <th>Booking</th>
               <th className="is-text">Customer</th>
               <th className="is-text">Vehicle · driver</th>
@@ -48,6 +51,7 @@ function BookingsCard({ card }: { card: CardOf<"bookings"> }) {
           <tbody>
             {card.rows.map((r) => (
               <tr key={r.no}>
+                {numbered && <td>{r.row}</td>}
                 <th>
                   <Link href={`/admin/expenses/bookings/${r.no}`}>{r.no}</Link>
                 </th>

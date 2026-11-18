@@ -30,7 +30,16 @@ const counted = (title: string, shown: number, total: number) => `${title} (${sh
 
 /** Only the six columns the table shows; anything else in the row stays out of the browser's copy */
 const tableRows = (rows: BookingRow[]): BookingRow[] =>
-  rows.map(({ no, customer, vehicle, driver, dates, balance }) => ({ no, customer, vehicle, driver, dates, balance }));
+  rows.map(({ no, customer, vehicle, driver, dates, balance }, i) => ({
+    no,
+    customer,
+    vehicle,
+    driver,
+    dates,
+    balance,
+    // Privacy-first mode (9.4): numbered like the rows the model sees (lib/assistant/privacy.ts), for "the second one"
+    ...(isStrict() && { row: i + 1 }),
+  }));
 
 /** "not set yet" → "Not set yet" (the tool writes values for the model; the card starts them with a capital) */
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

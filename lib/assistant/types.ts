@@ -5,7 +5,16 @@ import type { IconName } from "@/components/admin/Icon";
 /** A tool the assistant ran before answering, shown as a small chip: "Checked bookings" */
 export type ToolStep = { label: string; icon: IconName };
 
-export type BookingRow = { no: string; customer: string; vehicle: string; driver: string; dates: string; balance: number };
+export type BookingRow = {
+  no: string;
+  customer: string;
+  vehicle: string;
+  driver: string;
+  dates: string;
+  balance: number;
+  /** Privacy-first mode (9.4): the row's number, the same one the model was given, so "row 2" means the same to both */
+  row?: number;
+};
 
 /** Something richer than text under a reply: a table, numbers, a draft to confirm, a file, or help sources */
 export type Card =

@@ -46,6 +46,8 @@ async function toolMessages(question: string): Promise<ToolMessage[]> {
 test("normal mode: the model reads the booking's name, phone and total (so the strict test below means something)", async () => {
   const [found] = await toolMessages(`[tool:search_bookings {"query":"${NAME}"}] Find it`);
   expect(found.text).toContain(NAME);
+  // Normal mode's table has no row numbers
+  expect(JSON.stringify(cardFor("search_bookings", {}, found.artifact))).not.toContain('"row"');
   const [one] = await toolMessages(`[tool:get_booking {"number":"${tripNo}"}] Open it`);
   expect(one.text).toContain(PHONE);
   expect(one.text).toContain(String(TOTAL));
@@ -60,6 +62,8 @@ test("strict mode: the model reads statuses, row and booking numbers only; the c
   // The artifact (for the card) is untouched, and the table card shows the name
   const card = cardFor("search_bookings", { query: NAME }, found.artifact);
   expect(JSON.stringify(card)).toContain(NAME);
+  // 9.4: the table's rows are numbered like the model's, so "the first one" means the same booking to both
+  expect(card).toMatchObject({ kind: "bookings", rows: [{ row: 1, no: tripNo }] });
 
   // One booking: a card with its details for the admin, nothing for the model but the number and dates
   const [one] = await toolMessages(`[tool:get_booking {"number":"${tripNo}"}] Open it`);
