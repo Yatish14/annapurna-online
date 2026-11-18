@@ -49,3 +49,19 @@ Results on 18 Nov 2026 (`evals/results/retrieval-db.json`):
   `search_help` doesn't need the question translated.
 - The fake row is the point of comparison: it matches words only, like a plain keyword search. Without shared
   words ("diesel" vs "fuel", "installment" vs "EMI") it misses, and that gap is what embeddings add.
+
+## Two chunk sizes (6.12)
+
+`npm run kb:eval -- --chars N` splits the guides again with sections of at most N characters (longer ones split at
+their paragraphs) and searches in memory, with the embeddings cached in `.data/kb-eval-cache.json`.
+
+| Chunks | Sections | Average size | Top 5 sent to the model | recall@1 | recall@3 | MRR |
+|---|---|---|---|---|---|---|
+| **Whole sections (up to 2,000 characters)** | 104 | 507 characters | ≈ 630 tokens | 97% | 100% | **0.983** |
+| Pieces of up to 300 characters | 174 | 331 characters | ≈ 410 tokens | 97% | 100% | 0.978 |
+
+**Kept: whole sections.** Retrieval is the same (the same one question misses first place; it drops to third with
+small pieces), but a whole section gives the model a complete set of steps, while a 300-character piece can end
+halfway through a list ("4. Optionally enter Litres…" without steps 5 and 6). Small pieces also need 70% more
+embeddings. The guides were written with short, self-contained sections, which is why splitting further adds
+nothing: the headings already do the chunking. With long, unstructured documents the answer could be different.

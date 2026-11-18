@@ -174,7 +174,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **6.9** `search_help` tool. (`lib/assistant/tools/help.ts`: the closest sections scoring at least 0.5 (Gemini) go to the model, otherwise "none"; help text isn't checked for instructions (`toolReply(…, { ownText: true })`) and isn't business data; prompt rules: answer only from the sections, never describe screens from memory. Real check: "record diesel for a trip" and a Telugu "how do I add a user" each found the right section first (0.78, 0.74))
 - [x] **6.10** Answers say which guide they came from. (a sources card under the answer (each guide once, its sections in the tooltip) made from the tool's own result, and the model ends with "(From the … guide.)")
 - [x] **6.11** Retrieval eval: 20 questions → expected guide; measure recall@3. (`npm run kb:eval` on 30 questions in `evals/retrieval.jsonl` (20 plain, 10 hard, two in Telugu and Hindi): recall@3 **100%**, recall@1 97%, MRR 0.98 with Gemini; the word-matching fake gets 67% / 43% / 0.56. Notes in `docs/assistant-rag.md`)
-- [ ] **6.12** Try two chunk sizes; record which works better.
+- [x] **6.12** Try two chunk sizes; record which works better. (whole sections (up to 2,000 characters, 104 chunks) vs pieces of up to 300 (174): the same recall (97% / 100%), MRR 0.983 vs 0.978; kept whole sections: complete steps for the model, 70% fewer embeddings; `docs/assistant-rag.md`)
 - [ ] **6.13** *(Optional)* Hybrid keyword + vector search.
 
 ## Step 7 — Voice
