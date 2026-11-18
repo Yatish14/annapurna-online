@@ -1,0 +1,20 @@
+{"id": "upcoming", "tags": ["bookings"], "question": "Which bookings are coming up?", "expect": {"tools": [{"name": "list_bookings", "args": {"status": "upcoming"}}]}}
+{"id": "owed", "tags": ["money"], "question": "Who still owes us money?", "expect": {"tools": [{"name": "balances_due"}]}}
+{"id": "profit-last-month", "tags": ["money"], "question": "What was our profit last month?", "expect": {"tools": [{"name": "report", "args": {"month": {"$month": "last month"}}}]}}
+{"id": "cash-this-month", "tags": ["money"], "question": "How much cash came in this month?", "expect": {"tools": [{"name": "month_overview", "args": {"month": {"$month": "this month"}}}]}}
+{"id": "find-customer", "tags": ["bookings"], "question": "Show me Ravi Kumar's booking", "expect": {"tools": [{"name": "search_bookings", "args": {"query": {"$contains": "ravi"}}}]}}
+{"id": "open-number", "tags": ["bookings"], "question": "Open VB-0003", "expect": {"tools": [{"name": "get_booking", "args": {"number": "VB-0003"}}]}}
+{"id": "statement", "tags": ["reports"], "question": "Give me the expense statement for VB-0002", "expect": {"tools": [{"name": "expense_statement", "args": {"number": "VB-0002"}}]}}
+{"id": "cars-october", "tags": ["fleet"], "question": "How did each car do in October?", "expect": {"tools": [{"name": "vehicle_summary", "args": {"month": {"$month": "October"}}}]}}
+{"id": "drivers-month", "tags": ["fleet"], "question": "Which driver did the most trips this month?", "expect": {"tools": [{"name": "driver_summary", "args": {"month": {"$month": "this month"}}}]}}
+{"id": "new-prints", "tags": ["prints"], "question": "Any new printouts waiting?", "expect": {"tools": [{"name": "print_orders", "args": {"status": "new"}}]}}
+{"id": "date-math", "tags": ["dates"], "question": "What date is it 10 days from today?", "expect": {"tools": [{"name": "get_today", "args": {"plus_days": 10}}]}}
+{"id": "draft-booking", "tags": ["drafts"], "question": "Book the Carens for Ravi Kumar, 98480 22338, from tomorrow for 2 days, Vijayawada to Guntur, total 9000", "expect": {"tools": [{"name": "draft_booking", "args": {"customer_name": {"$contains": "ravi"}, "customer_phone": {"$contains": "22338"}, "vehicle": {"$contains": "carens"}, "start_date": {"$date": 1}, "pickup_city": {"$contains": "vijayawada"}, "total_amount": 9000}}]}}
+{"id": "customer-paid", "tags": ["drafts"], "question": "Lakshmi Prasanna paid 2000 by UPI today", "expect": {"tools": [{"name": "draft_payment", "args": {"party": "customer", "amount": 2000, "method": "upi", "booking": {"$contains": "lakshmi"}}}]}}
+{"id": "fuel-on-booking", "tags": ["drafts"], "question": "Filled 3000 rupees of diesel for VB-0004", "expect": {"tools": [{"name": "draft_fuel", "args": {"amount": 3000, "booking": {"$contains": "vb-0004"}}}]}}
+{"id": "driver-paid", "tags": ["drafts"], "question": "Paid the driver 1500 for VB-0001 in cash", "expect": {"tools": [{"name": "draft_payment", "args": {"party": "driver", "amount": 1500, "method": "cash", "booking": {"$contains": "vb-0001"}}}]}}
+{"id": "help-add-driver", "tags": ["help"], "question": "How do I add a new driver?", "expect": {"tools": [{"name": "search_help"}]}}
+{"id": "help-term", "tags": ["help"], "question": "What does driver amount mean?", "expect": {"tools": [{"name": "search_help"}]}}
+{"id": "who-are-you", "tags": ["chat"], "question": "Who are you?", "expect": {"noTools": true}}
+{"id": "guard-poem", "tags": ["guard"], "question": "Write me a poem about the sea", "expect": {"guard": "block"}}
+{"id": "guard-allow", "tags": ["guard"], "question": "How many bookings do we have this week?", "expect": {"guard": "allow"}}
