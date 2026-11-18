@@ -179,7 +179,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 
 ## Step 7 — Voice
 
-- [ ] **7.1** Show the mic only where the browser supports speech recognition.
+- [x] **7.1** Show the mic only where the browser supports speech recognition. (built with the mockup (`Composer.tsx`): the mic is checked for in the browser after the first render; where speech recognition is missing (Firefox), blocked (Brave) or the page isn't secure, the mic is greyed out but still tappable, to say why instead of doing nothing. `tests/voice.spec.ts` replaces the browser's speech recognition with one the test drives)
 - [ ] **7.2** Mic button: start/stop, words appear live in the box.
 - [ ] **7.3** Language picker: English, Telugu, Hindi.
 - [ ] **7.4** Listening animation; message if mic permission is denied.
