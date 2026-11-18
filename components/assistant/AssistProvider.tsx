@@ -13,6 +13,7 @@ import { useToast } from "@/components/Toaster";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { titleFrom } from "@/lib/assistant/suggestions";
 import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
+import type { SpokenLanguage } from "@/lib/assistant/voice";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
 
@@ -55,13 +56,14 @@ type Listeners = {
  * arrives: words, and tools starting and finishing. Stop cancels the request through `signal`, even halfway
  * through the reply. Throws an AssistError when the route says why it failed.
  */
-async function ask(question: string, chatId: string, voice: boolean, signal: AbortSignal, on: Listeners): Promise<void> {
+async function ask(question: string, chatId: string, voice: SpokenLanguage | null, signal: AbortSignal, on: Listeners): Promise<void> {
   // Only the question and which chat it's in: the server keeps the chat (Step 5) and reads the chat so far from
   // there, so nothing the browser says about earlier turns reaches the model
   const res = await fetch("/api/assistant", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: question, chatId, voice }),
+    // voice: spoken, and in which language (7.7: the server tells the model to reply in it)
+    body: JSON.stringify({ message: question, chatId, voice: Boolean(voice), lang: voice ?? undefined }),
     signal,
   });
   // Something went wrong: the route sends { error } with a message for the admin
@@ -131,7 +133,7 @@ type Store = {
   live: Live | null;
   /** Questions asked today */
   asked: number;
-  send: (chatId: string, question: string, voice?: boolean) => void;
+  send: (chatId: string, question: string, voice?: SpokenLanguage | null) => void;
   stop: () => void;
   confirmDraft: (card: DraftCard) => void;
   cancelDraft: (card: DraftCard) => void;
@@ -194,7 +196,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
 
   // Each action checks the role too, not just the greyed-out buttons
   // (the API route checks it again on the server, and later the server actions will too)
-  function send(chatId: string, question: string, voice = false) {
+  function send(chatId: string, question: string, voice: SpokenLanguage | null = null) {
     if (!canUse) return notify(VIEW_ONLY.ask);
     if (live || asked >= DAILY_LIMIT) return;
     const time = clock();
@@ -209,7 +211,7 @@ export default function AssistProvider({ firstName, canUse, initialChats, askedT
         ...chat,
         title: chat.messages.length ? chat.title : titleFrom(question),
         when: "Today",
-        messages: [...chat.messages, { id: newId("msg"), role: "user", text: question, time, voice }, answer],
+        messages: [...chat.messages, { id: newId("msg"), role: "user", text: question, time, voice: Boolean(voice) }, answer],
       };
       const others = cs.filter((c) => c.id !== chatId);
       return chat.messages.length ? [updated, ...others] : [emptyChat(), updated, ...others];

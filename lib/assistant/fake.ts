@@ -1,6 +1,6 @@
 import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
 import { BaseChatModel, type BindToolsInput } from "@langchain/core/language_models/chat_models";
-import { AIMessage, AIMessageChunk, type BaseMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, AIMessageChunk, type BaseMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { ChatGenerationChunk, type ChatResult } from "@langchain/core/outputs";
 
 /**
@@ -28,7 +28,7 @@ type Call = { name: string; args: Record<string, unknown> };
 type Turn = { text: string; calls?: Call[] };
 
 /** What the fake can see: the admin's question, what came before it, and this turn's tool results so far */
-type Seen = { question: string; earlier: number; lastAnswer: string; results: ToolMessage[]; outOfRounds: boolean };
+type Seen = { question: string; earlier: number; lastAnswer: string; results: ToolMessage[]; outOfRounds: boolean; system: string };
 type Script = (seen: Seen) => Turn;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -74,6 +74,7 @@ class FakeModel extends BaseChatModel {
       lastAnswer: beforeTools.filter((m) => AIMessage.isInstance(m)).at(-1)?.text ?? "",
       results: messages.filter((m): m is ToolMessage => ToolMessage.isInstance(m)),
       outOfRounds: firstResult !== -1 && HumanMessage.isInstance(messages.at(-1)),
+      system: messages.find((m) => SystemMessage.isInstance(m))?.text ?? "",
     };
   }
 
@@ -133,7 +134,7 @@ function resultText(m: ToolMessage): string {
 
 /** Instead of Gemini answering: tool calls from [tool:…] tags, then a test answer saying what they found */
 export function fakeMainModel() {
-  return new FakeModel(({ question, earlier, lastAnswer, results, outOfRounds }) => {
+  return new FakeModel(({ question, earlier, lastAnswer, results, outOfRounds, system }) => {
     const status = /\[fail:(\d{3})\]/.exec(question)?.[1];
     if (status) {
       // Shaped like @langchain/google's errors, so the route's explain() treats it the same way
@@ -148,8 +149,11 @@ export function fakeMainModel() {
     const used = results.length ? ` Tools used: ${results.map(resultText).join("; ")}.` : "";
     const note = outOfRounds ? " (Out of tool rounds.)" : "";
     const last = question.includes("[history]") ? ` My last answer ended: "${lastAnswer.slice(-150)}".` : "";
+    // 7.7: the language the prompt says the question was spoken in, so a test can see the server passed it on
+    const spokenIn = /asked this by voice, in (\w+)/.exec(system)?.[1];
+    const spoken = spokenIn ? ` (Spoken in ${spokenIn}.)` : "";
     return {
-      text: `This is a **test answer** (ASSISTANT_FAKE=1), Gemini wasn't asked. You asked: "${question}". Earlier questions in this chat: ${earlier}.${used}${note}${last}`,
+      text: `This is a **test answer** (ASSISTANT_FAKE=1), Gemini wasn't asked. You asked: "${question}". Earlier questions in this chat: ${earlier}.${used}${note}${last}${spoken}`,
     };
   });
 }

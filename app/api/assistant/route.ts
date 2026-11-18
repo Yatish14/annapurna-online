@@ -13,6 +13,7 @@ import { writeTitle } from "@/lib/assistant/titles";
 import { events, line, NDJSON } from "@/lib/assistant/stream";
 import type { StreamEvent } from "@/lib/assistant/types";
 import { countQuestion } from "@/lib/assistant/usage";
+import { isSpokenLanguage } from "@/lib/assistant/voice";
 
 /** How long a finished answer waits for its new chat's written title (5.5) before ending without it */
 const TITLE_WAIT_MS = 1500;
@@ -22,7 +23,7 @@ const TITLE_WAIT_MS = 1500;
  * piece by piece while Gemini is still writing it. The model is called only here, on the server, so the
  * API key never reaches the browser.
  *
- *   POST /api/assistant   { "message": "And tomorrow?", "chatId": "<uuid>", "voice": false }
+ *   POST /api/assistant   { "message": "And tomorrow?", "chatId": "<uuid>", "voice": true, "lang": "te-IN" }
  *   → 200, one JSON event per line, arriving as the answer is made:
  *       {"type":"step","state":"running","id":"…","step":{"label":"Checked bookings","icon":"bookings"}}
  *       {"type":"step","state":"done",…}
@@ -48,6 +49,8 @@ export async function POST(request: Request) {
   }
   const chatId: unknown = body?.chatId;
   const voice = body?.voice === true;
+  // 7.7: the language the mic listened for, so the answer comes back in it. Only our three codes reach the prompt.
+  const spokenIn = voice && isSpokenLanguage(body?.lang) ? body.lang : undefined;
   // A new id becomes a new chat for this admin; another admin's chat is as if it didn't exist
   const chat = isChatId(chatId) ? await ensureChat(chatId, user.id) : null;
   if (!chat) return Response.json({ error: "This chat wasn't found. Start a new chat." }, { status: 404 });
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
   let pieces: AsyncIterator<StreamEvent>;
   let first: IteratorResult<StreamEvent>;
   try {
-    const messages = [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0], leftOut: left })), ...history, new HumanMessage(message)];
+    const messages = [new SystemMessage(systemPrompt({ firstName: user.name.split(" ")[0], leftOut: left, spokenIn })), ...history, new HumanMessage(message)];
     // Two stream modes at once: the answer's words ("messages") and each step's results ("updates", for the chips)
     // recursionLimit: the hard stop for the whole run (lib/assistant/graph.ts explains both limits)
     const stream = await graph.stream(

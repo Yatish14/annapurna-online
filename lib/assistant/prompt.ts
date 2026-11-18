@@ -1,5 +1,6 @@
 import { BUSINESS, CARS } from "@/lib/config";
 import { fmtShort, nowLocalIST, todayIST } from "@/lib/dates";
+import { languageName, type SpokenLanguage } from "./voice";
 
 /**
  * Annapurna Assist's system prompt: who it is, what it may help with, and how to answer. Sent before
@@ -95,10 +96,12 @@ type Options = {
   firstName?: string;
   /** How many of the chat's oldest questions and answers were left out to keep it within the token budget (5.7) */
   leftOut?: number;
+  /** The question was spoken, in this language (7.7) */
+  spokenIn?: SpokenLanguage;
 };
 
 /** The full system prompt for one request: the rules, then today's date and time in India */
-export function systemPrompt({ firstName, leftOut = 0 }: Options = {}): string {
+export function systemPrompt({ firstName, leftOut = 0, spokenIn }: Options = {}): string {
   const today = todayIST(); // "2026-11-10"
   const time = nowLocalIST().slice(11); // "15:20"
   const now = `## Right now
@@ -110,5 +113,10 @@ export function systemPrompt({ firstName, leftOut = 0 }: Options = {}): string {
   const long = leftOut
     ? `\n- This is a long chat: its first ${leftOut} ${turns} aren't included here. If the admin refers to something you can't see, ask them, or look it up again with a tool.`
     : "";
-  return `${RULES}\n\n${now}${who}${long}`;
+  // 7.7: speech-to-text can write Telugu or Hindi speech partly in English letters, or mix in English words, so the
+  // language the admin chose for the mic says more than the text does
+  const spoken = spokenIn
+    ? `\n- The admin asked this by voice, in ${languageName(spokenIn)}. Reply in ${languageName(spokenIn)}${spokenIn === "en-IN" ? "" : " (in its own script)"}, even if the words came out partly in English: speech-to-text mixes them.`
+    : "";
+  return `${RULES}\n\n${now}${who}${long}${spoken}`;
 }

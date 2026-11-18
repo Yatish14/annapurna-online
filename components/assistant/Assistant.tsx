@@ -6,6 +6,7 @@ import Icon from "@/components/admin/Icon";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
 import { SUGGESTIONS } from "@/lib/assistant/suggestions";
 import type { Chat } from "@/lib/assistant/types";
+import type { SpokenLanguage } from "@/lib/assistant/voice";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
 import Composer from "./Composer";
 import History from "./History";
@@ -93,7 +94,7 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
     return () => document.removeEventListener("keydown", onKey, true);
   }, [historyOpen, listing]);
 
-  function ask(question: string, voice = false) {
+  function ask(question: string, voice: SpokenLanguage | null = null) {
     stick.current = true;
     send(active.id, question, voice);
   }

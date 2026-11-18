@@ -4,14 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
 // Longest question accepted; the API route checks it too
 import { MAX_LENGTH } from "@/lib/assistant/limits";
+// The languages the mic listens for, so the browser writes down Telugu or Hindi words correctly (shared with the
+// server, which tells the model which one was spoken: 7.7)
+import { LANGUAGES, type SpokenLanguage } from "@/lib/assistant/voice";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
-
-/** The language the mic listens for, so the browser writes down Telugu or Hindi words correctly */
-const LANGUAGES = [
-  { code: "en-IN", short: "EN", label: "English", english: "English (India)" },
-  { code: "te-IN", short: "TE", label: "తెలుగు", english: "Telugu" },
-  { code: "hi-IN", short: "HI", label: "हिन्दी", english: "Hindi" },
-];
 
 // The browser's speech recognition. TypeScript doesn't ship types for it, so just the parts we use.
 type SpeechEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
@@ -58,7 +54,8 @@ const AUTO_SEND_KEY = "annapurna-assist-auto-send";
 
 type Props = {
   busy: boolean;
-  onSend: (text: string, voice: boolean) => void;
+  /** voice: the language it was spoken in, or null if it was typed */
+  onSend: (text: string, voice: SpokenLanguage | null) => void;
   onStop: () => void;
   /** Questions left today (the daily cap) */
   left: number;
@@ -67,12 +64,13 @@ type Props = {
 export default function Composer({ busy, onSend, onStop, left }: Props) {
   const [text, setText] = useState("");
   // The mic listens for Telugu unless another language is picked
-  const [lang, setLang] = useState("te-IN");
+  const [lang, setLang] = useState<SpokenLanguage>("te-IN");
   /** null until checked in the browser (the server can't know) */
   const [micProblem, setMicProblem] = useState<MicProblem | undefined>(undefined);
   const [listening, setListening] = useState(false);
   const [micError, setMicError] = useState("");
-  const [spoken, setSpoken] = useState(false);
+  /** The language of the words the mic put in the box, until it's sent (null: typed) */
+  const [spoken, setSpoken] = useState<SpokenLanguage | null>(null);
   const [langOpen, setLangOpen] = useState(false);
   // 7.5: send the question by itself when you stop talking, or (the default) leave it in the box to check first.
   // Speech-to-text gets names and numbers wrong often enough that checking first is the safer default.
@@ -142,7 +140,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
     recognition.current?.stop();
     onSend(value.trim(), voice);
     setText("");
-    setSpoken(false);
+    setSpoken(null);
     heard.current = "";
   }
 
@@ -169,7 +167,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
       const words = Array.from(e.results, (result) => result[0].transcript).join("");
       heard.current = before ? `${before} ${words}` : words;
       setText(heard.current);
-      setSpoken(true);
+      setSpoken(r.lang as SpokenLanguage);
     };
     r.onerror = (e) => {
       // "aborted" is us pressing stop; anything unknown shows its code so it can be looked up
@@ -179,7 +177,7 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
       setListening(false);
       recognition.current = null;
       // 7.5: sent as soon as you stop talking, if chosen and something was heard; otherwise it waits in the box
-      if (autoSend && heard.current) send(heard.current, true);
+      if (autoSend && heard.current) send(heard.current, r.lang as SpokenLanguage);
       else box.current?.focus();
     };
     recognition.current = r;

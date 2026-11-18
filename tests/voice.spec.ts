@@ -155,3 +155,31 @@ test("7.5: by default the words wait in the box to check; with 'Send when I stop
   await fullPage(page).getByRole("button", { name: /Language you'll speak/ }).click();
   await expect(fullPage(page).getByRole("menuitemcheckbox", { name: /Send when I stop talking/ })).toHaveAttribute("aria-checked", "true");
 });
+
+test("7.7: a spoken question tells the model which language it was spoken in; a typed one doesn't", async ({ page }) => {
+  await fakeSpeech(page);
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  const box = chat.getByLabel("Your question");
+  const latest = () => chat.locator(".as-msg.is-assistant").last();
+  // Spoken in Telugu (the default), checked, then sent with the Send button
+  await chat.getByRole("button", { name: /Ask by voice/ }).click();
+  await page.evaluate(() => (window as unknown as { __say(t: string): void }).__say("ఈ రోజు బుకింగ్స్"));
+  await page.evaluate(() => (window as unknown as { __end(): void }).__end());
+  await chat.getByRole("button", { name: "Send" }).click();
+  await expect(latest()).toContainText("(Spoken in Telugu.)");
+  // Typed: no language note
+  await expect(chat.getByRole("button", { name: "Stop the reply" })).toHaveCount(0);
+  await box.fill("And tomorrow?");
+  await box.press("Enter");
+  await expect(latest()).toContainText('You asked: "And tomorrow?"');
+  await expect(latest()).not.toContainText("Spoken in");
+
+  // The server only accepts our three languages, and only for a spoken question
+  const chatId = crypto.randomUUID();
+  const sent = await page.request.post("/api/assistant", { data: { message: "Hello", chatId, voice: true, lang: "xx-EVIL" } });
+  expect(await sent.text()).not.toContain("Spoken in");
+  const typed = await page.request.post("/api/assistant", { data: { message: "Hello", chatId, voice: false, lang: "hi-IN" } });
+  expect(await typed.text()).not.toContain("Spoken in");
+});
