@@ -25,11 +25,12 @@ test("the super admin sees each question's tokens, time and paid-tier cost; an a
   // The row is saved when the title's call has finished too, just after the answer: a reload may be needed
   await expect(async () => {
     await page.reload();
-    const latest = page.locator(".as-usage-recent tbody tr");
+    // Only this test's rows: other tests ask as the admin, and the page lists everyone's questions
+    const latest = page.locator(".as-usage-recent tbody tr", { hasText: "Test Owner" });
     await expect(latest.filter({ hasText: "Off topic" })).toHaveCount(1, { timeout: 1000 });
     await expect(latest.filter({ hasText: "get_today" })).toHaveCount(1, { timeout: 1000 });
   }).toPass({ timeout: 15_000 });
-  const answered = page.locator(".as-usage-recent tbody tr", { hasText: "get_today" });
+  const answered = page.locator(".as-usage-recent tbody tr", { hasText: "Test Owner" }).filter({ hasText: "get_today" });
   await expect(answered).toContainText("Answered");
   await expect(answered).toContainText("Test Owner");
   // A fake answer is priced like Flash-Lite: a fraction of a rupee
