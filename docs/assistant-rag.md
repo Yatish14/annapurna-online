@@ -65,3 +65,21 @@ small pieces), but a whole section gives the model a complete set of steps, whil
 halfway through a list ("4. Optionally enter Litres…" without steps 5 and 6). Small pieces also need 70% more
 embeddings. The guides were written with short, self-contained sections, which is why splitting further adds
 nothing: the headings already do the chunking. With long, unstructured documents the answer could be different.
+
+## Hybrid keyword + vector search (6.13, optional)
+
+`kb_chunks.words` is Postgres's full-text index of each section (English stems, a GIN index). `searchByWords` finds
+sections with any of the question's words; `searchHybrid` merges that list with the vector search's by reciprocal
+rank fusion (each section scores 1 / (60 + rank) in each list). `npm run kb:eval -- --mode keyword` or `hybrid`:
+
+| Search | recall@1 | recall@3 | recall@5 | MRR |
+|---|---|---|---|---|
+| **Vector (what `search_help` uses)** | **97%** | **100%** | **100%** | **0.98** |
+| Hybrid (vector + keywords, RRF) | 80% | 93% | 93% | 0.87 |
+| Keywords only | 50% | 80% | 83% | 0.64 |
+
+**Kept: vector only.** Here keywords make it worse. "Booking", "trip" and "customer" are in nearly every guide, so the
+keyword list ranks the general sections ("Where car bookings live") above the specific one, and fusion lets that
+noise pull wrong sections up. Telugu and Hindi questions find nothing by keyword at all. Hybrid search earns its place
+when questions use exact names that embeddings blur (error codes, product numbers like "VB-0042", rare terms); these
+guides have few. The code stays, tested, for if they grow such terms.

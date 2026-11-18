@@ -175,7 +175,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **6.10** Answers say which guide they came from. (a sources card under the answer (each guide once, its sections in the tooltip) made from the tool's own result, and the model ends with "(From the … guide.)")
 - [x] **6.11** Retrieval eval: 20 questions → expected guide; measure recall@3. (`npm run kb:eval` on 30 questions in `evals/retrieval.jsonl` (20 plain, 10 hard, two in Telugu and Hindi): recall@3 **100%**, recall@1 97%, MRR 0.98 with Gemini; the word-matching fake gets 67% / 43% / 0.56. Notes in `docs/assistant-rag.md`)
 - [x] **6.12** Try two chunk sizes; record which works better. (whole sections (up to 2,000 characters, 104 chunks) vs pieces of up to 300 (174): the same recall (97% / 100%), MRR 0.983 vs 0.978; kept whole sections: complete steps for the model, 70% fewer embeddings; `docs/assistant-rag.md`)
-- [ ] **6.13** *(Optional)* Hybrid keyword + vector search.
+- [x] **6.13** *(Optional)* Hybrid keyword + vector search. (Postgres full-text search (`kb_chunks.words`, GIN) merged with the vector search by reciprocal rank fusion: MRR 0.87 against vector's 0.98 (keywords alone 0.64): common words like "booking" add noise, and Telugu and Hindi find nothing, so `search_help` stays vector-only; `docs/assistant-rag.md`)
 
 ## Step 7 — Voice
 

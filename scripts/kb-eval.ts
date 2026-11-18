@@ -7,19 +7,25 @@
 //
 //   npm run kb:eval                    searches kb_chunks in DATABASE_URL (run npm run kb:ingest first)
 //   npm run kb:eval -- --chars 500     splits the guides again at 500 characters and searches in memory (6.12)
+//   npm run kb:eval -- --mode hybrid   keyword search (--mode keyword) or both merged (--mode hybrid) in kb_chunks (6.13)
 //
 // Embeddings are kept in .data/kb-eval-cache.json by fingerprint, so a rerun costs nothing.
 // Uses: 1 request per question (embedded together), plus each section not in the cache. Free tier.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { splitGuides } from "../lib/assistant/kb/chunks";
 import { cosineSimilarity, EMBEDDING_MODEL, embeddings, GeminiEmbeddings } from "../lib/assistant/kb/embeddings";
-import { type HelpHit, searchByVector } from "../lib/assistant/kb/search";
+import { type HelpHit, searchByVector, searchByWords, searchHybrid } from "../lib/assistant/kb/search";
 import { connect, describeTarget } from "./db.mjs";
 
 type Case = { question: string; expect: string[] };
 
 const args = process.argv.slice(2);
 const chars = args.includes("--chars") ? Number(args[args.indexOf("--chars") + 1]) : null;
+const mode = args.includes("--mode") ? args[args.indexOf("--mode") + 1] : "vector";
+if (!["vector", "keyword", "hybrid"].includes(mode) || (chars !== null && mode !== "vector")) {
+  console.error("✗ --mode is vector, keyword or hybrid, and only for the database (not with --chars)");
+  process.exit(1);
+}
 const fake = process.env.ASSISTANT_FAKE === "1";
 const K = 5;
 
@@ -36,11 +42,16 @@ const questionVectors = await asQueries.embedDocuments(cases.map((c) => c.questi
 let results: HelpHit[][];
 let where: string;
 if (chars === null) {
-  where = `kb_chunks in ${describeTarget()}`;
+  where = `kb_chunks in ${describeTarget()}, ${mode} search`;
   const db = await connect();
   try {
     results = [];
-    for (const v of questionVectors) results.push(await searchByVector(db.query, v, K));
+    for (const [i, v] of questionVectors.entries()) {
+      const q = cases[i].question;
+      results.push(
+        mode === "keyword" ? await searchByWords(db.query, q, K) : mode === "hybrid" ? await searchHybrid(db.query, v, q, K) : await searchByVector(db.query, v, K),
+      );
+    }
   } finally {
     await db.close();
   }
@@ -91,7 +102,7 @@ cases.forEach((c, i) => {
 console.log(`\nrecall@1 ${pct(recall(1))}   recall@3 ${pct(recall(3))}   recall@5 ${pct(recall(5))}   MRR ${mrr.toFixed(2)}`);
 
 // Saved, so runs can be compared later (6.12)
-const label = chars === null ? "db" : `chars-${chars}`;
+const label = chars !== null ? `chars-${chars}` : mode === "vector" ? "db" : `db-${mode}`;
 mkdirSync("evals/results", { recursive: true });
 const file = `evals/results/retrieval-${label}${fake ? "-fake" : ""}.json`;
 writeFileSync(

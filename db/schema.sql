@@ -470,3 +470,9 @@ CREATE TABLE IF NOT EXISTS kb_chunks (
 -- match) but stays fast at millions of rows. vector_cosine_ops: built for <=>, the cosine distance we sort by.
 -- With so few rows Postgres usually still reads the whole table (it's quicker); the index is ready for when it grows.
 CREATE INDEX IF NOT EXISTS kb_chunks_embedding_idx ON kb_chunks USING hnsw (embedding vector_cosine_ops);
+-- 6.13: keyword search next to the vector search (hybrid). Postgres's own full-text search: to_tsvector turns the
+-- text into its words' stems ("recording" → "record"), without common words; a GIN index finds the rows that have
+-- a word. Generated: Postgres keeps it in step with `text` by itself. English stemming, so it can't help the Telugu
+-- or Hindi questions; the vector search still finds those.
+ALTER TABLE kb_chunks ADD COLUMN IF NOT EXISTS words tsvector GENERATED ALWAYS AS (to_tsvector('english', text)) STORED;
+CREATE INDEX IF NOT EXISTS kb_chunks_words_idx ON kb_chunks USING gin (words);

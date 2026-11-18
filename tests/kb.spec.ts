@@ -4,7 +4,7 @@ import { query } from "@/lib/db";
 import { chunkHash, splitGuide } from "@/lib/assistant/kb/chunks";
 import { cosineSimilarity, fakeEmbedding, FakeEmbeddings } from "@/lib/assistant/kb/embeddings";
 import { ingestGuides } from "@/lib/assistant/kb/ingest";
-import { searchGuides } from "@/lib/assistant/kb/search";
+import { searchByWords, searchGuides, searchHybrid } from "@/lib/assistant/kb/search";
 
 /** Step 6: the help guides, split, embedded (fake embeddings: no Google) and searched in PGlite with pgvector */
 
@@ -102,4 +102,18 @@ test("the vector search can use the HNSW index (6.8)", async () => {
   } finally {
     await query("SET enable_seqscan = on");
   }
+});
+
+test("keyword search finds stemmed words, and hybrid merges it with the vector search (6.13)", async () => {
+  await query("DELETE FROM kb_chunks");
+  const embedder = new FakeEmbeddings();
+  await ingestGuides(query, [{ source: "fuel.md", markdown: FUEL }, { source: "print.md", markdown: PRINT }], embedder);
+  // "uploading" and "customer" match "uploads" and "Customers" by their stems; "the" and "how" are dropped
+  const words = await searchByWords(query, "How do customers upload?", 3);
+  expect(words[0].section).toBe("Customer uploads");
+  expect(await searchByWords(query, "zzqx", 3)).toEqual([]);
+  // Hybrid: a section first in both lists comes first; scores are 1/(60 + rank) added up
+  const hybrid = await searchHybrid(query, await embedder.embedQuery("fuel price warning"), "fuel price warning", 3);
+  expect(hybrid[0].section).toBe("Fuel price warnings");
+  expect(hybrid[0].score).toBeCloseTo(2 / 61, 6);
 });

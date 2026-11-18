@@ -38,3 +38,43 @@ export async function searchByVector(run: Run, vector: number[], k = TOP_K): Pro
   );
   return rows.map((r) => ({ ...r, score: Number(r.score) }));
 }
+
+// ---------- 6.13 (optional): keyword and hybrid search ----------
+
+/**
+ * Keyword search: sections with any of the question's words (stemmed: "recording" finds "record"), best first.
+ * ts_rank_cd scores how often and how close together they appear. Common words ("how", "the") are dropped by Postgres.
+ * Score here is the rank, not a similarity: don't compare it with the vector search's.
+ */
+export async function searchByWords(run: Run, question: string, k = TOP_K): Promise<HelpHit[]> {
+  // "any of the words": plainto_tsquery would need all of them, which a full question rarely matches
+  const words = question.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  if (!words.length) return [];
+  const rows = await run<HelpHit>(
+    `SELECT source, guide, section, text, ts_rank_cd(words, q) AS score
+     FROM kb_chunks, to_tsquery('english', $1) AS q
+     WHERE words @@ q
+     ORDER BY score DESC, id
+     LIMIT $2`,
+    [words.join(" | "), k],
+  );
+  return rows.map((r) => ({ ...r, score: Number(r.score) }));
+}
+
+/**
+ * Hybrid: both searches, merged by reciprocal rank fusion (RRF). Each section scores 1 / (60 + its rank) in each
+ * list it's in, added up. Ranks, not scores, so the two kinds of score never need to be on one scale; 60 is the usual
+ * constant, which keeps one list's first place from outweighing everything else.
+ */
+export async function searchHybrid(run: Run, vector: number[], question: string, k = TOP_K): Promise<HelpHit[]> {
+  const [byMeaning, byWords] = await Promise.all([searchByVector(run, vector, 20), searchByWords(run, question, 20)]);
+  const merged = new Map<string, HelpHit>();
+  for (const list of [byMeaning, byWords]) {
+    list.forEach((hit, i) => {
+      const key = `${hit.source}#${hit.section}`;
+      const before = merged.get(key);
+      merged.set(key, { ...hit, score: (before?.score ?? 0) + 1 / (60 + i + 1) });
+    });
+  }
+  return [...merged.values()].sort((a, b) => b.score - a.score).slice(0, k);
+}
