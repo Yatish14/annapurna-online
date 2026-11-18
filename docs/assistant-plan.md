@@ -194,7 +194,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **8.3** Usage page for super admin. (`/admin/assistant/usage` (`viewAssistantUsage`: super admin only), linked from the chat list and the header: the last 30 days' questions, would-be cost, tokens (with the cached share) and answer times; where the tokens go (answers, off-topic check, titles), by admin, by day, and the latest 25 questions (not their text); tested)
 - [x] **8.4** First 20 cases in `evals/cases.jsonl`: question → expected tool and inputs. (`evals/cases.jsonl`: 20 questions across bookings, money, fleet, prints, dates, drafts, help, chat and the off-topic check, each with the tools and inputs it should lead to; months and dates by meaning ("last month", tomorrow))
 - [ ] **8.5** Eval runner: tool choice only, against a test database.
-- [ ] **8.6** Code graders: compare tool and inputs (free).
+- [x] **8.6** Code graders: compare tool and inputs (free). (`evals/graders.ts`: the right tools (any order, extra calls allowed), inputs by value, by part (`$contains`), by meaning (`$month`, `$date`), or any/absent; no tools, forbidden tools, words the answer must or mustn't have, the off-topic verdict; "right tool, wrong input" counted apart from "wrong tool"; tested)
 - [ ] **8.7** Run report: accuracy, cost, time; saved to a file.
 - [ ] **8.8** Grow to 100 cases, including off-topic and prompt-injection cases.
 - [ ] **8.9** Flash-Lite judges answer quality on a small subset.
