@@ -95,3 +95,24 @@ test("7.3: the language picker sets the language the browser listens for", async
   await chat.getByRole("button", { name: "Ask by voice in Hindi" }).click();
   expect((await speech(page)).lang).toBe("hi-IN");
 });
+
+test("7.4: while it listens, the box and the mic show it (the pulsing animation)", async ({ page }) => {
+  await fakeSpeech(page);
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  await chat.getByRole("button", { name: /Ask by voice/ }).click();
+  await expect(chat.locator(".as-inputbox")).toHaveClass(/is-listening/);
+  await expect(chat.getByLabel("Your question")).toHaveAttribute("placeholder", "Listening…");
+  await expect(chat.locator(".as-voice")).toHaveClass(/is-on/);
+});
+
+test("7.4: if the browser blocks the microphone, the chat says how to allow it", async ({ page }) => {
+  await fakeSpeech(page, { fail: "not-allowed" });
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  await chat.getByRole("button", { name: /Ask by voice/ }).click();
+  await expect(chat.getByRole("alert")).toContainText("The microphone is blocked for this site");
+  await expect(chat.locator(".as-inputbox")).not.toHaveClass(/is-listening/);
+});

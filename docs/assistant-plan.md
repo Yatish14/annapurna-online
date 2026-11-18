@@ -182,7 +182,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **7.1** Show the mic only where the browser supports speech recognition. (built with the mockup (`Composer.tsx`): the mic is checked for in the browser after the first render; where speech recognition is missing (Firefox), blocked (Brave) or the page isn't secure, the mic is greyed out but still tappable, to say why instead of doing nothing. `tests/voice.spec.ts` replaces the browser's speech recognition with one the test drives)
 - [x] **7.2** Mic button: start/stop, words appear live in the box. (interim results: each result replaces the words heard so far, after what was already typed; tested)
 - [x] **7.3** Language picker: English, Telugu, Hindi. (EN / TE / HI menu, Telugu by default; the browser is told `en-IN`, `te-IN` or `hi-IN`; tested)
-- [ ] **7.4** Listening animation; message if mic permission is denied.
+- [x] **7.4** Listening animation; message if mic permission is denied. (a red box and a pulsing ring round the mic while listening; each browser error code in plain words, e.g. "not-allowed" says how to allow the mic; tested)
 - [ ] **7.5** Choose: send automatically, or edit first.
 - [ ] **7.6** Test on a real phone using the deployed HTTPS URL (the mic doesn't work on `http://192.168…`). *Learn: secure contexts.*
 - [ ] **7.7** Reply in the language you spoke.
