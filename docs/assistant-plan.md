@@ -211,7 +211,7 @@ follow-ups need row labels, sentences with numbers come from our code. (Design d
 
 - [x] **9.1** Choose how strict: only "shown to the admin", **status** (found / none / too many / failed, recommended), (**status**, as recommended: the model gets found / none / too many / failed, row counts, row and booking numbers, trip statuses and dates, missing field names and our own fixed notes; never names, phones, amounts, notes or file names. Booking numbers stay: not personal, and they make follow-ups work. `docs/assistant-privacy.md`)
       or non-personal totals too.
-- [ ] **9.2** `ASSISTANT_PRIVACY=strict`: tools return LangChain's `content_and_artifact`. The model gets the
+- [x] **9.2** `ASSISTANT_PRIVACY=strict`: tools return LangChain's `content_and_artifact`. The model gets the (one place, after the tools run: the graph's tools node swaps each ToolMessage's content for `strictContent` (`lib/assistant/privacy.ts`) and keeps the artifact for the cards, so no tool was rewritten. In strict mode every tool has a card (booking, month, vehicles, drivers, printouts), and a draft that isn't ready gets a card saying why; the model gets fixed notes we wrote. Tested both ways on a booking with a name, phone and total to spot)
       status, the screen gets the rows. *Learn: separating what the model sees from what the user sees.*
 - [ ] **9.3** No database values in the prompt (e.g. the admin's first name from 1.5 is left out in this mode).
 - [ ] **9.4** Anonymous row labels ("result A, row 2") so follow-ups like "call the second one" still work.

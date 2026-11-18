@@ -2,6 +2,7 @@ import { tripsHref } from "@/app/admin/expenses/views";
 import { fmtShort } from "@/lib/dates";
 import { formatRupees } from "@/lib/expenses/money";
 import { TRIP_VIEWS, type TripView } from "@/lib/expenses/trips";
+import { isStrict } from "./privacy";
 import type { ToolResult } from "./tools/result";
 import type { BookingRow, Card } from "./types";
 
@@ -213,8 +214,119 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
 };
 
 /** The card for one finished tool call, or null. Never throws: a broken card mustn't break the answer. */
+// ---------- Privacy-first mode's extra cards (Step 9) ----------
+//
+// In strict mode the model can't read results out, so every tool needs a card, and a draft that can't be made yet
+// needs one saying why (the model only gets a fixed "the reason is on a card"). Normal mode is unchanged.
+
+type Num = number | null | undefined;
+const rupees = (n: Num) => (n === null || n === undefined ? "—" : formatRupees(n));
+const str = (v: unknown) => (v === null || v === undefined || v === "" ? "—" : String(v));
+/** The tool's note for the admin: our instructions to the model ("Ask the admin…", "(never fill it in…)") left out */
+const forAdmin = (note = "") =>
+  note
+    .replace(/\([^)]*\)/g, "")
+    .split(/(?<=\.)\s+/)
+    .filter((s) => !/^(Ask|Tell|Never|Call|When they)\b/.test(s.trim()))
+    .join(" ")
+    .trim();
+
+const STRICT_CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | null> = {
+  get_booking: (_args, { data }) => {
+    const b = data as Record<string, unknown> & { [k: string]: Num | string };
+    return {
+      kind: "stats",
+      title: `${b.no} · ${str(b.customer)}`,
+      items: [
+        { label: "Phone", value: str(b.customer_phone) },
+        { label: "Dates", value: str(b.dates) },
+        { label: "Route", value: str(b.route) },
+        { label: "Vehicle · driver", value: `${str(b.vehicle)} · ${str(b.driver)}` },
+        { label: "Status", value: `${str(b.status)} · ${str(b.payment)}` },
+        { label: "Total", value: rupees(b.total as Num) },
+        { label: "Received", value: rupees(b.received as Num), tone: "green" },
+        { label: "Balance", value: rupees(b.balance as Num), tone: Number(b.balance) > 0 ? "red" : undefined },
+        { label: "Driver amount · still owed", value: `${rupees(b.driver_amount as Num)} · ${rupees(b.driver_owed as Num)}` },
+        { label: "Profit so far", value: rupees(b.profit_so_far as Num), tone: "gold" },
+      ],
+    };
+  },
+  month_overview: (_args, { data }) => {
+    const m = data as { month: string; money_in: number; money_out: number; net: number; bookings: number; km: number; billed: number };
+    return {
+      kind: "stats",
+      title: `${m.month}: cash`,
+      items: [
+        { label: "Money in", value: rupees(m.money_in), tone: "green" },
+        { label: "Money out", value: rupees(m.money_out), tone: "red" },
+        { label: "Net", value: rupees(m.net), tone: m.net < 0 ? "red" : "navy" },
+        { label: "Bookings starting", value: str(m.bookings) },
+        { label: "Billed", value: rupees(m.billed) },
+        { label: "Km", value: str(m.km) },
+      ],
+    };
+  },
+  vehicle_summary: (_args, { data }) => {
+    const d = data as { month?: string; vehicles: { vehicle: string; all_time: { bookings: number; km: number }; month?: { bookings: number; km: number; profit: number } | null }[] };
+    return {
+      kind: "stats",
+      title: d.month ? `Vehicles in ${d.month}` : "Vehicles",
+      items: d.vehicles.map((v) => ({
+        label: v.vehicle,
+        value: v.month
+          ? `${v.month.bookings} bookings · ${v.month.km ?? 0} km · profit ${rupees(v.month.profit)}`
+          : `${v.all_time.bookings} bookings · ${v.all_time.km ?? 0} km in all`,
+      })),
+    };
+  },
+  driver_summary: (_args, { data }) => {
+    const d = data as { month?: string; drivers: { driver: string; we_owe_them: number; month?: { bookings: number; earned: number; owed_for_those: number } | null }[] };
+    return {
+      kind: "stats",
+      title: d.month ? `Drivers in ${d.month}` : "Drivers",
+      items: d.drivers.map((x) => ({
+        label: x.driver,
+        value: x.month
+          ? `${x.month.bookings} bookings · earned ${rupees(x.month.earned)} · still owed ${rupees(x.month.owed_for_those)}`
+          : `still owed ${rupees(x.we_owe_them)}`,
+      })),
+    };
+  },
+  print_orders: (_args, { data }) => {
+    const d = data as { total: number; orders: { no: string; customer: string | null; status: string; files: unknown[] }[] };
+    return {
+      kind: "stats",
+      title: `Printouts (${d.orders.length < d.total ? `${d.orders.length} of ${d.total}` : d.total})`,
+      items: d.orders.map((o) => ({ label: `${o.no} · ${o.customer ?? "no name"}`, value: `${o.status} · ${o.files.length} file${o.files.length === 1 ? "" : "s"}` })),
+    };
+  },
+};
+
+/** A draft that isn't ready, in strict mode: why, and the choices, for the admin to answer in the chat */
+function strictDraftProblem(result: ToolResult<unknown>): Card {
+  const data = (result.data ?? {}) as { ask_about?: { about: string; why: string; choices?: string[] }[] };
+  const questions = data.ask_about ?? [];
+  return {
+    kind: "stats",
+    title: questions.length ? "Which one?" : "Needs your answer",
+    items: [
+      ...(questions.length ? [] : [{ label: "Why", value: forAdmin(result.note) || "It didn't pass the form's checks." }]),
+      ...questions.map((q) => ({ label: `${q.why}`, value: q.choices?.length ? q.choices.join("  ·  ") : "Type it in the chat" })),
+    ],
+  };
+}
+
 export function cardFor(tool: string, args: Args, artifact: unknown): Card | null {
   const result = artifact as ToolResult<unknown> | undefined;
+  if (isStrict() && result && result.status === "failed" && tool.startsWith("draft_")) return strictDraftProblem(result);
+  if (isStrict() && result?.data && result.status !== "failed" && result.status !== "none" && STRICT_CARDS[tool]) {
+    try {
+      return STRICT_CARDS[tool](args, result);
+    } catch (err) {
+      console.error(`Annapurna Assist: couldn't make a card for ${tool}`, err);
+      return null;
+    }
+  }
   if (!result || result.status === "failed" || result.status === "none" || !result.data) return null;
   try {
     return CARDS[tool]?.(args, result) ?? null;

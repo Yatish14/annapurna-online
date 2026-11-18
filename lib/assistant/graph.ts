@@ -1,9 +1,11 @@
-import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
+import { AIMessage, type BaseMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { type BaseCheckpointSaver, END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt";
 import { mainModel } from "./model";
+import { isStrict, strictContent } from "./privacy";
+import type { ToolResult } from "./tools/result";
 import { TOOLS } from "./tools";
 
 /**
@@ -89,12 +91,35 @@ export function buildGraph(maxRounds = MAX_TOOL_ROUNDS, checkpointer?: BaseCheck
     return toolsCondition(state);
   }
 
+  /**
+   * The "tools" node: LangGraph's ready-made ToolNode runs each tool call in the model's last message (checking the
+   * inputs against the tool's zod schema first) and adds a ToolMessage per result. In privacy-first mode (Step 9)
+   * each ToolMessage's content, what the model reads, is swapped for strictContent (lib/assistant/privacy.ts); its
+   * artifact, the full result the cards are made from, stays whole and never goes to the model.
+   */
+  const toolNode = new ToolNode(TOOLS);
+  async function runTools(state: typeof MessagesAnnotation.State, config: RunnableConfig) {
+    const out = (await toolNode.invoke(state, config)) as { messages: BaseMessage[] };
+    if (!isStrict()) return out;
+    return {
+      messages: out.messages.map((m) =>
+        ToolMessage.isInstance(m)
+          ? new ToolMessage({
+              content: strictContent(m.name ?? "", m.text, m.artifact as ToolResult<unknown> | undefined),
+              artifact: m.artifact,
+              tool_call_id: m.tool_call_id,
+              name: m.name,
+              status: m.status,
+            })
+          : m,
+      ),
+    };
+  }
+
   return (
     new StateGraph(MessagesAnnotation)
       .addNode("model", callModel)
-      // LangGraph's ready-made tools node: for each tool call in the model's last message, it checks the inputs
-      // against the tool's zod schema, runs the tool, and adds a ToolMessage with the result
-      .addNode("tools", new ToolNode(TOOLS))
+      .addNode("tools", runTools)
       .addEdge(START, "model")
       // After the model: toolsCondition looks at its last message. Tool calls → "tools"; none → END (the answer).
       // afterModel also says END once the rounds are used up.
