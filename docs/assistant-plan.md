@@ -213,7 +213,7 @@ follow-ups need row labels, sentences with numbers come from our code. (Design d
       or non-personal totals too.
 - [x] **9.2** `ASSISTANT_PRIVACY=strict`: tools return LangChain's `content_and_artifact`. The model gets the (one place, after the tools run: the graph's tools node swaps each ToolMessage's content for `strictContent` (`lib/assistant/privacy.ts`) and keeps the artifact for the cards, so no tool was rewritten. In strict mode every tool has a card (booking, month, vehicles, drivers, printouts), and a draft that isn't ready gets a card saying why; the model gets fixed notes we wrote. Tested both ways on a booking with a name, phone and total to spot)
       status, the screen gets the rows. *Learn: separating what the model sees from what the user sees.*
-- [ ] **9.3** No database values in the prompt (e.g. the admin's first name from 1.5 is left out in this mode).
+- [x] **9.3** No database values in the prompt (e.g. the admin's first name from 1.5 is left out in this mode). (in strict mode the admin's first name is left out, and a "Privacy mode (on)" section after the fixed rules (so the cached start stays the same) says the details are on cards it can't see and never to guess them; tested)
 - [ ] **9.4** Anonymous row labels ("result A, row 2") so follow-ups like "call the second one" still work.
 - [ ] **9.5** Drafts: the customer's name and phone are typed into the card, not the chat.
 - [ ] **9.6** A note under the chat box: what you type or say is sent to Google (voice uses Google's speech service).

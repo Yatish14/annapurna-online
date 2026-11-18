@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 import { query } from "@/lib/db";
 import { cardFor } from "@/lib/assistant/cards";
 import { graph } from "@/lib/assistant/graph";
+import { systemPrompt } from "@/lib/assistant/prompt";
 
 /**
  * Step 9: privacy-first mode (ASSISTANT_PRIVACY=strict). The fake model asks for tools by name ([tool:…]), the real
@@ -95,4 +96,13 @@ test("strict mode: a draft that isn't ready tells the model what's missing, and 
   const card = cardFor("draft_fuel", {}, fuel.artifact);
   expect(card).toMatchObject({ kind: "stats", title: "Which one?" });
   expect(JSON.stringify(card)).toContain("Privacy Test Car");
+});
+
+test("strict mode: the admin's name stays out of the prompt, and the prompt explains the cards (9.3)", () => {
+  expect(systemPrompt({ firstName: "Asha" })).toContain("You're talking to Asha.");
+  expect(systemPrompt({ firstName: "Asha" })).not.toContain("Privacy mode (on)");
+  process.env.ASSISTANT_PRIVACY = "strict";
+  const strict = systemPrompt({ firstName: "Asha" });
+  expect(strict).not.toContain("Asha");
+  expect(strict).toContain("Privacy mode (on)");
 });
