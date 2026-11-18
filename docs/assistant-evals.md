@@ -90,6 +90,26 @@ off-topic 12, Telugu 7, Hindi 3, two-tool 3, injections 8.
   `search_help` (looking for drivers and the Seltos's seats) before asking which driver. The graders allow extra
   calls; only a forbidden or missing tool fails a case.
 
+## The AI judge (8.9)
+
+Code can check which tool was called; it can't tell whether an answer is right. `npm run eval:judge` (`evals/judge.ts`)
+asks Flash-Lite to score 12 answers from the last real run: correct (every fact matches the tool results), complete
+(answers the question), and style (the question's language, short, ₹ format). The judge sees the tool results again:
+the recorded tool calls are replayed on the eval database, so it reads what the assistant read.
+
+**A judge needs testing too.** Two answers are spoiled on purpose: one with a made-up total (₹9,87,654), one in English
+for a Telugu question. A judge that passes those isn't worth its scores.
+
+| Answers judged | Good | Spoiled answers caught |
+|---|---|---|
+| 12 (bookings, money, a draft, help, Telugu, Hindi, the injection) | **12** | **2 of 2** |
+
+The first try marked a correct help answer "made up". The cause was the judge's own setup, not the assistant: it
+embedded the question with the fake embeddings and searched guides embedded by Gemini. Vectors from two different
+models can't be compared, so the search found nothing, and the judge saw an answer with no source. The same mistake
+made another help answer look like "general knowledge". Fixed: the judge uses the same embeddings as the guides.
+Lesson: check the judge's inputs before trusting its verdicts.
+
 ## Optional, not done
 
 - **8.13 LangSmith tracing.** LangChain sends a trace of every run to LangSmith by itself when `LANGSMITH_TRACING=true`

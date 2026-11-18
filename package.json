@@ -20,7 +20,8 @@
     "kb:ingest": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-paths.mjs scripts/kb-ingest.ts",
     "kb:eval": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-paths.mjs scripts/kb-eval.ts",
     "eval:setup": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-paths.mjs evals/setup.ts",
-    "eval": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-paths.mjs evals/run.ts"
+    "eval": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-paths.mjs evals/run.ts",
+    "eval:judge": "node --env-file-if-exists=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/ts-paths.mjs evals/judge.ts"
   },
   "dependencies": {
     "@langchain/core": "^1.3.4",
