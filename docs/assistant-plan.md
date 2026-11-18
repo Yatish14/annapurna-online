@@ -209,7 +209,7 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 The model never sees database data; it only chooses tools. Trade-offs: no open-ended analysis of the data,
 follow-ups need row labels, sentences with numbers come from our code. (Design decision 6.)
 
-- [ ] **9.1** Choose how strict: only "shown to the admin", **status** (found / none / too many / failed, recommended),
+- [x] **9.1** Choose how strict: only "shown to the admin", **status** (found / none / too many / failed, recommended), (**status**, as recommended: the model gets found / none / too many / failed, row counts, row and booking numbers, trip statuses and dates, missing field names and our own fixed notes; never names, phones, amounts, notes or file names. Booking numbers stay: not personal, and they make follow-ups work. `docs/assistant-privacy.md`)
       or non-personal totals too.
 - [ ] **9.2** `ASSISTANT_PRIVACY=strict`: tools return LangChain's `content_and_artifact`. The model gets the
       status, the screen gets the rows. *Learn: separating what the model sees from what the user sees.*
