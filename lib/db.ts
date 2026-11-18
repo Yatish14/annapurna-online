@@ -45,9 +45,11 @@ async function connect(): Promise<QueryFn> {
   if (kind === "pglite") {
     const { PGlite } = await import("@electric-sql/pglite");
     const { btree_gist } = await import("@electric-sql/pglite/contrib/btree_gist");
+    // pgvector, for the help guides' embeddings (Step 6): a separate package for PGlite, built in on Docker's image and Neon
+    const { vector } = await import("@electric-sql/pglite-pgvector");
     const dir = url.slice("pglite:".length) || "./.data/pglite";
     await mkdir(dir, { recursive: true }); // PGlite doesn't create missing parent folders
-    const db = await PGlite.create(dir, { extensions: { btree_gist } });
+    const db = await PGlite.create(dir, { extensions: { btree_gist, vector } });
     await db.exec(await readFile(path.join(process.cwd(), "db", "schema.sql"), "utf8"));
     return async (text, params) => (await db.query<Row>(text, params)).rows;
   }

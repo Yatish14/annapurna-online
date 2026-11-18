@@ -5,8 +5,8 @@ const noIndex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
 const nextConfig: NextConfig = {
   // The tests' server builds into its own folder (playwright.config.ts), so it can run next to `npm run dev`
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  // PGlite (local dev database) ships WASM files and must not be bundled
-  serverExternalPackages: ["@electric-sql/pglite"],
+  // PGlite (local dev database) ships WASM files and must not be bundled; nor its pgvector extension (a .tar.gz it loads)
+  serverExternalPackages: ["@electric-sql/pglite", "@electric-sql/pglite-pgvector"],
   // The expense statement PDF reads its font files from assets/fonts at run time
   outputFileTracingIncludes: {
     "/admin/expenses/bookings/**": ["./assets/fonts/**/*"],

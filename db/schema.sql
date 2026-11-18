@@ -438,3 +438,28 @@ CREATE TABLE IF NOT EXISTS assistant_messages (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS assistant_messages_chat_idx ON assistant_messages (chat_id, id);
+
+-- ---------- Annapurna Assist's help guides (Step 6, RAG) ----------
+-- pgvector: a column type for embeddings (lists of numbers) and operators to compare them. Neon and the Docker image
+-- (pgvector/pgvector) have it built in; PGlite loads it from @electric-sql/pglite-pgvector (lib/db.ts).
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- The guides in knowledge/*.md, split at their headings (one row per section), each with its embedding.
+-- Filled by `npm run kb:ingest` (scripts/kb-ingest.ts), never by the app. Not business data: the same help text for
+-- everyone, so no user_id.
+CREATE TABLE IF NOT EXISTS kb_chunks (
+  id          bigserial    PRIMARY KEY,
+  -- The file it came from, e.g. 'fuel-and-expenses.md', and the guide's title (its "# " heading)
+  source      text         NOT NULL,
+  guide       text         NOT NULL,
+  -- The section's heading ("## …"), and where it is in the file (0, 1, 2…), to show sections in order
+  section     text         NOT NULL,
+  position    int          NOT NULL,
+  -- What was embedded: the guide and section titles, then the section's text
+  text        text         NOT NULL,
+  -- A fingerprint of the text and the embedding settings: an unchanged section isn't embedded again (6.6)
+  hash        text         NOT NULL UNIQUE,
+  -- 768 numbers from gemini-embedding-2 (lib/assistant/kb/embeddings.ts, DIMENSIONS)
+  embedding   vector(768)  NOT NULL,
+  created_at  timestamptz  NOT NULL DEFAULT now()
+);

@@ -3,7 +3,10 @@
 # and survives restarts; the real data stays on Neon and is never touched.
 services:
   postgres:
-    image: postgres:17-alpine
+    # Postgres 17 with pgvector (the help guides' embeddings, Step 6). Was postgres:17-alpine until 18 Nov 2026;
+    # the data folder is the same Postgres 17 format, but after switching run `npm run db:fresh` once (Alpine and
+    # Debian sort text slightly differently, which can upset existing text indexes).
+    image: pgvector/pgvector:0.8.6-pg17
     container_name: annapurna-postgres
     restart: unless-stopped
     environment:
