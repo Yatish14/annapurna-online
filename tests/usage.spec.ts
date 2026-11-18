@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 import { query } from "@/lib/db";
 import { graph } from "@/lib/assistant/graph";
 import { isOnTopic } from "@/lib/assistant/guard";
+import { callCostUsd, formatInr, questionCostInr, USD_INR } from "@/lib/assistant/prices";
 import { logRequest, UsageRecorder } from "@/lib/assistant/requestLog";
 import { writeTitle } from "@/lib/assistant/titles";
 
@@ -47,4 +48,29 @@ test("one recorder hears every model call a question makes, each with its purpos
   await query("DELETE FROM assistant_chats WHERE id = $1", [chatId]);
   const [kept] = await query<{ n: number }>("SELECT count(*)::int AS n FROM assistant_requests WHERE user_id = $1 AND chat_id IS NULL", [owner.id]);
   expect(kept.n).toBeGreaterThanOrEqual(1);
+});
+
+test("the cost calculator prices each call by its model and day, cached input at the cached price (8.2)", () => {
+  // The real check from 8.1: two Flash-Lite calls of about 5,500 tokens in, the second mostly cached
+  const calls = [
+    { model: "gemini-3.5-flash-lite", purpose: "answer" as const, input: 5518, output: 17, cached: 0, thinking: 0 },
+    { model: "gemini-3.5-flash-lite", purpose: "answer" as const, input: 5605, output: 18, cached: 2009, thinking: 0 },
+  ];
+  // (5518 × 0.30 + 17 × 2.50) / 1M = $0.0016979; (3,596 × 0.30 + 2,009 × 0.03 + 18 × 2.50) / 1M = $0.00118407
+  expect(callCostUsd(calls[0], "2026-11-18")).toBeCloseTo(0.0016979, 9);
+  expect(callCostUsd(calls[1], "2026-11-18")).toBeCloseTo(0.00118407, 9);
+  const { inr, complete } = questionCostInr(calls, "2026-11-18");
+  expect(complete).toBe(true);
+  expect(inr).toBeCloseTo((0.0016979 + 0.00118407) * USD_INR, 9);
+  expect(formatInr(inr)).toBe(USD_INR === 95 ? "₹0.27" : formatInr(inr));
+
+  // 3.8 Flash doubles on 1 Jan 2027; the day decides
+  const flash = { model: "gemini-3.8-flash", input: 1_000_000, output: 0, cached: 0 };
+  expect(callCostUsd(flash, "2026-12-31")).toBeCloseTo(0.75, 9);
+  expect(callCostUsd(flash, "2027-01-01")).toBeCloseTo(1.5, 9);
+  // The fake is priced as Flash-Lite; an unknown model makes the total incomplete instead of wrong
+  expect(callCostUsd({ model: "fake", input: 1_000_000, output: 0, cached: 0 }, "2026-11-18")).toBeCloseTo(0.3, 9);
+  expect(questionCostInr([{ ...calls[0], model: "some-new-model" }], "2026-11-18").complete).toBe(false);
+  expect(formatInr(0.0042)).toBe("₹0.0042");
+  expect(formatInr(1234.5)).toBe("₹1,234.50");
 });
