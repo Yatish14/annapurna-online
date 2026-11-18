@@ -80,3 +80,18 @@ test("7.2: the mic starts and stops, and the words appear in the box while you s
   await expect(box).toHaveValue("Show me today's bookings");
   expect((await speech(page)).started).toBe(1);
 });
+
+test("7.3: the language picker sets the language the browser listens for", async ({ page }) => {
+  await fakeSpeech(page);
+  await signIn(page, "admin");
+  await page.goto("/admin/assistant");
+  const chat = fullPage(page);
+  // Telugu unless another is picked
+  await chat.getByRole("button", { name: "Ask by voice in Telugu" }).click();
+  expect((await speech(page)).lang).toBe("te-IN");
+  await page.evaluate(() => (window as unknown as { __end(): void }).__end());
+  await chat.getByRole("button", { name: /Language you'll speak/ }).click();
+  await chat.getByRole("menuitemradio", { name: /Hindi/ }).click();
+  await chat.getByRole("button", { name: "Ask by voice in Hindi" }).click();
+  expect((await speech(page)).lang).toBe("hi-IN");
+});
