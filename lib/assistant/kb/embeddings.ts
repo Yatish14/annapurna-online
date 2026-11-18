@@ -20,8 +20,14 @@ export const EMBEDDING_MODEL = "gemini-embedding-2";
  */
 export const DIMENSIONS = 768;
 
-/** Google takes at most 100 texts per batch request */
-const BATCH = 100;
+/**
+ * Texts per batch request, and the wait between batches. Google takes up to 100 texts in one request, but the free
+ * tier counts **each text** as one of its 100 embedding requests a minute (found 18 Nov 2026: one batch of the
+ * guides' 104 sections failed with 429). So: 50 at a time, half a minute apart, which stays under 100 a minute.
+ */
+const BATCH = 50;
+const BATCH_PAUSE_MS = 31_000;
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * What the text is for. The model embeds a question a little differently from the text that answers it, which
@@ -42,10 +48,11 @@ export class GeminiEmbeddings extends Embeddings {
     this.taskType = options.taskType;
   }
 
-  /** Many texts at once, in batches of 100: one request per batch, not per text */
+  /** Many texts at once, in batches of 50: one request per batch, paced for the free tier's limit (BATCH above) */
   async embedDocuments(texts: string[]): Promise<number[][]> {
     const vectors: number[][] = [];
     for (let i = 0; i < texts.length; i += BATCH) {
+      if (i > 0) await wait(BATCH_PAUSE_MS);
       vectors.push(...(await this.caller.call(() => this.batch(texts.slice(i, i + BATCH), this.taskType ?? "RETRIEVAL_DOCUMENT"))));
     }
     return vectors;
