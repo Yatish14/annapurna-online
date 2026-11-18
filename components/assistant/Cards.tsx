@@ -73,6 +73,9 @@ function BookingsCard({ card }: { card: CardOf<"bookings"> }) {
   );
 }
 
+/** A value that's words, not an amount or a short count */
+const isWords = (value: string) => value.length > 9 && !/^[−-]?₹/.test(value);
+
 function StatsCard({ card }: { card: CardOf<"stats"> }) {
   return (
     <section className="as-card">
@@ -81,7 +84,8 @@ function StatsCard({ card }: { card: CardOf<"stats"> }) {
       </header>
       <div className="xp-sumtiles as-stats">
         {card.items.map((s) => (
-          <div key={s.label} className={`xp-sumtile ${s.tone ? `is-${s.tone}` : ""}`}>
+          // Words (a route, a phone, "Innova · Suresh") in a smaller plain font: the big one is made for amounts
+          <div key={s.label} className={`xp-sumtile ${s.tone ? `is-${s.tone}` : ""} ${isWords(s.value) ? "is-words" : ""}`}>
             <span>{s.label}</span>
             <strong>{s.value}</strong>
           </div>

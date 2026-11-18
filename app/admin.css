@@ -1261,6 +1261,7 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .as-card .xp-table .is-text { text-align: left; }
 .as-stats { margin: 0; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 .as-stats .xp-sumtile { box-shadow: none; }
+.as-stats .xp-sumtile.is-words strong { font-family: inherit; font-size: .95rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
 
 .as-draft { border-color: rgba(201,162,74,.5); background: linear-gradient(180deg, #fffcf4, var(--surface) 60%); }
 .as-draft.is-confirmed { border-color: rgba(15,122,82,.3); background: var(--surface); }
