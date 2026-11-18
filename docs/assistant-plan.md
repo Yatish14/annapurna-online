@@ -184,12 +184,12 @@ Checked on 5 Nov 2026: `gemini-2.5-flash` and `gemini-2.5-pro` shut down on 1 De
 - [x] **7.3** Language picker: English, Telugu, Hindi. (EN / TE / HI menu, Telugu by default; the browser is told `en-IN`, `te-IN` or `hi-IN`; tested)
 - [x] **7.4** Listening animation; message if mic permission is denied. (a red box and a pulsing ring round the mic while listening; each browser error code in plain words, e.g. "not-allowed" says how to allow the mic; tested)
 - [x] **7.5** Choose: send automatically, or edit first. (a "Send when I stop talking" switch in the language menu, off by default (speech-to-text gets names and numbers wrong, so checking first is safer); remembered in this browser; tested)
-- [ ] **7.6** Test on a real phone using the deployed HTTPS URL (the mic doesn't work on `http://192.168…`). *Learn: secure contexts.* (Not done yet: it needs the site online over HTTPS (10.1) and a real phone. The mic already explains the problem on an insecure page, tested in 7.1.)
+- [ ] **7.6** Test on a real phone using the deployed HTTPS URL (the mic doesn't work on `http://192.168…`). *Learn: secure contexts.* (Not done yet: it needs the site online over HTTPS (10.1) and a real phone. On an insecure page the mic already says why it can't listen, from the mockup.)
 - [x] **7.7** Reply in the language you spoke. (the chat sends the mic's language with a spoken question (`lib/assistant/voice.ts`); the route accepts only en-IN, te-IN or hi-IN, only for a spoken question, and the prompt says to reply in it, in its own script, even if speech-to-text mixed in English words. Real check: Telugu typed in English letters ("nuvvu emi cheyagalavu") got a Telugu reply with and without the line, so it's a safeguard; tested)
 
 ## Step 8 — Evals, cost and tracing
 
-- [ ] **8.1** Usage table: tokens, cost, response time per request.
+- [x] **8.1** Usage table: tokens, cost, response time per request. (`assistant_requests`, one row per question: every model call (answer, off-topic check, title) with its model, input, output, cached and thinking tokens, the tools called, the outcome, time to the first word and to the end. A LangChain callback handler (`UsageRecorder`, `lib/assistant/requestLog.ts`) hears every call, however deep in the graph. Real check: a date question made two calls of about 5,500 input tokens each; the second had 2,009 cached)
 - [ ] **8.2** Cost calculator: what each question would cost in rupees on a paid model (price table).
 - [ ] **8.3** Usage page for super admin.
 - [ ] **8.4** First 20 cases in `evals/cases.jsonl`: question → expected tool and inputs.

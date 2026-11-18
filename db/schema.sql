@@ -476,3 +476,30 @@ CREATE INDEX IF NOT EXISTS kb_chunks_embedding_idx ON kb_chunks USING hnsw (embe
 -- or Hindi questions; the vector search still finds those.
 ALTER TABLE kb_chunks ADD COLUMN IF NOT EXISTS words tsvector GENERATED ALWAYS AS (to_tsvector('english', text)) STORED;
 CREATE INDEX IF NOT EXISTS kb_chunks_words_idx ON kb_chunks USING gin (words);
+
+-- ---------- Annapurna Assist's usage log (Step 8) ----------
+-- One row per question: every model call it made (the off-topic check, the answer's turns, the chat title), the
+-- tokens each used, and how long it took. What a question would cost on a paid model is worked out from these when
+-- the usage page shows them (lib/assistant/prices.ts), so a price change never needs the rows rewritten.
+CREATE TABLE IF NOT EXISTS assistant_requests (
+  id             bigserial   PRIMARY KEY,
+  user_id        bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  -- Kept when the chat is deleted: the tokens were still used
+  chat_id        uuid        REFERENCES assistant_chats (id) ON DELETE SET NULL,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  -- answered; off_topic (the check said no, so the main model never ran); stopped (Stop pressed); failed
+  outcome        text        NOT NULL CHECK (outcome IN ('answered', 'off_topic', 'stopped', 'failed')),
+  -- The model that answered (ASSISTANT_MODEL), and every call: [{ "model", "purpose", "input", "output", "cached", "thinking" }]
+  model          text        NOT NULL,
+  calls          jsonb       NOT NULL DEFAULT '[]',
+  -- Totals over the calls, for quick sums. output includes thinking (it's billed as output).
+  input_tokens   int         NOT NULL DEFAULT 0,
+  output_tokens  int         NOT NULL DEFAULT 0,
+  cached_tokens  int         NOT NULL DEFAULT 0,
+  -- The tools the model called, by name, in order
+  tools          text[]      NOT NULL DEFAULT '{}',
+  -- Milliseconds from the question arriving to the first word of the answer, and to its end
+  first_text_ms  int,
+  total_ms       int         NOT NULL
+);
+CREATE INDEX IF NOT EXISTS assistant_requests_time_idx ON assistant_requests (created_at DESC);

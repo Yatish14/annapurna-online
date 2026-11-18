@@ -54,6 +54,21 @@ class FakeModel extends BaseChatModel {
     return "annapurna-fake";
   }
 
+  /** The model name LangChain passes to callbacks (the usage log, 8.1, records it) */
+  getLsParams(options: this["ParsedCallOptions"]) {
+    return { ...super.getLsParams(options), ls_provider: "fake", ls_model_name: "fake" };
+  }
+
+  /**
+   * Pretend token counts, like Gemini's usage_metadata, so the usage log (8.1) has something to record in tests:
+   * about 4 characters a token, the same rough rule as lib/assistant/history.ts. Never real numbers.
+   */
+  private usage(messages: BaseMessage[], text: string, calls: Call[]) {
+    const input = Math.ceil(messages.reduce((n, m) => n + m.text.length, 0) / 4);
+    const output = Math.ceil((text.length + JSON.stringify(calls).length) / 4);
+    return { input_tokens: input, output_tokens: output, total_tokens: input + output };
+  }
+
   /** The graph offers the model its tools. The fake asks for tools by name from the question, so it ignores the list. */
   bindTools(_tools: BindToolsInput[]) {
     return this;
@@ -86,7 +101,7 @@ class FakeModel extends BaseChatModel {
   /** The whole answer at once (used by invoke, e.g. the off-topic check) */
   async _generate(messages: BaseMessage[]): Promise<ChatResult> {
     const { text, calls = [] } = this.script(this.seen(messages));
-    const message = new AIMessage({ content: text, tool_calls: this.toolCalls(calls) });
+    const message = new AIMessage({ content: text, tool_calls: this.toolCalls(calls), usage_metadata: this.usage(messages, text, calls) });
     return { generations: [{ message, text }] };
   }
 
@@ -119,6 +134,8 @@ class FakeModel extends BaseChatModel {
       // Tells listeners about the new piece, as ChatGoogle does: LangGraph's "messages" stream hears it here
       await runManager?.handleLLMNewToken(word, undefined, undefined, undefined, undefined, { chunk });
     }
+    // Last, as Gemini does: an empty piece carrying the token counts; LangChain adds it to the whole reply
+    yield new ChatGenerationChunk({ text: "", message: new AIMessageChunk({ content: "", usage_metadata: this.usage(messages, text, calls) }) });
   }
 }
 

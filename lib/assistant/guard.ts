@@ -1,3 +1,4 @@
+import type { Callbacks } from "@langchain/core/callbacks/manager";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { BUSINESS } from "@/lib/config";
 import { guardModel } from "./model";
@@ -33,13 +34,22 @@ const TIMEOUT_MS = 4000;
  * like "and for 3?" is judged with what it follows. If the check itself fails or is too slow, the answer is
  * "yes": a broken guard shouldn't stop admins working, and the main model still has its scope rules.
  */
-export async function isOnTopic(question: string, earlier: string | undefined, signal: AbortSignal): Promise<boolean> {
+export async function isOnTopic(
+  question: string,
+  earlier: string | undefined,
+  signal: AbortSignal,
+  /** Listeners for the call, e.g. the usage log's recorder (8.1) */
+  callbacks?: Callbacks,
+): Promise<boolean> {
   // The question goes inside tags, so it's clearly the thing being judged, not part of our rules
   const input = `${earlier ? `<earlier>${earlier.slice(0, 500)}</earlier>\n` : ""}<question>${question.slice(0, 2000)}</question>`;
   try {
     const verdict = await guardModel().invoke([new SystemMessage(RULES), new HumanMessage(input)], {
       // Stops when the admin presses Stop, or when the check takes too long
       signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]),
+      // "guard": the usage log counts this call as the off-topic check, not the answer
+      tags: ["guard"],
+      callbacks,
     });
     if (/\bBLOCK\b/i.test(verdict.text)) return false;
     // Neither word (e.g. it ran out of tokens): let it through, but say so, so a broken guard gets noticed

@@ -1,3 +1,4 @@
+import type { Callbacks } from "@langchain/core/callbacks/manager";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { titleModel } from "./model";
 
@@ -30,10 +31,12 @@ export function cleanTitle(reply: string): string | null {
 }
 
 /** Flash-Lite's title for a chat starting with this question, or null if it failed or was too slow */
-export async function writeTitle(question: string): Promise<string | null> {
+export async function writeTitle(question: string, callbacks?: Callbacks): Promise<string | null> {
   try {
     const reply = await titleModel().invoke([new SystemMessage(RULES), new HumanMessage(`<question>${question.slice(0, 1000)}</question>`)], {
       signal: AbortSignal.timeout(TIMEOUT_MS),
+      tags: ["title"], // for the usage log (8.1)
+      callbacks,
     });
     return cleanTitle(reply.text);
   } catch (err) {

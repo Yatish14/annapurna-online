@@ -6,8 +6,9 @@ import { graph, RECURSION_LIMIT } from "@/lib/assistant/graph";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { historyFor } from "@/lib/assistant/history";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
-import { USE_FAKE } from "@/lib/assistant/model";
+import { MAIN_MODEL, USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
+import { logRequest, type Outcome, UsageRecorder } from "@/lib/assistant/requestLog";
 import { titleFrom } from "@/lib/assistant/suggestions";
 import { writeTitle } from "@/lib/assistant/titles";
 import { events, line, NDJSON } from "@/lib/assistant/stream";
@@ -70,13 +71,43 @@ export async function POST(request: Request) {
   }
   // Counted, so it's part of the chat now, whatever happens next
   const save = (m: NewMessage) => addMessage(chat.id, user.id, m);
+  /** The answer as it's made (savedAs saves it when it ends); its tool calls also go in the usage log */
+  const answer: NewMessage = { role: "assistant", text: "", steps: [], cards: [], toolCalls: [] };
+  // The usage log (8.1): every model call this question makes, its tokens, and the time it took. Saved once, when
+  // the question ends however it ends, after the chat title's call has finished too (it runs alongside).
+  const startedAt = Date.now();
+  let firstTextAt: number | null = null;
+  const recorder = new UsageRecorder();
+  let logged = false;
+  const finish = (outcome: Outcome) => {
+    if (logged) return;
+    logged = true;
+    const totalMs = Date.now() - startedAt;
+    void written.finally(() =>
+      logRequest({
+        userId: user.id,
+        chatId: chat.id,
+        outcome,
+        model: MAIN_MODEL,
+        calls: recorder.calls,
+        tools: (answer.toolCalls ?? []).map((c) => c.name),
+        firstTextMs: firstTextAt === null ? null : firstTextAt - startedAt,
+        totalMs,
+      }),
+    );
+  };
+  /** Notes when the first words went out (the wait the admin feels) */
+  const seen = (event: StreamEvent) => {
+    if (event.type === "text" && firstTextAt === null) firstTextAt = Date.now();
+    return event;
+  };
   await save({ role: "user", text: message, voice });
   // A new chat: its first title is its first question, cut short (the same as the chat shows), and Flash-Lite
   // writes a better one alongside the answer (5.5). Saved whatever happens to the answer; sent at its end.
   const newChat = !chat.titled && chat.title === "New chat";
   if (newChat) await setTitle(chat.id, user.id, titleFrom(message), "question");
   const written: Promise<string | null> = newChat
-    ? writeTitle(message)
+    ? writeTitle(message, [recorder])
         .then(async (title) => (title && (await setTitle(chat.id, user.id, title, "writer")) ? title : null))
         .catch(() => null) // a title isn't worth an error: the first question stays
     : Promise.resolve(null);
@@ -91,16 +122,17 @@ export async function POST(request: Request) {
   //    questions. The previous question goes along, so a follow-up like "and for 3?" makes sense.
   //    The "no" is sent like a normal reply, so the chat shows it as the assistant's answer.
   const earlier = history.findLast((m) => m instanceof HumanMessage)?.text;
-  if (!(await isOnTopic(message, earlier, request.signal))) {
+  if (!(await isOnTopic(message, earlier, request.signal, [recorder]))) {
     const text = refusal(message);
     await save({ role: "assistant", text });
+    firstTextAt = Date.now();
+    finish("off_topic");
     return new Response(line({ type: "text", text }) + (await titleLine()), { headers: NDJSON });
   }
 
   // 4. Run the graph (lib/assistant/graph.ts) with our rules first, then the chat so far, then the new question.
   //    `signal` fires if the browser goes away (Stop, tab closed), so the graph and Gemini stop and we don't use
   //    up tokens nobody will read.
-  const answer: NewMessage = { role: "assistant", text: "", steps: [], cards: [], toolCalls: [] };
   let pieces: AsyncIterator<StreamEvent>;
   let first: IteratorResult<StreamEvent>;
   try {
@@ -115,14 +147,18 @@ export async function POST(request: Request) {
         recursionLimit: RECURSION_LIMIT,
         // Who is asking, from the session: tools that keep something for the admin (draft_booking) read it here
         configurable: { userId: user.id },
+        // Every model call in the graph reports its tokens to the usage log (8.1)
+        callbacks: [recorder],
       },
     );
     pieces = savedAs(events(stream as AsyncIterable<[string, unknown]>, (call) => answer.toolCalls!.push(call)), answer, save, request.signal);
     // Wait for the first piece before answering: most failures (bad key, over the free limit) show up here,
     // while we can still send a proper error status. Once the 200 has gone out, the status can't change.
     first = await pieces.next();
+    if (!first.done) seen(first.value);
   } catch (err) {
     // Stop pressed before the first word: not a failure, and nobody is waiting for an answer
+    finish(request.signal.aborted ? "stopped" : "failed");
     if (request.signal.aborted) return new Response(null, { status: 499 });
     // The real reason goes to the server log; the browser gets a message an admin understands
     // (savedAs has already saved the answer with this message)
@@ -138,7 +174,10 @@ export async function POST(request: Request) {
   const reply = new ReadableStream<Uint8Array>({
     // Runs once, straight away: the event we already have (a chip, or the first words)
     start(controller) {
-      if (first.done) return controller.close();
+      if (first.done) {
+        finish("answered");
+        return controller.close();
+      }
       controller.enqueue(encoder.encode(line(first.value)));
     },
     // Runs each time the browser is ready for more: wait for the next event and pass it on
@@ -146,13 +185,15 @@ export async function POST(request: Request) {
       try {
         const { done, value } = await pieces.next();
         if (done) {
+          finish("answered");
           // The answer is finished: a new chat's written title last (usually ready long before)
           const title = await titleLine();
           if (title) controller.enqueue(encoder.encode(title));
           return controller.close();
         }
-        controller.enqueue(encoder.encode(line(value)));
+        controller.enqueue(encoder.encode(line(seen(value))));
       } catch (err) {
+        finish(request.signal.aborted ? "stopped" : "failed");
         // Gemini failed halfway: end the stream with an error, so the browser knows the reply is cut short
         if (!request.signal.aborted) console.error("Annapurna Assist: the reply stopped halfway", err);
         controller.error(err);
@@ -160,6 +201,7 @@ export async function POST(request: Request) {
     },
     // The browser went away: tell Gemini to stop too
     cancel() {
+      finish("stopped");
       pieces.return?.(undefined);
     },
   });
