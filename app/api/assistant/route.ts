@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   if (!chat) return Response.json({ error: "This chat wasn't found. Start a new chat." }, { status: 404 });
   // The chat so far, from the database (lib/assistant/history.ts), read before this question is added to it
   // (the newest turns that fit the token budget, 5.7; `left` older ones didn't, and the model is told)
-  const { messages: history, left } = await historyFor(chat.id, user.id);
+  const { messages: history, left, bookingSoFar } = await historyFor(chat.id, user.id);
   if (!process.env.GOOGLE_API_KEY && !USE_FAKE) {
     return Response.json({ error: "The assistant isn't set up yet: GOOGLE_API_KEY is missing from .env.local." }, { status: 500 });
   }
@@ -145,8 +145,9 @@ export async function POST(request: Request) {
         streamMode: ["messages", "updates"],
         signal: request.signal,
         recursionLimit: RECURSION_LIMIT,
-        // Who is asking, from the session: tools that keep something for the admin (draft_booking) read it here
-        configurable: { userId: user.id },
+        // Who is asking, from the session: tools that keep something for the admin (draft_booking) read it here.
+        // bookingSoFar: the booking the previous answer couldn't draft yet, from this admin's own chat (history.ts)
+        configurable: { userId: user.id, bookingSoFar },
         // Every model call in the graph reports its tokens to the usage log (8.1)
         callbacks: [recorder],
       },

@@ -75,8 +75,77 @@ const CARD_PHONE = "9000000000";
 
 const ask = (note: string, missing: string) => toolReply({ status: "failed", data: { ready: false, missing }, note });
 
+/** What the model passes to draft_booking: the admin's own words, matched and checked by our code */
+const bookingArgs = z.object({
+  customer_name: z.string().max(80).optional(),
+  customer_phone: z.string().max(20).optional().describe("Only the number the admin gave. Never make one up."),
+  vehicle: z.string().max(60).optional().describe('As the admin said it, e.g. "Innova" or "the Carens".'),
+  driver: z.string().max(60).optional().describe('As the admin said it, e.g. "Ramesh".'),
+  start_date: z.string().refine(isIsoDate, "A date like 2026-11-20").optional().describe("YYYY-MM-DD. Use get_today for 'tomorrow', 'next Friday'…"),
+  days: z
+    .number()
+    .int()
+    .min(1)
+    .max(366)
+    .optional()
+    .describe('How many days, when the admin said "for 3 days". Then leave end_date out: the last day is worked out for you.'),
+  end_date: z
+    .string()
+    .refine(isIsoDate, "A date like 2026-11-22")
+    .optional()
+    .describe('YYYY-MM-DD, only when the admin named the last day ("till the 22nd"). Leave out for a one-day booking.'),
+  pickup_city: z.string().max(60).optional(),
+  pickup_state: z.string().max(60).optional().describe("Only if the admin said it; otherwise it's found from the city."),
+  // No default: left out must look different from false, for an earlier attempt's answer to fill it in (withEarlier)
+  round_trip: z
+    .boolean()
+    .optional()
+    .describe(
+      'True ONLY if the admin said "round trip", "return" or that it comes back. "Vijayawada to Tirupati" is one way: false, with Tirupati as drop_city.',
+    ),
+  drop_city: z.string().max(60).optional().describe("Where a one-way trip ends."),
+  drop_state: z.string().max(60).optional(),
+  destination_city: z.string().max(60).optional().describe("Where a round trip goes."),
+  destination_state: z.string().max(60).optional(),
+  total_amount: z.number().nonnegative().optional().describe("Rupees agreed with the customer, if the admin said."),
+  advance_amount: z.number().positive().optional().describe("Rupees the customer has already paid, if any."),
+  advance_method: z.enum(["cash", "upi", "bank", "other"]).optional(),
+  driver_amount: z.number().nonnegative().optional().describe("Rupees agreed with the driver, if the admin said."),
+  notes: z.string().max(500).optional(),
+  driver_is_busy_ok: z.boolean().default(false).describe("True only after the admin said to book a busy driver anyway."),
+});
+type BookingArgs = z.infer<typeof bookingArgs>;
+
+/** Details that go together: when the model gives any of a group, the earlier attempt's others in it aren't used */
+const TOGETHER: (keyof BookingArgs)[][] = [
+  ["start_date", "days", "end_date"],
+  ["pickup_city", "pickup_state"],
+  ["round_trip", "drop_city", "drop_state", "destination_city", "destination_state"],
+];
+
+/**
+ * The model's details, with anything it left out taken from the previous answer's attempt at this booking (the
+ * route passes it as configurable.bookingSoFar, from this admin's own chat: lib/assistant/history.ts). Asked
+ * "which vehicle?", the admin answers "crysta", and the model, rebuilding the call from the chat, can drop the
+ * customer's name and phone given two messages back: our code keeps them, so it isn't the model's memory.
+ * What the model passes always wins. Never carried over: "book the busy driver anyway", which the admin must say
+ * about the driver on this attempt. Everything still goes through the form's checks, and onto the card to confirm.
+ */
+function withEarlier(given: BookingArgs, config: { configurable?: Record<string, unknown> } | undefined): BookingArgs {
+  const parsed = bookingArgs.safeParse(config?.configurable?.bookingSoFar ?? {});
+  if (!parsed.success) return given;
+  const { driver_is_busy_ok: _, ...earlier } = parsed.data;
+  const merged: Record<string, unknown> = { ...given };
+  for (const [key, value] of Object.entries(earlier)) {
+    const group = TOGETHER.find((g) => g.includes(key as keyof BookingArgs)) ?? [key as keyof BookingArgs];
+    if (value !== undefined && group.every((k) => given[k] === undefined)) merged[key] = value;
+  }
+  return merged as BookingArgs;
+}
+
 export const draftBooking = tool(
-  async (a, config) => {
+  async (given, config) => {
+    const a = withEarlier(given, config);
     // A one-way trip given only a "destination": that's where it ends (the model mixed the two up once, costing a turn)
     const dropCity = a.drop_city ?? (a.round_trip ? undefined : a.destination_city);
     const dropState = a.drop_city ? a.drop_state : (a.drop_state ?? a.destination_state);
@@ -197,43 +266,7 @@ export const draftBooking = tool(
       "by name and must be free on those days, each city's state is found, and every required detail is checked. " +
       "It saves nothing: it says what's missing or wrong, or returns the booking ready for the admin to check and " +
       "confirm. Call it again with the missing details when the admin answers.",
-    schema: z.object({
-      customer_name: z.string().max(80).optional(),
-      customer_phone: z.string().max(20).optional().describe("Only the number the admin gave. Never make one up."),
-      vehicle: z.string().max(60).optional().describe('As the admin said it, e.g. "Innova" or "the Carens".'),
-      driver: z.string().max(60).optional().describe('As the admin said it, e.g. "Ramesh".'),
-      start_date: z.string().refine(isIsoDate, "A date like 2026-11-20").optional().describe("YYYY-MM-DD. Use get_today for 'tomorrow', 'next Friday'…"),
-      days: z
-        .number()
-        .int()
-        .min(1)
-        .max(366)
-        .optional()
-        .describe('How many days, when the admin said "for 3 days". Then leave end_date out: the last day is worked out for you.'),
-      end_date: z
-        .string()
-        .refine(isIsoDate, "A date like 2026-11-22")
-        .optional()
-        .describe('YYYY-MM-DD, only when the admin named the last day ("till the 22nd"). Leave out for a one-day booking.'),
-      pickup_city: z.string().max(60).optional(),
-      pickup_state: z.string().max(60).optional().describe("Only if the admin said it; otherwise it's found from the city."),
-      round_trip: z
-        .boolean()
-        .default(false)
-        .describe(
-          'True ONLY if the admin said "round trip", "return" or that it comes back. "Vijayawada to Tirupati" is one way: false, with Tirupati as drop_city.',
-        ),
-      drop_city: z.string().max(60).optional().describe("Where a one-way trip ends."),
-      drop_state: z.string().max(60).optional(),
-      destination_city: z.string().max(60).optional().describe("Where a round trip goes."),
-      destination_state: z.string().max(60).optional(),
-      total_amount: z.number().nonnegative().optional().describe("Rupees agreed with the customer, if the admin said."),
-      advance_amount: z.number().positive().optional().describe("Rupees the customer has already paid, if any."),
-      advance_method: z.enum(["cash", "upi", "bank", "other"]).optional(),
-      driver_amount: z.number().nonnegative().optional().describe("Rupees agreed with the driver, if the admin said."),
-      notes: z.string().max(500).optional(),
-      driver_is_busy_ok: z.boolean().default(false).describe("True only after the admin said to book a busy driver anyway."),
-    }),
+    schema: bookingArgs,
     responseFormat: "content_and_artifact",
   },
 );

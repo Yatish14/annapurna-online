@@ -71,7 +71,23 @@ export type History = {
   messages: BaseMessage[];
   /** How many older questions and answers were left out to stay within the budget (the model is told, 5.7) */
   left: number;
+  /** The details of a booking the previous answer couldn't draft yet (bookingSoFar), for draft_booking */
+  bookingSoFar?: Record<string, unknown>;
 };
+
+/**
+ * What the model passed to draft_booking in the previous answer, when that answer ended without a draft: something
+ * was missing or wrong ("which vehicle?"), so the next question is probably the answer to it. draft_booking fills in
+ * whatever the model leaves out from these (tools/drafts.ts). Without this, the model has to rebuild every detail
+ * from the admin's earlier message, since its own tool calls aren't in its history, and a small model drops some:
+ * asked "which vehicle?", it sent the vehicle but not the customer's name and phone, and asked for them again.
+ * Only the previous answer: anything older, or after a ready draft, starts a new booking.
+ */
+export function bookingSoFar(rows: HistoryRow[]): Record<string, unknown> | undefined {
+  const last = pairs(rows).at(-1)?.[1];
+  if (!last || draftIds(last).length) return undefined;
+  return last.toolCalls?.findLast((c) => c.name === "draft_booking")?.args;
+}
 
 /**
  * The model's history for one of this admin's chats. An answer that showed a draft gets a note on what became of
@@ -79,7 +95,8 @@ export type History = {
  * works. Counted as sent: the cut texts and the notes.
  */
 export async function historyFor(chatId: string, userId: number): Promise<History> {
-  const all = pairs(await chatHistory(chatId, userId));
+  const rows = await chatHistory(chatId, userId);
+  const all = pairs(rows);
   const drafts = await draftsOf(all.slice(-20).flatMap(([, answer]) => draftIds(answer)), userId);
   const turns = all.map(([question, answer]) => {
     const notes = draftIds(answer).flatMap((id) => {
@@ -92,5 +109,5 @@ export async function historyFor(chatId: string, userId: number): Promise<Histor
     };
   });
   const { kept, left } = fitToBudget(turns, (t) => estimateTokens(t.question) + estimateTokens(t.answer));
-  return { messages: kept.flatMap((t) => [new HumanMessage(t.question), new AIMessage(t.answer)]), left };
+  return { messages: kept.flatMap((t) => [new HumanMessage(t.question), new AIMessage(t.answer)]), left, bookingSoFar: bookingSoFar(rows) };
 }

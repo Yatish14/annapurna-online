@@ -1,6 +1,8 @@
 import "./unitDb"; // first: the no-browser tests' own throwaway database
 import { expect, test } from "@playwright/test";
+import type { HistoryRow } from "@/lib/assistant/chatStore";
 import { cancelDraftAs, confirmDraftAs } from "@/lib/assistant/confirm";
+import { bookingSoFar } from "@/lib/assistant/history";
 import { draftBooking } from "@/lib/assistant/tools/drafts";
 import { draftFuel } from "@/lib/assistant/tools/fuel";
 import { draftPayment } from "@/lib/assistant/tools/payments";
@@ -103,6 +105,46 @@ test("a draft never writes: the draft tools change no bookings, payments, fuel o
   const after = await counts();
   for (const t of WATCHED) expect(after[t], t).toBe(before[t]);
   expect(after.assistant_drafts).toBe(before.assistant_drafts + 4);
+});
+
+// A follow-up answer keeps the earlier details: the model's next call needn't repeat them (a chat on 19 Nov 2026:
+// asked "which vehicle?", the admin said "crysta", and the model dropped the customer's name and phone)
+test("a follow-up keeps the details the previous answer's attempt had; what the model passes wins", async () => {
+  const withSoFar = async (args: Record<string, unknown>, soFar: Record<string, unknown>) => {
+    const message = await BOOKING.invoke({ type: "tool_call", id: "t", name: BOOKING.name, args }, { configurable: { userId: admin.id, bookingSoFar: soFar } });
+    return (message as unknown as { artifact: { data: { ready: boolean; missing?: string; booking?: Record<string, string> } } }).artifact.data;
+  };
+  // The first attempt: everything, but a vehicle the fleet doesn't have
+  const first = { ...booking(40), vehicle: "Seltos" };
+  expect((await draft(BOOKING, first)).data.ready).toBe(false);
+  // The answer, alone: ready, with the customer from the first attempt
+  const ready = await withSoFar({ vehicle: "Carens" }, first);
+  expect(ready.ready).toBe(true);
+  expect(ready.booking!.customer).toBe("Draft Test Customer");
+  expect(ready.booking!.route).toContain("Guntur");
+  // What the model passes wins: a new name, and new dates (the earlier days aren't mixed with them)
+  const changed = await withSoFar({ vehicle: "Carens", customer_name: "Someone Else", start_date: inDays(50) }, first);
+  expect(changed.booking!.customer).toBe("Someone Else");
+  expect(changed.booking!.dates).toContain("1 day");
+  // Nothing earlier: the name and phone are still asked for
+  expect((await withSoFar({ vehicle: "Carens", driver: "Test Driver", start_date: inDays(40), pickup_city: "Vijayawada", drop_city: "Guntur" }, {})).missing).toBe("several");
+  // Something earlier that doesn't fit the tool's shape is ignored, not trusted
+  expect((await withSoFar({ vehicle: "Carens" }, { customer_name: 42 })).ready).toBe(false);
+});
+
+test("bookingSoFar: only the previous answer's attempt, and only when it made no draft", () => {
+  const q = (text: string): HistoryRow => ({ role: "user", text, error: null, cards: null });
+  const a = (calls: { name: string; args: Record<string, unknown> }[], cards: HistoryRow["cards"] = null): HistoryRow => ({ role: "assistant", text: "…", error: null, cards, toolCalls: calls });
+  const attempt = { name: "draft_booking", args: { customer_name: "Yatish", vehicle: "Seltos" } };
+  expect(bookingSoFar([q("book…"), a([attempt])])).toEqual(attempt.args);
+  // The latest attempt in that answer
+  expect(bookingSoFar([q("book…"), a([attempt, { name: "draft_booking", args: { vehicle: "Carens" } }])])).toEqual({ vehicle: "Carens" });
+  // A newer answer about something else: a new topic
+  expect(bookingSoFar([q("book…"), a([attempt]), q("who owes us?"), a([{ name: "list_bookings", args: {} }])])).toBeUndefined();
+  // A ready draft: that booking is done, the next one starts fresh
+  const card = [{ kind: "draft", id: "d1" }] as unknown as HistoryRow["cards"];
+  expect(bookingSoFar([q("book…"), a([attempt], card)])).toBeUndefined();
+  expect(bookingSoFar([])).toBeUndefined();
 });
 
 test("Confirm writes exactly once, even pressed five times at the same moment", async () => {
