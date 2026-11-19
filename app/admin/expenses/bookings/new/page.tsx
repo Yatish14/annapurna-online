@@ -6,13 +6,14 @@ import { EMPTY_TRIP, valuesFromDraft } from "@/components/expenses/tripFormValue
 import { getDraft } from "@/lib/assistant/draftStore";
 import { requireUser } from "@/lib/auth";
 import { fleetChoices } from "@/lib/expenses/fleet";
+import { listCustomers } from "@/lib/expenses/trips";
 import type { SearchParams } from "../../../filters";
 
 export const metadata = { title: "New booking · Expense Tracker" };
 
 export default async function NewTripPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser("manageExpenses");
-  const { vehicles, drivers } = await fleetChoices();
+  const [{ vehicles, drivers }, customers] = await Promise.all([fleetChoices(), listCustomers()]);
 
   // ?draft=…: "Open in form" on an Annapurna Assist draft (4.8). The address has only the draft's id; its values
   // come from the server, and only for the admin who asked for it (another admin's draft is "not found").
@@ -57,6 +58,7 @@ export default async function NewTripPage({ searchParams }: { searchParams: Sear
         initial={fill ? valuesFromDraft(fill.fields) : EMPTY_TRIP}
         vehicles={vehicles}
         drivers={drivers}
+        customers={customers}
         cancelHref="/admin/expenses/bookings"
         fromDraft={fill?.id}
       />

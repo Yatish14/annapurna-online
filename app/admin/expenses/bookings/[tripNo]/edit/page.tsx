@@ -6,7 +6,7 @@ import TripForm from "@/components/expenses/TripForm";
 import { EMPTY_TRIP } from "@/components/expenses/tripFormValues";
 import { requireUser } from "@/lib/auth";
 import { fleetChoices } from "@/lib/expenses/fleet";
-import { getTrip } from "@/lib/expenses/trips";
+import { getTrip, listCustomers } from "@/lib/expenses/trips";
 
 type Params = Promise<{ tripNo: string }>;
 
@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Params }) {
 export default async function EditTripPage({ params }: { params: Params }) {
   await requireUser("manageExpenses");
   const { tripNo } = await params;
-  const [trip, { vehicles, drivers }] = await Promise.all([getTrip(decodeURIComponent(tripNo)), fleetChoices()]);
+  const [trip, { vehicles, drivers }, customers] = await Promise.all([getTrip(decodeURIComponent(tripNo)), fleetChoices(), listCustomers()]);
   if (!trip) notFound();
   const back = `/admin/expenses/bookings/${trip.trip_no}`;
   if (trip.status === "cancelled") redirect(`${back}?flash=trip-not-active`);
@@ -63,6 +63,7 @@ export default async function EditTripPage({ params }: { params: Params }) {
         }}
         vehicles={vehicles}
         drivers={drivers}
+        customers={customers}
         cancelHref={back}
       />
     </main>

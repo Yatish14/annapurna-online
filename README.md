@@ -49,11 +49,11 @@ npm run dev
 
 Work on your computer uses **its own database**, never the real data on Neon:
 
-- `.env.local` has `DATABASE_URL=postgresql://annapurna:annapurna_local@localhost:5432/annapurna`, the Postgres in Docker ([docker-compose.yml](docker-compose.yml)). Only this computer can reach it, and its data stays in a Docker volume between restarts.
+- `.env.local` has `DATABASE_URL=postgresql://annapurna:annapurna_local@localhost:5433/annapurna`, the Postgres in Docker ([docker-compose.yml](docker-compose.yml)). Only this computer can reach it, and its data stays in a Docker volume between restarts.
 - The dashboard shows a **Local data** badge in the sidebar (and **Local** on phones) whenever it isn't using Neon. No badge means real data.
 - Safety: `db:fresh`, `db:seed` and `db:seed-expenses` refuse to run if `DATABASE_URL` points at Neon. `db:migrate` and `super-admin` say which database they're using before they start.
-- Another project already using port 5432? Put `ANNAPURNA_DB_PORT=5433` in a `.env` file (Docker Compose reads it; it's kept out of git) and use `localhost:5433` in `DATABASE_URL`.
-- You can open the database in any Postgres app (pgAdmin, DBeaver, the VS Code PostgreSQL extension): host `localhost`, port `5432`, database and user `annapurna`, password `annapurna_local`.
+- The database is on port 5433 (5432 is often another project's Postgres). To use another port, put `ANNAPURNA_DB_PORT=<port>` in a `.env` file (Docker Compose reads it; it's kept out of git) and use the same port in `DATABASE_URL`.
+- You can open the database in any Postgres app (pgAdmin, DBeaver, the VS Code PostgreSQL extension): host `localhost`, port `5433`, database and user `annapurna`, password `annapurna_local`.
 
 | Command | What it does |
 |---|---|
@@ -185,6 +185,8 @@ Records the shop's own vehicle bookings and what each one earned and cost. Separ
 
 - **Vehicles & drivers:** add vehicles (a name, cars only for now) and drivers (name and mobile number) on the list; open one to edit it, switch it off or delete it. One that already has bookings can't be deleted, only switched off: it disappears from new bookings and keeps its history. A driver's page shows what they earned, were paid and are still owed, with each payment and booking; it can be narrowed to **a month** (with arrows to step through months) or **dates from–to**: bookings that start in that time, and payments made in it.
 - **New booking:** customer name and mobile, vehicle, driver, start and end date, pickup state and city, drop state and city, and who referred the customer (optional). For a **round trip** the drop is the pickup city, and the form asks where the vehicle went instead. The city list depends on the state; a place that isn't in the list can be typed in. The total, advance, driver's amount and starting odometer can be entered now or later.
+- **Customer name** (new and edit booking) lists everyone who has booked before, one per mobile number, most recent first, like the city box: type part of a name or number to find them, and picking one fills in their mobile number too. A name that isn't in the list is kept with **+ New customer** (the cursor moves to the mobile number). Under the box it says whether it's an existing customer or a new one.
+- **Customers who still owe** (Overview): 6 bookings per page with page buttons (Page 1 of 2 · 9 bookings), and a search box for the customer's name or mobile number. Searching and changing page keep the month being viewed and your place on the page.
 - **Edit booking:** the same form, including **Money, fuel and km**: the total, driver amount and km show as saved and can be changed. A payment received or fuel filled in there is added as a new entry (the form shows what is received and the fuel so far); correcting or removing an existing payment or cost is done on the booking's page.
 - **Loan (EMI) and insurance**, on the **EMI & insurance** page (all vehicles) and on each vehicle's page:
   - *Loan:* bank or finance company, EMI amount, due day, first and last EMI month. **Mark EMI paid** records a month's EMI (one per month); the page shows EMIs paid, left and still to pay, and whether this month's is paid, due or overdue.

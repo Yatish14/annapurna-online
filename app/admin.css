@@ -543,6 +543,9 @@ button { font: inherit; }
 .ap-search input::-webkit-search-cancel-button { display: none; }
 .ap-search button { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(16,26,51,.08); color: var(--ink-soft); cursor: pointer; }
 .ap-search .ap-link-spinner { margin: 0; color: var(--gold-600); }
+/* Search inside a panel (Overview: customers who still owe) */
+.xp-owedsearch { margin: -4px 0 14px; }
+.xp-owedsearch .ap-search { width: 100%; }
 .ap-searchnote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -4px 0 16px; padding: 10px 14px; border-radius: 12px; background: #fffaf0; border: 1px solid rgba(201,162,74,.3); font-size: .86rem; }
 .ap-searchnote svg { color: var(--gold-600); }
 .ap-searchnote span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -744,6 +747,9 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-combo-list li.is-active { background: #fff6e0; }
 .xp-combo-list li.is-other { margin-top: 4px; border-top: 1px solid var(--line); border-radius: 0 0 9px 9px; color: var(--ink-soft); font-weight: 500; }
 .xp-combo-list li.is-other b { color: var(--gold-600); }
+/* Customer choices: the name, then their number and bookings under it */
+.xp-combo-list li.xp-custopt { display: grid; gap: 1px; }
+.xp-combo-list li.xp-custopt small { font-size: .78rem; font-weight: 500; color: var(--ink-soft); }
 .xp-combo-list .xp-combo-note { cursor: default; font-size: .8rem; font-weight: 600; color: var(--ink-soft); }
 
 /* Badges */
