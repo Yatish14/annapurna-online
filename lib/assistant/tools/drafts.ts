@@ -166,7 +166,12 @@ export const draftBooking = tool(
       !(a.round_trip ? a.destination_city : dropCity) && (a.round_trip ? "where the round trip goes" : "the drop city"),
     ].filter(Boolean);
     if (missing.length) {
-      return ask(`Still needed: ${missing.join(", ")}. Ask the admin for all of these in one short question; never fill them in yourself.`, "several");
+      // "Earlier in the chat" counts: the model once asked again for a name and phone the admin gave two messages back
+      return ask(
+        `Still needed: ${missing.join(", ")}. If the admin already gave any of these earlier in this chat, call again with ` +
+          "them. Otherwise ask the admin for all of them in one short question; never make them up.",
+        "several",
+      );
     }
 
     // 1. Vehicle, driver and places: the admin's words matched by our code (match.ts). Everything unclear is asked
@@ -265,7 +270,8 @@ export const draftBooking = tool(
       "Prepares a NEW car booking and checks it with the booking form's own rules: the vehicle and driver are matched " +
       "by name and must be free on those days, each city's state is found, and every required detail is checked. " +
       "It saves nothing: it says what's missing or wrong, or returns the booking ready for the admin to check and " +
-      "confirm. Call it again with the missing details when the admin answers.",
+      "confirm. When the admin answers, call it again with ALL the booking's details from the whole chat (the " +
+      "customer, phone, vehicle, driver, dates and places they gave earlier), plus their answer.",
     schema: bookingArgs,
     responseFormat: "content_and_artifact",
   },
