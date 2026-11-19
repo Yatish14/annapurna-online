@@ -317,7 +317,7 @@ flowchart LR
 | Our own chat tables, not LangGraph's checkpointer | We choose what's resent (token budget, no stale tool results, privacy) | `docs/assistant-checkpointer.md` |
 | Vector search only, whole sections | Measured: recall@3 100%, MRR 0.98; hybrid keyword search and smaller chunks scored lower | `docs/assistant-rag.md` |
 | Privacy-first mode before real data | With `ASSISTANT_PRIVACY=strict`, Google gets statuses and booking numbers, never names, phones or amounts; tested for leaks | `docs/assistant-privacy.md` |
-| Evals in code, replayed free in CI | 100 cases graded by code; real runs are recorded, CI replays them on every push | `docs/assistant-evals.md` |
+| Evals in code, replayed free in CI | 101 cases graded by code (follow-ups too); real runs are recorded, CI replays them on every push | `docs/assistant-evals.md` |
 | ₹0 | Free tier only; the usage page shows what it would cost on the paid tier | `/admin/assistant/usage` |
 
 ### Commands

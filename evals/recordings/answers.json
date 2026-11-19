@@ -1,5 +1,8 @@
 {
   "recorded_on": "2026-11-18",
+  "recorded_days": {
+    "draft-follow-up": "2026-11-19"
+  },
   "passing": [
     "advance-cash",
     "balance-and-driver",
@@ -19,6 +22,7 @@
     "date-week-ago",
     "did-she-pay",
     "draft-booking",
+    "draft-follow-up",
     "draft-missing",
     "draft-round-trip",
     "driver-paid",
@@ -1770,6 +1774,27 @@
       },
       {
         "text": "The Kia Seltos only fits up to 4 people, but you asked for 6 people (the Kia Carens fits up to 6 adults). Also, please choose a driver: Ramesh Naidu, Suresh Babu, or Venkat Rao. (From the Business Information Guide.)",
+        "toolCalls": []
+      }
+    ],
+    "draft-follow-up": [
+      {
+        "text": "",
+        "toolCalls": [
+          {
+            "name": "draft_booking",
+            "args": {
+              "driver": "ramesh naidu",
+              "driver_is_busy_ok": false,
+              "end_date": "2027-01-12",
+              "vehicle": "Innova Crysta",
+              "start_date": "2027-01-12"
+            }
+          }
+        ]
+      },
+      {
+        "text": "The booking for Yatish in the Innova Crysta with Ramesh Naidu from Macherla to Guntur on 12 Jan 2027 is ready to check below. Nothing is saved until you press Confirm.",
         "toolCalls": []
       }
     ]

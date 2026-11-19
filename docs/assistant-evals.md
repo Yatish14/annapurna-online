@@ -90,6 +90,31 @@ off-topic 12, Telugu 7, Hindi 3, two-tool 3, injections 8.
   `search_help` (looking for drivers and the Seltos's seats) before asking which driver. The graders allow extra
   calls; only a forbidden or missing tool fails a case.
 
+### A follow-up case from a real chat (19 Nov 2026)
+
+Every case above was one question, so this one got through: in a chat on the local database the admin gave a whole
+booking in one message (name, phone, places, a Seltos, the driver, the date), was asked "which vehicle?" (no Seltos
+in use) and said "crysta". The model called `draft_booking` again with the Crysta but **without the customer's name
+and phone**, and asked for them, three times. Its own earlier tool calls aren't in its history (only the texts are),
+so it had to rebuild every detail from the admin's old message, and the tool's description said "call it again
+with the missing details".
+
+- **Fixed in code, not the prompt**: `draft_booking` now fills in whatever the model leaves out from the previous
+  answer's attempt (`bookingSoFar` in `lib/assistant/history.ts`, `withEarlier` in `lib/assistant/tools/drafts.ts`).
+  What the model passes always wins; "book the busy driver anyway" is never carried over. The description now says
+  "with all the booking's details from the whole chat".
+- **Case `draft-follow-up`**: a case can now have `"history"`, earlier turns with their tool calls, run as the app
+  runs them. It must end with a ready draft (the answer mentions Confirm) and never ask for the name, phone or drop
+  city again.
+- **Its first run caught a second bug**: Flash-Lite sent `round_trip: false` on its own, and the code took that as a
+  new trip end and dropped the earlier drop city. The grader only checked the vehicle, so it passed; now the case
+  needs the ready draft, and the code keeps round_trip apart from the cities. On the second run the model sent only
+  the vehicle, driver and date, and the draft was ready: "ready to check below. Nothing is saved until you press
+  Confirm."
+- **Replays are graded by each case's own day**: running one case on the 19th moved the whole recording's day,
+  so 4 of the 18 Nov cases' "tomorrow" was wrong in the replay. Cases recorded on another day are now listed in
+  `recorded_days`. 101/101 replayed, in both modes, with no leaks.
+
 ## The AI judge (8.9)
 
 Code can check which tool was called; it can't tell whether an answer is right. `npm run eval:judge` (`evals/judge.ts`)

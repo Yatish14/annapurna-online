@@ -44,7 +44,11 @@ export type Expect = {
   answer?: { includes?: string[]; excludes?: string[] };
 };
 
-export type Case = { id: string; question: string; tags: string[]; expect: Expect };
+/** An earlier turn of the chat, as the app would have saved it: the model sees the texts, draft_booking the calls */
+export type EarlierTurn = { role: "user" | "assistant"; text: string; tool_calls?: Call[] };
+
+/** "history": earlier turns, for a follow-up question (the app's history.ts passes the same from the saved chat) */
+export type Case = { id: string; question: string; tags: string[]; expect: Expect; history?: EarlierTurn[] };
 
 export type Call = { name: string; args: Record<string, unknown> };
 

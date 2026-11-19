@@ -46,6 +46,7 @@ const { buildGraph, MAX_TOOL_ROUNDS, RECURSION_LIMIT } = await import("../lib/as
 const { isOnTopic } = await import("../lib/assistant/guard");
 const { mainModel } = await import("../lib/assistant/model");
 const { systemPrompt } = await import("../lib/assistant/prompt");
+const { bookingSoFar } = await import("../lib/assistant/history");
 const { questionCostInr } = await import("../lib/assistant/prices");
 const { UsageRecorder } = await import("../lib/assistant/requestLog");
 const { findSecrets, loadSecrets, RequestRecorder } = await import("./leaks");
@@ -71,7 +72,11 @@ const cases = all
 // The day they were recorded too: "tomorrow" in a recorded answer is that day's tomorrow, so a replay on a later day
 // grades dates and months as of the recording's day
 const RECORDINGS = "evals/recordings/answers.json";
-type Recording = { recorded_on: string; passing?: string[]; cases: Record<string, Turn[]> };
+/**
+ * recorded_on: the day of the run that recorded most cases. recorded_days: cases recorded on another day, by a run of
+ * only some of them (--ids, --tags): "tomorrow" in a case recorded on the 19th is the 20th, whatever the others say.
+ */
+type Recording = { recorded_on: string; recorded_days?: Record<string, string>; passing?: string[]; cases: Record<string, Turn[]> };
 const recording: Recording = (() => {
   try {
     return JSON.parse(readFileSync(RECORDINGS, "utf8"));
@@ -105,8 +110,9 @@ if (!admin) {
   console.error("✗ The eval database isn't set up. Run npm run eval:setup first.");
   process.exit(1);
 }
-// The day the answers are graded as of: today, or the recording's day when replaying
-const today = MODEL === "replay" ? recording.recorded_on : todayIST();
+// The day a case's answers are graded as of: today, or the day its answers were recorded when replaying
+const recordedDays = recording.recorded_days ?? {};
+const dayOf = (id: string) => (MODEL === "replay" ? (recordedDays[id] ?? recording.recorded_on) : todayIST());
 
 type Result = {
   id: string;
@@ -145,7 +151,23 @@ function saveProgress() {
     // Which cases passed when recorded: a replay (CI) fails only if one of these fails now, a regression
     const passing = new Set(passingBefore);
     for (const r of results) r.pass ? passing.add(r.id) : passing.delete(r.id);
-    writeFileSync(RECORDINGS, `${JSON.stringify({ recorded_on: todayIST(), passing: [...passing].sort(), cases: recorded }, null, 2)}\n`);
+    // Each case's own day; the most common one is recorded_on, and only the others are listed
+    const count = new Map<string, number>();
+    for (const id of Object.keys(recorded)) {
+      const day = recordedDays[id] ?? recording.recorded_on;
+      count.set(day, (count.get(day) ?? 0) + 1);
+    }
+    const usual = [...count].sort((x, y) => y[1] - x[1])[0]?.[0] ?? todayIST();
+    const others = Object.fromEntries(
+      Object.keys(recorded)
+        .sort()
+        .map((id) => [id, recordedDays[id] ?? recording.recorded_on] as const)
+        .filter(([, day]) => day !== usual),
+    );
+    writeFileSync(
+      RECORDINGS,
+      `${JSON.stringify({ recorded_on: usual, ...(Object.keys(others).length ? { recorded_days: others } : {}), passing: [...passing].sort(), cases: recorded }, null, 2)}\n`,
+    );
   }
 }
 /** What our server put in each case's requests (system prompts, tool results), for the leak test */
@@ -190,19 +212,32 @@ for (const c of cases) {
     } else {
       await makeRoom(3);
       started = Date.now();
-      const out = await graph.invoke(
+      // A follow-up case's earlier turns: their texts for the model, and the unfinished booking for draft_booking,
+      // worked out by the app's own code (lib/assistant/history.ts)
+      const earlier = c.history ?? [];
+      const input = [
         // The eval admin's real first name from the database, as the app sends it: the leak test checks it's left
         // out in privacy-first mode (9.3)
-        { messages: [new SystemMessage(systemPrompt({ firstName: admin.name.split(" ")[0] })), new HumanMessage(c.question)] },
-        { configurable: { userId: admin.id }, callbacks: [recorder, requests], recursionLimit: RECURSION_LIMIT },
+        new SystemMessage(systemPrompt({ firstName: admin.name.split(" ")[0] })),
+        ...earlier.map((t) => (t.role === "user" ? new HumanMessage(t.text) : new AIMessage(t.text))),
+        new HumanMessage(c.question),
+      ];
+      const soFar = bookingSoFar(earlier.map((t) => ({ role: t.role, text: t.text, error: null, cards: null, toolCalls: t.tool_calls })));
+      const out = await graph.invoke(
+        { messages: input },
+        { configurable: { userId: admin.id, bookingSoFar: soFar }, callbacks: [recorder, requests], recursionLimit: RECURSION_LIMIT },
       );
-      turns = turnsOf(out.messages);
+      // Only this question's turns: the earlier ones were given, not answered
+      turns = turnsOf(out.messages.slice(input.length));
       for (const _ of turns) sentAt.push(Date.now());
       calls = turns.flatMap((t) => t.toolCalls);
       answer = turns.at(-1)?.text ?? "";
-      grade = gradeCase(c.expect, calls, answer, today);
+      grade = gradeCase(c.expect, calls, answer, dayOf(c.id));
     }
-    if (RECORD) recorded[c.id] = turns;
+    if (RECORD) {
+      recorded[c.id] = turns;
+      recordedDays[c.id] = todayIST();
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     // Google's 429 says which limit in a line further down ("Quota exceeded for metric: …per day…"): keep that line
@@ -225,7 +260,7 @@ for (const c of cases) {
     input: used.reduce((n, u) => n + u.input, 0),
     output: used.reduce((n, u) => n + u.output, 0),
     cached: used.reduce((n, u) => n + u.cached, 0),
-    inr: questionCostInr(used, today).inr,
+    inr: questionCostInr(used, dayOf(c.id)).inr,
   });
   const r = results.at(-1)!;
   console.log(
