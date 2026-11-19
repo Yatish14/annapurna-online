@@ -1,17 +1,32 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  cancelDraft as cancelOnServer,
+  confirmDraft as confirmOnServer,
+  type DraftActionResult,
+  loadChat,
+  removeChat,
+  renameChat as renameOnServer,
+} from "@/app/admin/assistant/actions";
 import { useToast } from "@/components/Toaster";
-import { sampleConfirm, sampleReply } from "@/lib/assistant/sample";
-import type { Card, Chat, Message, Reply, ToolStep } from "@/lib/assistant/types";
+import { DAILY_LIMIT } from "@/lib/assistant/limits";
+import { titleFrom } from "@/lib/assistant/suggestions";
+import type { Card, Chat, Message, StreamEvent, ToolStep } from "@/lib/assistant/types";
+import type { Typed } from "./Cards";
+import type { SpokenLanguage } from "@/lib/assistant/voice";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
 
-/** Questions one admin can ask per day (the API route will enforce it; this only shows it) */
-export const DAILY_LIMIT = 50;
 
 let counter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${counter++}`;
+
+/**
+ * A new chat's id: a random UUID, made here so the chat has its address (/admin/assistant/<id>) from the first
+ * question. The server makes the chat for the signed-in admin when the first question arrives (5.2).
+ */
+const newChatId = () => crypto.randomUUID();
 
 /** "10:42 am" in Indian time */
 const clock = () =>
@@ -19,21 +34,79 @@ const clock = () =>
     .format(new Date())
     .toLowerCase();
 
-const emptyChat = (id = newId("chat")): Chat => ({ id, title: "New chat", when: "Today", messages: [] });
+const emptyChat = (id = newChatId()): Chat => ({ id, title: "New chat", when: "Today", messages: [] });
 
-/** The first question becomes the chat's title (later Haiku writes a shorter one) */
-const titleFrom = (q: string) => (q.length > 48 ? `${q.slice(0, 45).trimEnd()}…` : q);
 
-/** Waits, unless Stop is pressed first */
-function wait(ms: number, signal: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal.aborted) return reject(signal.reason);
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener("abort", () => {
-      clearTimeout(timer);
-      reject(signal.reason);
-    });
+/** A failure our route explained (over the free limit, Google down…): its message is meant for the admin */
+class AssistError extends Error {}
+
+/** What ask() reports while the answer arrives */
+type Listeners = {
+  /** The answer's words so far */
+  text: (text: string) => void;
+  /** A tool started or finished (the chips above the answer) */
+  step: (event: Extract<StreamEvent, { type: "step" }>) => void;
+  /** A card made from a tool's result (shown under the answer) */
+  card: (card: Card) => void;
+  /** A new chat's title, written by Flash-Lite (5.5) */
+  title: (title: string) => void;
+};
+
+/**
+ * Asks our server (app/api/assistant/route.ts), which asks Gemini, and tells `on` about each event as it
+ * arrives: words, and tools starting and finishing. Stop cancels the request through `signal`, even halfway
+ * through the reply. Throws an AssistError when the route says why it failed.
+ */
+async function ask(question: string, chatId: string, voice: SpokenLanguage | null, signal: AbortSignal, on: Listeners): Promise<void> {
+  // Only the question and which chat it's in: the server keeps the chat (Step 5) and reads the chat so far from
+  // there, so nothing the browser says about earlier turns reaches the model
+  const res = await fetch("/api/assistant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    // voice: spoken, and in which language (7.7: the server tells the model to reply in it)
+    body: JSON.stringify({ message: question, chatId, voice: Boolean(voice), lang: voice ?? undefined }),
+    signal,
   });
+  // Something went wrong: the route sends { error } with a message for the admin
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({}));
+    throw new AssistError(data.error ?? "Something went wrong. Please try again.");
+  }
+
+  // It worked: read the reply piece by piece as the server passes it on
+  const reader = res.body.getReader();
+  // Turns bytes back into text. `stream: true`: a Telugu letter (3 bytes) can be split across two pieces,
+  // so the decoder holds on to half a letter until the rest arrives.
+  const decoder = new TextDecoder();
+  let text = "";
+  // Each event is one line of JSON, but the network splits the stream wherever it likes: a piece can end in the
+  // middle of a line. So keep what's left after the last "\n" and finish it with the next piece.
+  let pending = "";
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line) as StreamEvent;
+    if (event.type === "text") {
+      text += event.text;
+      on.text(text);
+    } else if (event.type === "step") {
+      on.step(event);
+    } else if (event.type === "card") {
+      on.card(event.card);
+    } else if (event.type === "title") {
+      on.title(event.title);
+    }
+  };
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    pending += decoder.decode(value, { stream: true });
+    const lines = pending.split("\n");
+    pending = lines.pop() ?? ""; // the unfinished last line waits for the next piece
+    lines.forEach(handle);
+  }
+  handle(pending + decoder.decode()); // anything still held
+  if (!text.trim()) throw new AssistError("Gemini sent back an empty answer. Try asking another way.");
+  on.text(text.trim());
 }
 
 /** The reply being written right now */
@@ -44,6 +117,7 @@ export const VIEW_ONLY = {
   ask: "Viewers can read Annapurna Assist but can't ask questions. Ask the super admin if you need access.",
   newChat: "Viewers can't start new chats. Ask the super admin if you need access.",
   deleteChat: "Viewers can't delete chats. Ask the super admin if you need access.",
+  renameChat: "Viewers can't rename chats. Ask the super admin if you need access.",
   draft: "Viewers can't confirm or cancel drafts. Ask the super admin if you need access.",
   form: "Viewers can't create or change bookings. Ask the super admin if you need access.",
 };
@@ -52,6 +126,10 @@ type Store = {
   firstName: string;
   /** Can ask, start chats and confirm drafts (admins). Everyone else sees the same page, view only. */
   canUse: boolean;
+  /** Can open the usage page (the super admin, 8.3): a link shows in the full page's header */
+  canSeeUsage: boolean;
+  /** Privacy-first mode is on (Step 9): the note under the chat box says what is and isn't sent to Google */
+  strictPrivacy: boolean;
   /** Shows a short message at the bottom of the screen */
   notify: (message: string) => void;
   chats: Chat[];
@@ -60,11 +138,18 @@ type Store = {
   live: Live | null;
   /** Questions asked today */
   asked: number;
-  send: (chatId: string, question: string, voice?: boolean) => void;
+  send: (chatId: string, question: string, voice?: SpokenLanguage | null) => void;
   stop: () => void;
-  confirmDraft: (card: DraftCard) => void;
+  confirmDraft: (card: DraftCard, typed?: Typed) => void;
   cancelDraft: (card: DraftCard) => void;
   deleteChat: (id: string) => void;
+  renameChat: (id: string, title: string) => void;
+  /** A saved chat the server loaded (the /admin/assistant/<id> page): kept, unless this browser already has it open */
+  adopt: (chat: Chat) => void;
+  /** Fetches the messages of a chat that's listed by title only (5.4) */
+  load: (id: string) => void;
+  /** A chat a search found (5.8): added to the list by title if it isn't there yet, so it can be opened */
+  reveal: (chat: Pick<Chat, "id" | "title" | "when">) => void;
 };
 
 const AssistContext = createContext<Store | null>(null);
@@ -76,13 +161,22 @@ export function useAssist(): Store {
   return store;
 }
 
-type Props = { firstName: string; today: string; canUse: boolean; initialChats: Chat[]; children: React.ReactNode };
+type Props = {
+  firstName: string;
+  canUse: boolean;
+  canSeeUsage?: boolean;
+  strictPrivacy?: boolean;
+  initialChats: Chat[];
+  /** Questions already asked today (from the database), so the count is right after a reload */
+  askedToday: number;
+  children: React.ReactNode;
+};
 
-export default function AssistProvider({ firstName, today, canUse, initialChats, children }: Props) {
-  // A fixed id for the first empty chat, so the server and the browser render the same thing
-  const [chats, setChats] = useState<Chat[]>(() => [emptyChat("chat-new"), ...initialChats]);
+export default function AssistProvider({ firstName, canUse, canSeeUsage = false, strictPrivacy = false, initialChats, askedToday, children }: Props) {
+  // The empty chat's id is random, different on the server and in the browser, but it never shows in the page
+  const [chats, setChats] = useState<Chat[]>(() => [emptyChat(), ...initialChats]);
   const [live, setLive] = useState<Live | null>(null);
-  const [asked, setAsked] = useState(0);
+  const [asked, setAsked] = useState(askedToday);
   const abort = useRef<AbortController | null>(null);
   // Messages (e.g. why a viewer can't do something) use the app's toasts (components/Toaster.tsx)
   const toasts = useToast();
@@ -93,7 +187,10 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
   /** Drafts already confirmed or cancelled, so a double-click can't confirm twice */
   const settled = useRef(new Set<string>());
 
-  const emptyId = chats.find((c) => c.messages.length === 0)?.id ?? "chat-new";
+  // The new chat: no messages, and not a saved chat still waiting for its messages
+  const emptyId = chats.find((c) => c.messages.length === 0 && !c.unloaded)?.id ?? chats[0].id;
+  /** Chats whose messages are being fetched, so each is asked for once */
+  const loading = useRef(new Set<string>());
 
   // Stop a reply that's still being written when leaving the admin
   useEffect(() => () => abort.current?.abort(), []);
@@ -104,27 +201,9 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
     );
   }
 
-  /** Shows a reply the way a streamed one arrives: tool chips first, then the words, then the cards */
-  async function play(chatId: string, messageId: string, reply: Reply, signal: AbortSignal) {
-    await wait(450, signal);
-    for (const step of reply.steps ?? []) {
-      setLive({ chatId, messageId, running: step });
-      await wait(650, signal);
-      updateMessage(chatId, messageId, (m) => ({ ...m, steps: [...(m.steps ?? []), step] }));
-    }
-    setLive({ chatId, messageId, running: null });
-    const words = reply.text.match(/\S+\s*/g) ?? [];
-    for (let i = 1; i <= words.length; i++) {
-      await wait(28, signal);
-      const text = words.slice(0, i).join("");
-      updateMessage(chatId, messageId, (m) => ({ ...m, text }));
-    }
-    updateMessage(chatId, messageId, (m) => ({ ...m, cards: reply.cards }));
-  }
-
   // Each action checks the role too, not just the greyed-out buttons
-  // (the real API route and server actions will check it again on the server)
-  function send(chatId: string, question: string, voice = false) {
+  // (the API route checks it again on the server, and later the server actions will too)
+  function send(chatId: string, question: string, voice: SpokenLanguage | null = null) {
     if (!canUse) return notify(VIEW_ONLY.ask);
     if (live || asked >= DAILY_LIMIT) return;
     const time = clock();
@@ -139,7 +218,7 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
         ...chat,
         title: chat.messages.length ? chat.title : titleFrom(question),
         when: "Today",
-        messages: [...chat.messages, { id: newId("msg"), role: "user", text: question, time, voice }, answer],
+        messages: [...chat.messages, { id: newId("msg"), role: "user", text: question, time, voice: Boolean(voice) }, answer],
       };
       const others = cs.filter((c) => c.id !== chatId);
       return chat.messages.length ? [updated, ...others] : [emptyChat(), updated, ...others];
@@ -149,16 +228,42 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
     const controller = new AbortController();
     abort.current = controller;
     setLive({ chatId, messageId: answer.id, running: null });
-    play(chatId, answer.id, sampleReply(question, today, newId("draft")), controller.signal)
-      .catch(() => updateMessage(chatId, answer.id, (m) => ({ ...m, stopped: true })))
+    ask(question, chatId, voice, controller.signal, {
+      // Each piece of the reply replaces the bubble's text with everything so far
+      text: (text) => updateMessage(chatId, answer.id, (m) => ({ ...m, text })),
+      // A tool started: show its chip with a spinner. It finished: add it to the ticked chips, stop the spinner.
+      step: ({ state, step }) => {
+        if (state === "running") return setLive({ chatId, messageId: answer.id, running: step });
+        updateMessage(chatId, answer.id, (m) => ({ ...m, steps: [...(m.steps ?? []), step] }));
+        setLive({ chatId, messageId: answer.id, running: null });
+      },
+      // A table from a tool's own data: added under the answer, in the order the tools finished
+      card: (card) => updateMessage(chatId, answer.id, (m) => ({ ...m, cards: [...(m.cards ?? []), card] })),
+      // The chat list shows the written title in place of the first question
+      title: (title) => setChats((cs) => cs.map((c) => (c.id === chatId ? { ...c, title } : c))),
+    })
+      .catch((err) =>
+        updateMessage(chatId, answer.id, (m) => {
+          // Stop pressed: keep the words so far, marked "Stopped". Not an error.
+          if (controller.signal.aborted) return { ...m, stopped: true };
+          // Otherwise keep any words that arrived and say why the rest didn't
+          const error =
+            err instanceof AssistError
+              ? err.message // the route's own explanation
+              : m.text
+                ? "The reply was cut off halfway. Please try again." // the stream broke after some words
+                : "I couldn't reach the server. Check your internet and try again."; // fetch itself failed
+          return { ...m, error };
+        }),
+      )
       .finally(() => {
         setLive(null);
         abort.current = null;
       });
   }
 
-  /** Changes a draft card wherever it is, and adds a message after it in the same chat */
-  function settleDraft(id: string, change: Partial<DraftCard>, followUp?: Message) {
+  /** Changes a draft card wherever it is (its status, "Saving…", the result) */
+  function settleDraft(id: string, change: Partial<DraftCard>) {
     setChats((cs) =>
       cs.map((c) => {
         const has = c.messages.some((m) => m.cards?.some((card) => card.kind === "draft" && card.id === id));
@@ -166,39 +271,121 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
         const messages = c.messages.map((m) =>
           m.cards ? { ...m, cards: m.cards.map((card) => (card.kind === "draft" && card.id === id ? { ...card, ...change } : card)) } : m,
         );
-        return { ...c, messages: followUp ? [...messages, followUp] : messages };
+        return { ...c, messages };
       }),
     );
   }
 
-  function confirmDraft(card: DraftCard) {
+  /**
+   * Confirm and Cancel: the server actions (app/admin/assistant/actions.ts) get only the draft's id and do the work
+   * on the server: Confirm loads the values kept there, checks them again and saves; Cancel marks the draft
+   * cancelled so nothing can confirm it later (4.11). A second click while one is working does nothing here, and
+   * the server would refuse it anyway.
+   */
+  async function onServer(
+    card: DraftCard,
+    action: (id: string) => Promise<DraftActionResult>,
+    done: (r: Extract<DraftActionResult, { ok: true }>) => Partial<DraftCard>,
+  ) {
     if (!canUse) return notify(VIEW_ONLY.draft);
     if (settled.current.has(card.id)) return;
     settled.current.add(card.id);
-    const { result, reply } = sampleConfirm(card);
-    // The result goes back into the chat, so the conversation carries on from it
-    settleDraft(card.id, { status: "confirmed", result }, { id: newId("msg"), role: "assistant", text: reply, time: clock() });
+    settleDraft(card.id, { saving: true });
+    let result: DraftActionResult;
+    try {
+      result = await action(card.id);
+    } catch {
+      // No answer: it may or may not have happened, so don't offer to press again blindly
+      result = { ok: false, error: "No answer from the server. Check the Bookings page before trying again." };
+    }
+    if (result.ok) {
+      settleDraft(card.id, { saving: false, ...done(result) });
+    } else if (result.card) {
+      // The server knows better: saved in another tab, cancelled, or expired. The card shows that now.
+      settleDraft(card.id, { saving: false, ...result.card });
+      toasts.notify(result.error, "info");
+    } else {
+      settled.current.delete(card.id); // still a draft: it can be pressed again after fixing what's wrong
+      settleDraft(card.id, { saving: false });
+      toasts.notify(result.error, "error");
+    }
+  }
+
+  /** typed: the customer's name and phone from the card in privacy-first mode (9.5) */
+  function confirmDraft(card: DraftCard, typed?: Typed) {
+    void onServer(card, (id) => confirmOnServer(id, typed), (r) => ({ status: "confirmed", result: r.message, resultHref: r.href }));
   }
 
   function cancelDraft(card: DraftCard) {
-    if (!canUse) return notify(VIEW_ONLY.draft);
-    if (settled.current.has(card.id)) return;
-    settled.current.add(card.id);
-    settleDraft(card.id, { status: "cancelled" });
+    void onServer(card, cancelOnServer, () => ({ status: "cancelled" }));
   }
 
-  function deleteChat(id: string) {
+  /** Delete (5.6): on the server first, then gone from the list. The empty new chat was never saved. */
+  async function deleteChat(id: string) {
     if (!canUse) return notify(VIEW_ONLY.deleteChat);
+    const chat = chats.find((c) => c.id === id);
+    if (!chat) return;
     if (live?.chatId === id) abort.current?.abort();
+    if (chat.messages.length > 0 || chat.unloaded) {
+      const result = await removeChat(id).catch(() => ({ ok: false as const, error: "Couldn't reach the server. Try again." }));
+      // "Not found": deleted already (another tab), so it goes from this list too
+      if (!result.ok && result.error !== "This chat wasn't found.") return toasts.notify(result.error, "error");
+    }
     setChats((cs) => {
       const left = cs.filter((c) => c.id !== id);
-      return left.some((c) => c.messages.length === 0) ? left : [emptyChat(), ...left];
+      return left.some((c) => c.messages.length === 0 && !c.unloaded) ? left : [emptyChat(), ...left];
     });
+  }
+
+  /** Rename (5.6): shown straight away, put back if the server says no */
+  async function renameChat(id: string, title: string) {
+    if (!canUse) return notify(VIEW_ONLY.renameChat);
+    const before = chats.find((c) => c.id === id)?.title;
+    const name = title.trim();
+    if (!before || !name || name === before) return;
+    const setName = (t: string) => setChats((cs) => cs.map((c) => (c.id === id ? { ...c, title: t } : c)));
+    setName(name);
+    const result = await renameOnServer(id, name).catch(() => ({ ok: false as const, error: "Couldn't reach the server. Try again." }));
+    if (result.ok) setName(result.title);
+    else {
+      setName(before);
+      toasts.notify(result.error, "error");
+    }
+  }
+
+  function adopt(chat: Chat) {
+    setChats((cs) => {
+      const known = cs.find((c) => c.id === chat.id);
+      // Already open here (maybe still answering): this browser's copy is the newer one
+      if (known && !known.unloaded) return cs;
+      // In the list by title only: now with its messages. Not in the list (an older chat): at the end.
+      return known ? cs.map((c) => (c.id === chat.id ? chat : c)) : [...cs, chat];
+    });
+  }
+
+  async function load(id: string) {
+    if (loading.current.has(id)) return;
+    loading.current.add(id);
+    const chat = await loadChat(id).catch(() => undefined);
+    loading.current.delete(id);
+    if (chat === undefined) return notify("Couldn't open that chat. Check your internet and try again.");
+    // Deleted meanwhile (another tab): gone from the list too
+    if (chat === null) {
+      setChats((cs) => cs.filter((c) => c.id !== id));
+      return notify("That chat isn't there any more.");
+    }
+    setChats((cs) => cs.map((c) => (c.id === id && c.unloaded ? chat : c)));
+  }
+
+  function reveal({ id, title, when }: Pick<Chat, "id" | "title" | "when">) {
+    setChats((cs) => (cs.some((c) => c.id === id) ? cs : [...cs, { id, title, when, messages: [], unloaded: true }]));
   }
 
   const store: Store = {
     firstName,
     canUse,
+    canSeeUsage,
+    strictPrivacy,
     notify,
     chats,
     emptyId,
@@ -209,6 +396,10 @@ export default function AssistProvider({ firstName, today, canUse, initialChats,
     confirmDraft,
     cancelDraft,
     deleteChat,
+    renameChat,
+    adopt,
+    load,
+    reveal,
   };
   return (
     <AssistContext.Provider value={store}>

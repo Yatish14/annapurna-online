@@ -76,9 +76,10 @@ export async function connect() {
   if (url.startsWith("pglite:")) {
     const { PGlite } = await import("@electric-sql/pglite");
     const { btree_gist } = await import("@electric-sql/pglite/contrib/btree_gist");
+    const { vector } = await import("@electric-sql/pglite-pgvector"); // pgvector, for the help guides (Step 6)
     const dir = url.slice("pglite:".length) || "./.data/pglite";
     mkdirSync(dir, { recursive: true }); // PGlite doesn't create missing parent folders
-    const db = await PGlite.create(dir, { extensions: { btree_gist } });
+    const db = await PGlite.create(dir, { extensions: { btree_gist, vector } });
     return {
       exec: (sql) => db.exec(sql),
       query: async (text, params = []) => (await db.query(text, params)).rows,

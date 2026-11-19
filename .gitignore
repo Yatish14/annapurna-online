@@ -14,5 +14,11 @@ next-env.d.ts
 
 # automated tests (Playwright): the test server's build, and the results
 .next-test/
+.next-demo/
 test-results/
 playwright-report/
+
+# Annapurna Assist evals: replay runs (CI) are made again every time
+evals/results/tools-replay*.json
+evals/results/*-fake.json
+evals/results/.partial-*

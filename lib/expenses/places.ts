@@ -60,7 +60,8 @@ let cities: Promise<Record<string, string[]>> | undefined;
 
 /** All cities by state (about 50 KB, loaded once, only when asked for) */
 export function loadCities(): Promise<Record<string, string[]>> {
-  cities ??= import("./india-places.json").then((m) => m.default as Record<string, string[]>);
+  // `type: "json"`: the standard way to import JSON, which plain Node needs too (the drafts tests, 4.12)
+  cities ??= import("./india-places.json", { with: { type: "json" } }).then((m) => m.default as Record<string, string[]>);
   return cities;
 }
 

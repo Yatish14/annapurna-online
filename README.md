@@ -24,6 +24,8 @@ Website, printout uploads (Annapurna Graphics and Internet), an expense tracker 
 | `/admin/cars/bookings` | Car Bookings → all enquiries and bookings, with filters and actions |
 | `/admin/cars/calendar` | Car Bookings → month calendar for each car |
 | `/admin/cars/activity` | Car Bookings → Activity (admins and the super admin only) |
+| `/admin/assistant` | Annapurna Assist, the AI assistant (admins ask; viewers can look); each saved chat at `/admin/assistant/<id>` |
+| `/admin/assistant/usage` | Assistant usage: tokens, answer times and what it would cost on the paid tier (super admin only) |
 | `/admin/users` | Users & roles (admins and the super admin only) |
 | `/admin/account` | My account: change your own password (everyone) |
 | `/api/whatsapp/webhook` | Callback URL for the WhatsApp Cloud API |
@@ -50,6 +52,7 @@ Work on your computer uses **its own database**, never the real data on Neon:
 - `.env.local` has `DATABASE_URL=postgresql://annapurna:annapurna_local@localhost:5433/annapurna`, the Postgres in Docker ([docker-compose.yml](docker-compose.yml)). Only this computer can reach it, and its data stays in a Docker volume between restarts.
 - The dashboard shows a **Local data** badge in the sidebar (and **Local** on phones) whenever it isn't using Neon. No badge means real data.
 - Safety: `db:fresh`, `db:seed` and `db:seed-expenses` refuse to run if `DATABASE_URL` points at Neon. `db:migrate` and `super-admin` say which database they're using before they start.
+- The database is on port 5433 (5432 is often another project's Postgres). To use another port, put `ANNAPURNA_DB_PORT=<port>` in a `.env` file (Docker Compose reads it; it's kept out of git) and use the same port in `DATABASE_URL`.
 - You can open the database in any Postgres app (pgAdmin, DBeaver, the VS Code PostgreSQL extension): host `localhost`, port `5433`, database and user `annapurna`, password `annapurna_local`.
 
 | Command | What it does |
@@ -58,8 +61,9 @@ Work on your computer uses **its own database**, never the real data on Neon:
 | `npm run db:down` | Stops it; the data is kept |
 | `npm run db:fresh` | Wipes the local database, then adds sample bookings, expenses and three sign-ins (the super admin's password comes from `LOCAL_SUPER_ADMIN_PASSWORD` in `.env.local`, default `testpass123`) |
 | `npm run db:seed` / `db:seed-expenses` | Adds or refreshes only the samples (`-- --clear` removes them) |
+| `npm run kb:ingest` | Puts Annapurna Assist's help guides (`knowledge/*.md`) into the database with their embeddings (Gemini, free tier). Run it after `db:fresh` and after editing a guide; unchanged sections aren't embedded again. Not business data, so it's allowed on any database |
 
-The automated tests use `DATABASE_URL=pglite:./.data/pglite-test`, a built-in database stored in a folder (no Docker needed). Docker runs Postgres 17, Neon's default (your Neon project's version is under Neon → Settings).
+The automated tests (`npm run test:e2e`, Playwright, run in the Google Chrome installed on this computer) use `DATABASE_URL=pglite:./.data/pglite-test`, a built-in database stored in a folder (no Docker needed), and the assistant's fake models (`ASSISTANT_FAKE=1`), so they never call Google. They start their own server on port 3100, so `npm run dev` can keep running. `tests/drafts.spec.ts`, `chats.spec.ts`, `checkpointer.spec.ts`, `kb.spec.ts`, `usage.spec.ts`, `privacy.spec.ts` and `evals.spec.ts` need no browser: they test the assistant's code itself (a draft never writes; Confirm writes exactly once, even pressed five times at once; saved chats, history, titles and search; LangGraph's checkpointer compared with our saved chats, `docs/assistant-checkpointer.md`; the help search with pgvector; the usage log and costs; privacy-first mode; the eval graders), with the fake models and in their own throwaway database, `.data/pglite-unit` (`tests/unitDb.ts`). Docker runs Postgres 17, Neon's default (your Neon project's version is under Neon → Settings).
 
 ## Using Neon (online database)
 
@@ -267,6 +271,69 @@ A half-finished WhatsApp conversation is forgotten after 30 minutes. The custome
 
 Car limits, trip length, the booking window and the timeout are set in [lib/config.ts](lib/config.ts). The car limits are also enforced in [db/schema.sql](db/schema.sql).
 
+## Annapurna Assist (AI assistant)
+
+An admin-only assistant in the dashboard (`/admin/assistant`, and a side panel on every page): admins ask in English,
+Telugu or Hindi, typed or spoken, and it answers from the live data, prepares bookings, payments and fuel entries for
+them to confirm, makes the monthly reports, and answers "how do I…" from the help guides. Built to learn AI
+engineering at ₹0: Google's Gemini free tier. The task-by-task plan is in `docs/assistant-plan.md`.
+
+### How a question is answered
+
+```mermaid
+flowchart LR
+  A[Admin types or speaks<br/>browser speech → text] --> R[POST /api/assistant<br/>sign-in, limits, chat id]
+  R --> G{Off-topic check<br/>Flash-Lite}
+  G -- no --> X[Polite refusal]
+  G -- yes --> M[Model: Gemini Flash-Lite<br/>+ system prompt + saved history]
+  M -- tool calls --> T[Tools on the database<br/>15 tools in lib/assistant/tools]
+  T -- strict mode: status only --> M
+  T -- full result, the artifact --> C[Cards: tables, figures,<br/>PDFs, drafts]
+  M -- words --> S[NDJSON stream to the chat]
+  C --> S
+  S --> D[(assistant_chats / messages<br/>usage log)]
+  K[(kb_chunks: pgvector<br/>help guides)] -. search_help .-> T
+```
+
+1. **The route** (`app/api/assistant/route.ts`) checks the sign-in and the daily limit, saves the question, and reads
+   the chat so far from the database, trimmed to a token budget.
+2. **The off-topic check** (`lib/assistant/guard.ts`): a quick Flash-Lite call, so the main model never sees
+   questions about anything else.
+3. **The agent** (`lib/assistant/graph.ts`, LangGraph): the model either answers or asks for tools; the tools run
+   our own `lib/` functions on the database (never SQL written by the model) and return a status plus the data.
+   At most 4 rounds of tools per question.
+4. **Cards** (`lib/assistant/cards.ts`) are made from each tool's own result, not from the model's words, so a table's
+   numbers are the database's even if the model miscounts.
+5. **Drafts, not writes**: `draft_booking`, `draft_payment` and `draft_fuel` save nothing; a draft waits on the server,
+   and only the admin's **Confirm** on its card saves it, through the same checks as the forms.
+6. **Help guides** (`knowledge/*.md`) are searched by meaning: each section embedded with `gemini-embedding-2` into
+   pgvector (`npm run kb:ingest`), the closest found by cosine distance.
+
+### Decisions
+
+| Decision | Why | More |
+|---|---|---|
+| The model never writes data | A model can be wrong or tricked; Confirm is a person, and the forms' own checks run again | `lib/assistant/confirm.ts` |
+| Numbers come from tools, never from the help guides | Guides can't go out of date about a number they never had | `docs/assistant-rag.md` |
+| Tool results are data, not instructions | Names and notes are typed by customers: flagged if they look like orders, and the model is told never to follow them | `lib/assistant/tools/result.ts` |
+| Our own chat tables, not LangGraph's checkpointer | We choose what's resent (token budget, no stale tool results, privacy) | `docs/assistant-checkpointer.md` |
+| Vector search only, whole sections | Measured: recall@3 100%, MRR 0.98; hybrid keyword search and smaller chunks scored lower | `docs/assistant-rag.md` |
+| Privacy-first mode before real data | With `ASSISTANT_PRIVACY=strict`, Google gets statuses and booking numbers, never names, phones or amounts; tested for leaks | `docs/assistant-privacy.md` |
+| Evals in code, replayed free in CI | 101 cases graded by code (follow-ups too); real runs are recorded, CI replays them on every push | `docs/assistant-evals.md` |
+| ₹0 | Free tier only; the usage page shows what it would cost on the paid tier | `/admin/assistant/usage` |
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `npm run demo` | The whole app on sample data in its own database, privacy-first mode on, on port 3200 (`-- --fake`: no Google at all) |
+| `npm run kb:ingest` | Puts the help guides into the database (only changed sections are embedded again) |
+| `npm run kb:eval` | Retrieval eval: does the help search find the right guide? |
+| `npm run eval:setup` then `npm run eval` | The tool-choice evals on a throwaway database of sample data (`-- --model replay`: free) |
+| `npm run eval -- --privacy strict --leaks` | Privacy-first mode, checking that nothing from the database reaches the model |
+
+Results so far (18 Nov 2026, details in the docs): the help search finds the right guide in the top 3 for **30/30** questions; Flash-Lite picks the right tools on **100/100** eval cases, Telugu, Hindi and 8 prompt injections included; an AI judge rated **12/12** answers good (and caught both answers spoiled on purpose); privacy-first mode keeps the right tools on **30/30**, and the leak test found **no** name, phone or amount from the database in anything sent to Google. About **₹0.24 a question** at paid prices; ₹0 on the free tier.
+
 ## Project structure
 
 ```
@@ -302,6 +369,10 @@ lib/
   expenses/overview.ts           monthly figures and amounts owed
   expenses/places.ts             Indian states (cities in india-places.json)
   activity.ts                    activity log (module: cars, print, expenses or users)
+  assistant/                     Annapurna Assist: route helpers, graph, model, prompt, tools/, kb/ (RAG), privacy, usage
+knowledge/                       the help guides the assistant searches (Markdown)
+evals/                           the assistant's eval cases, graders, runner, recordings and results
+docs/                            the assistant's plan and notes (RAG, evals, privacy, checkpointer)
 db/schema.sql                    tables and rules
 scripts/                         migrate, seed, super-admin (create / reset password)
 ```

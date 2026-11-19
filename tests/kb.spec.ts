@@ -1,0 +1,119 @@
+import "./unitDb"; // first: the no-browser tests' throwaway database and the fake models
+import { expect, test } from "@playwright/test";
+import { query } from "@/lib/db";
+import { chunkHash, splitGuide } from "@/lib/assistant/kb/chunks";
+import { cosineSimilarity, fakeEmbedding, FakeEmbeddings } from "@/lib/assistant/kb/embeddings";
+import { ingestGuides } from "@/lib/assistant/kb/ingest";
+import { searchByWords, searchGuides, searchHybrid } from "@/lib/assistant/kb/search";
+
+/** Step 6: the help guides, split, embedded (fake embeddings: no Google) and searched in PGlite with pgvector */
+
+const FUEL = `# Fuel guide
+How fuel is recorded.
+
+## Recording a fuel entry
+Open the booking and press Add fuel. Type the amount and the litres.
+
+## Fuel price warnings
+A price per litre far from normal shows a warning before saving.
+`;
+const PRINT = `# Printouts guide
+
+## Customer uploads
+Customers scan the QR code at the counter and upload their files.
+`;
+
+/** Counts how many texts were embedded, to prove unchanged sections aren't embedded again */
+class CountingEmbeddings extends FakeEmbeddings {
+  texts = 0;
+  async embedDocuments(texts: string[]) {
+    this.texts += texts.length;
+    return super.embedDocuments(texts);
+  }
+}
+
+test("a guide is split at its ## headings, each chunk carrying its guide's and section's titles", () => {
+  const chunks = splitGuide("fuel.md", FUEL);
+  expect(chunks.map((c) => c.section)).toEqual(["Overview", "Recording a fuel entry", "Fuel price warnings"]);
+  expect(chunks[1].text).toBe("Fuel guide › Recording a fuel entry\n\nOpen the booking and press Add fuel. Type the amount and the litres.");
+  expect(chunks.map((c) => c.position)).toEqual([0, 1, 2]);
+  // Same text, same fingerprint; any change, a new one
+  expect(chunks[1].hash).toBe(chunkHash(chunks[1].text));
+  expect(splitGuide("fuel.md", FUEL.replace("litres", "liters"))[1].hash).not.toBe(chunks[1].hash);
+  // No text before the first ## → no Overview chunk
+  expect(splitGuide("print.md", PRINT).map((c) => c.section)).toEqual(["Customer uploads"]);
+});
+
+test("a section longer than the limit is split at its paragraphs, each part keeping the titles", () => {
+  const long = `# Long\n\n## Steps\n${["First paragraph.", "Second paragraph.", "Third paragraph."].join("\n\n")}`;
+  const chunks = splitGuide("long.md", long, 20);
+  expect(chunks.map((c) => c.section)).toEqual(["Steps (part 1)", "Steps (part 2)", "Steps (part 3)"]);
+  expect(chunks[2].text).toBe("Long › Steps (part 3)\n\nThird paragraph.");
+});
+
+test("the fake embedding: length 1, and texts sharing words are closer", () => {
+  const v = fakeEmbedding("Recording a fuel entry");
+  expect(v).toHaveLength(768);
+  expect(Math.hypot(...v)).toBeCloseTo(1, 6);
+  const fuel = fakeEmbedding("fuel entry for a booking");
+  expect(cosineSimilarity(v, fuel)).toBeGreaterThan(cosineSimilarity(v, fakeEmbedding("customer uploads at the counter")));
+});
+
+test("ingest embeds only new or changed sections, removes deleted ones, and search finds the closest", async () => {
+  await query("DELETE FROM kb_chunks"); // only this file uses kb_chunks in the no-browser database
+  const embedder = new CountingEmbeddings();
+  const files = [
+    { source: "fuel.md", markdown: FUEL },
+    { source: "print.md", markdown: PRINT },
+  ];
+
+  const first = await ingestGuides(query, files, embedder);
+  expect(first).toMatchObject({ embedded: 4, unchanged: 0, removed: 0 });
+  expect(embedder.texts).toBe(4);
+
+  // Again with nothing changed: nothing embedded
+  expect(await ingestGuides(query, files, embedder)).toMatchObject({ embedded: 0, unchanged: 4, removed: 0 });
+  expect(embedder.texts).toBe(4);
+
+  // One section edited: that one embedded again, its old version removed
+  files[0].markdown = FUEL.replace("Type the amount and the litres.", "Type the amount, the litres and the date.");
+  expect(await ingestGuides(query, files, embedder)).toMatchObject({ embedded: 1, unchanged: 3, removed: 1 });
+  expect(embedder.texts).toBe(5);
+  const [{ n }] = await query<{ n: number }>("SELECT count(*)::int AS n FROM kb_chunks");
+  expect(n).toBe(4);
+
+  // Vector search: ORDER BY embedding <=> question, closest first
+  const hits = await searchGuides(query, embedder, "how do I add a fuel entry?", 2);
+  expect(hits.map((h) => h.section)).toEqual(["Recording a fuel entry", expect.any(String)]);
+  expect(hits[0]).toMatchObject({ source: "fuel.md", guide: "Fuel guide" });
+  expect(hits[0].text).toContain("the litres and the date");
+  expect(hits[0].score).toBeGreaterThan(hits[1].score);
+  expect((await searchGuides(query, embedder, "QR code upload", 1))[0].section).toBe("Customer uploads");
+});
+
+test("the vector search can use the HNSW index (6.8)", async () => {
+  // Postgres picks the quickest plan: with a handful of rows that's reading the table, so turn that off to see
+  // that the index is there and fits the query
+  const question = `[${fakeEmbedding("fuel").join(",")}]`;
+  await query("SET enable_seqscan = off");
+  try {
+    const plan = await query<{ "QUERY PLAN": string }>("EXPLAIN SELECT id FROM kb_chunks ORDER BY embedding <=> $1 LIMIT 3", [question]);
+    expect(plan.map((r) => r["QUERY PLAN"]).join("\n")).toContain("Index Scan using kb_chunks_embedding_idx");
+  } finally {
+    await query("SET enable_seqscan = on");
+  }
+});
+
+test("keyword search finds stemmed words, and hybrid merges it with the vector search (6.13)", async () => {
+  await query("DELETE FROM kb_chunks");
+  const embedder = new FakeEmbeddings();
+  await ingestGuides(query, [{ source: "fuel.md", markdown: FUEL }, { source: "print.md", markdown: PRINT }], embedder);
+  // "uploading" and "customer" match "uploads" and "Customers" by their stems; "the" and "how" are dropped
+  const words = await searchByWords(query, "How do customers upload?", 3);
+  expect(words[0].section).toBe("Customer uploads");
+  expect(await searchByWords(query, "zzqx", 3)).toEqual([]);
+  // Hybrid: a section first in both lists comes first; scores are 1/(60 + rank) added up
+  const hybrid = await searchHybrid(query, await embedder.embedQuery("fuel price warning"), "fuel price warning", 3);
+  expect(hybrid[0].section).toBe("Fuel price warnings");
+  expect(hybrid[0].score).toBeCloseTo(2 / 61, 6);
+});

@@ -1,0 +1,433 @@
+{
+  "ran": "2026-11-18T07:38:18.880Z",
+  "where": "kb_chunks in the local test database (PGlite), keyword search",
+  "embeddings": "gemini-embedding-2",
+  "recall_at_1": 0.5,
+  "recall_at_3": 0.8,
+  "recall_at_5": 0.8333333333333334,
+  "mrr": 0.642,
+  "questions": [
+    {
+      "question": "How can I add the diesel I filled for a trip?",
+      "expect": [
+        "fuel-and-expenses.md"
+      ],
+      "rank": 3,
+      "top": [
+        "bookings.md › Creating a new booking (0.500)",
+        "fleet.md › Adding a vehicle (0.500)",
+        "fuel-and-expenses.md › Recording fuel on a booking (0.500)",
+        "fleet.md › Adding a driver (0.400)",
+        "fuel-and-expenses.md › Recording fuel not for a booking (0.400)"
+      ]
+    },
+    {
+      "question": "A customer paid 5000 today, where do I enter that?",
+      "expect": [
+        "payments.md"
+      ],
+      "rank": 2,
+      "top": [
+        "glossary.md › Total, billed, received and advance (0.800)",
+        "payments.md › Recording a customer payment (0.700)",
+        "reports.md › The Customers report (0.700)",
+        "glossary.md › Balance due and payment status (0.600)",
+        "payments.md › The advance on a new booking (0.600)"
+      ]
+    },
+    {
+      "question": "How do I give a new staff member a login?",
+      "expect": [
+        "users-and-roles.md"
+      ],
+      "rank": 4,
+      "top": [
+        "bookings.md › Creating a new booking (0.500)",
+        "printouts.md › The Print orders page (0.300)",
+        "printouts.md › Printing an order (0.300)",
+        "users-and-roles.md › Resetting a user's password (super admin only) (0.300)",
+        "bookings.md › Editing a booking (0.200)"
+      ]
+    },
+    {
+      "question": "What does balance due mean?",
+      "expect": [
+        "glossary.md",
+        "payments.md"
+      ],
+      "rank": 1,
+      "top": [
+        "payments.md › What total, received and balance due mean (0.600)",
+        "glossary.md › Balance due and payment status (0.500)",
+        "payments.md › Sending the balance to a customer (0.400)",
+        "payments.md › Overview (0.300)",
+        "reports.md › The Bookings report (0.300)"
+      ]
+    },
+    {
+      "question": "How do customers send me files to print?",
+      "expect": [
+        "printouts.md"
+      ],
+      "rank": 1,
+      "top": [
+        "printouts.md › Printing an order (1.800)",
+        "printouts.md › How customers send a printout (1.400)",
+        "printouts.md › Deleting customers' files (1.100)",
+        "business.md › Printout rules (0.900)",
+        "printouts.md › The customer's confirmation page (0.900)"
+      ]
+    },
+    {
+      "question": "Where do I get the monthly profit report as a PDF?",
+      "expect": [
+        "reports.md"
+      ],
+      "rank": 1,
+      "top": [
+        "reports.md › How profit is worked out (1.200)",
+        "reports.md › Opening a monthly report (1.200)",
+        "glossary.md › Profit and profit once fully paid (1.000)",
+        "glossary.md › Money in, money out and net (cash vs profit) (1.000)",
+        "reports.md › The Overview page (1.000)"
+      ]
+    },
+    {
+      "question": "How do I add a new car to the fleet?",
+      "expect": [
+        "fleet.md"
+      ],
+      "rank": 1,
+      "top": [
+        "fleet.md › Adding a vehicle (0.900)",
+        "bookings.md › Creating a new booking (0.700)",
+        "bookings.md › WhatsApp car enquiries (hidden module) (0.600)",
+        "fuel-and-expenses.md › Recording fuel on a booking (0.600)",
+        "business.md › Cars and seat limits (0.500)"
+      ]
+    },
+    {
+      "question": "Can I change a booking's dates after saving it?",
+      "expect": [
+        "bookings.md"
+      ],
+      "rank": 1,
+      "top": [
+        "bookings.md › Booking tabs on the Bookings page (1.400)",
+        "bookings.md › Where car bookings live (1.100)",
+        "bookings.md › Editing a booking (1.000)",
+        "glossary.md › Trip status: Upcoming, On trip, Completed, Cancelled (1.000)",
+        "assistant.md › Drafts and the Confirm button (0.900)"
+      ]
+    },
+    {
+      "question": "What is the office phone number?",
+      "expect": [
+        "business.md"
+      ],
+      "rank": 1,
+      "top": [
+        "business.md › Business names and contact details (0.500)",
+        "glossary.md › Booking number, enquiry reference and print order number (0.500)",
+        "fleet.md › Adding a driver (0.400)",
+        "printouts.md › How customers send a printout (0.400)",
+        "bookings.md › Creating a new booking (0.300)"
+      ]
+    },
+    {
+      "question": "How many people fit in the Seltos?",
+      "expect": [
+        "business.md"
+      ],
+      "rank": 1,
+      "top": [
+        "business.md › Cars and seat limits (0.300)",
+        "assistant.md › Daily question limit (0.100)"
+      ]
+    },
+    {
+      "question": "The assistant showed me a booking card, how do I actually save it?",
+      "expect": [
+        "assistant.md"
+      ],
+      "rank": 2,
+      "top": [
+        "bookings.md › Where car bookings live (1.400)",
+        "assistant.md › What happens when you press Confirm (1.200)",
+        "assistant.md › What Annapurna Assist can look up (1.100)",
+        "assistant.md › Drafts and the Confirm button (1.100)",
+        "bookings.md › Booking tabs on the Bookings page (1.100)"
+      ]
+    },
+    {
+      "question": "Why doesn't the mic work on my phone?",
+      "expect": [
+        "assistant.md"
+      ],
+      "rank": 2,
+      "top": [
+        "business.md › Business names and contact details (0.400)",
+        "assistant.md › When voice doesn't work (0.300)",
+        "assistant.md › Languages and asking by voice (0.200)",
+        "printouts.md › How customers send a printout (0.200)",
+        "printouts.md › The counter QR poster (0.200)"
+      ]
+    },
+    {
+      "question": "Where do I put the car loan installment?",
+      "expect": [
+        "fuel-and-expenses.md",
+        "fleet.md"
+      ],
+      "rank": 3,
+      "top": [
+        "bookings.md › WhatsApp car enquiries (hidden module) (0.600)",
+        "business.md › Cars and seat limits (0.400)",
+        "fleet.md › Vehicle loans and insurance (0.400)",
+        "bookings.md › Where car bookings live (0.300)",
+        "fleet.md › Adding a vehicle (0.300)"
+      ]
+    },
+    {
+      "question": "How do I stop people uploading printouts for a while?",
+      "expect": [
+        "printouts.md"
+      ],
+      "rank": 1,
+      "top": [
+        "printouts.md › Pausing uploads (0.800)",
+        "printouts.md › Files customers can upload and upload limits (0.600)",
+        "printouts.md › Viewers and printouts (0.600)",
+        "business.md › Printout rules (0.500)",
+        "printouts.md › Printing an order (0.300)"
+      ]
+    },
+    {
+      "question": "What's the difference between profit and money in?",
+      "expect": [
+        "glossary.md",
+        "reports.md"
+      ],
+      "rank": 1,
+      "top": [
+        "glossary.md › Money in, money out and net (cash vs profit) (1.000)",
+        "glossary.md › Profit and profit once fully paid (0.900)",
+        "reports.md › How profit is worked out (0.800)",
+        "reports.md › Money in, money out and net (cash) (0.700)",
+        "reports.md › The Bookings report (0.600)"
+      ]
+    },
+    {
+      "question": "How do I cancel a trip?",
+      "expect": [
+        "bookings.md"
+      ],
+      "rank": 2,
+      "top": [
+        "glossary.md › Trip status: Upcoming, On trip, Completed, Cancelled (0.800)",
+        "bookings.md › Booking tabs on the Bookings page (0.500)",
+        "bookings.md › Cancelling and restoring a booking (0.500)",
+        "bookings.md › WhatsApp car enquiries (hidden module) (0.400)",
+        "glossary.md › Round trip, drop, destination and referrer (0.300)"
+      ]
+    },
+    {
+      "question": "How do I record what I paid the driver?",
+      "expect": [
+        "payments.md"
+      ],
+      "rank": 2,
+      "top": [
+        "glossary.md › Driver amount, still to pay and settled (1.100)",
+        "payments.md › What driver amount, paid and still to pay mean (1.100)",
+        "reports.md › The Drivers report (1.100)",
+        "payments.md › Recording a payment to the driver (1.000)",
+        "fleet.md › Adding a driver (0.900)"
+      ]
+    },
+    {
+      "question": "డ్రైవర్‌ను ఎలా జోడించాలి?",
+      "expect": [
+        "fleet.md"
+      ],
+      "rank": null,
+      "top": []
+    },
+    {
+      "question": "मैं अपना पासवर्ड कैसे बदलूं?",
+      "expect": [
+        "users-and-roles.md"
+      ],
+      "rank": null,
+      "top": []
+    },
+    {
+      "question": "What is a viewer allowed to do?",
+      "expect": [
+        "users-and-roles.md",
+        "assistant.md"
+      ],
+      "rank": 1,
+      "top": [
+        "users-and-roles.md › What a viewer can do (0.600)",
+        "assistant.md › Annapurna Assist for viewers (0.400)",
+        "printouts.md › Viewers and printouts (0.300)",
+        "glossary.md › View only and drafts (0.200)",
+        "users-and-roles.md › Adding a user (super admin only) (0.200)"
+      ]
+    },
+    {
+      "question": "It warned me when I typed 120 rupees a litre, why?",
+      "expect": [
+        "fuel-and-expenses.md"
+      ],
+      "hard": true,
+      "rank": 1,
+      "top": [
+        "fuel-and-expenses.md › Fuel entry rules (0.300)",
+        "assistant.md › Saved chats (0.200)",
+        "business.md › Expense Tracker booking rules and payment methods (0.200)",
+        "fuel-and-expenses.md › Recording fuel on a booking (0.200)",
+        "fuel-and-expenses.md › Recording other expenses on a booking (0.200)"
+      ]
+    },
+    {
+      "question": "The customer wants a bill showing every cost of the trip",
+      "expect": [
+        "reports.md",
+        "glossary.md"
+      ],
+      "hard": true,
+      "rank": 1,
+      "top": [
+        "reports.md › The Customers report (1.000)",
+        "glossary.md › Total, billed, received and advance (0.800)",
+        "reports.md › The Bookings report (0.800)",
+        "reports.md › The Overview page (0.700)",
+        "business.md › WhatsApp booking rules (0.600)"
+      ]
+    },
+    {
+      "question": "I typed the same payment twice by mistake",
+      "expect": [
+        "payments.md"
+      ],
+      "hard": true,
+      "rank": 1,
+      "top": [
+        "payments.md › Where payments are recorded (0.800)",
+        "payments.md › Recording a customer payment (0.700)",
+        "payments.md › Removing a payment entered by mistake (0.700)",
+        "payments.md › Recording a payment to the driver (0.600)",
+        "payments.md › Payment status badges (0.600)"
+      ]
+    },
+    {
+      "question": "We sold the old car, what should I do with it here?",
+      "expect": [
+        "fleet.md"
+      ],
+      "hard": true,
+      "rank": null,
+      "top": [
+        "bookings.md › WhatsApp car enquiries (hidden module) (0.600)",
+        "business.md › Cars and seat limits (0.400)",
+        "bookings.md › Where car bookings live (0.300)",
+        "bookings.md › Overview (0.200)",
+        "business.md › WhatsApp booking rules (0.200)"
+      ]
+    },
+    {
+      "question": "Toll and parking charges on a trip",
+      "expect": [
+        "fuel-and-expenses.md"
+      ],
+      "hard": true,
+      "rank": 3,
+      "top": [
+        "glossary.md › Trip status: Upcoming, On trip, Completed, Cancelled (0.400)",
+        "glossary.md › Other expenses and vehicle costs (0.400)",
+        "fuel-and-expenses.md › Booking costs and vehicle costs (0.300)",
+        "fuel-and-expenses.md › Recording other expenses on a booking (0.300)",
+        "glossary.md › Round trip, drop, destination and referrer (0.300)"
+      ]
+    },
+    {
+      "question": "What if the driver is already out on another trip those days?",
+      "expect": [
+        "bookings.md"
+      ],
+      "hard": true,
+      "rank": 1,
+      "top": [
+        "bookings.md › Vehicle and driver clashes (1.000)",
+        "glossary.md › Driver amount, still to pay and settled (1.000)",
+        "fleet.md › Adding a driver (0.900)",
+        "reports.md › The Drivers report (0.900)",
+        "fleet.md › The Vehicles & drivers page (0.800)"
+      ]
+    },
+    {
+      "question": "Send the remaining amount to the customer on WhatsApp",
+      "expect": [
+        "payments.md"
+      ],
+      "hard": true,
+      "rank": 2,
+      "top": [
+        "bookings.md › WhatsApp car enquiries (hidden module) (0.800)",
+        "payments.md › Sending the balance to a customer (0.800)",
+        "business.md › WhatsApp booking rules (0.700)",
+        "printouts.md › How customers send a printout (0.700)",
+        "glossary.md › Total, billed, received and advance (0.600)"
+      ]
+    },
+    {
+      "question": "Where can I see who changed a booking?",
+      "expect": [
+        "reports.md",
+        "glossary.md"
+      ],
+      "hard": true,
+      "rank": null,
+      "top": [
+        "bookings.md › Where car bookings live (1.200)",
+        "bookings.md › Booking tabs on the Bookings page (1.100)",
+        "bookings.md › Editing a booking (0.800)",
+        "bookings.md › Cancelling and restoring a booking (0.800)",
+        "bookings.md › WhatsApp car enquiries (hidden module) (0.800)"
+      ]
+    },
+    {
+      "question": "Is there a limit on how many questions I can ask you?",
+      "expect": [
+        "assistant.md"
+      ],
+      "hard": true,
+      "rank": 1,
+      "top": [
+        "assistant.md › Daily question limit (0.900)",
+        "assistant.md › Annapurna Assist for viewers (0.700)",
+        "assistant.md › Languages and asking by voice (0.500)",
+        "assistant.md › Overview (0.300)",
+        "assistant.md › Opening Annapurna Assist (0.300)"
+      ]
+    },
+    {
+      "question": "Can someone look at the bookings without being able to change anything?",
+      "expect": [
+        "users-and-roles.md",
+        "glossary.md"
+      ],
+      "hard": true,
+      "rank": null,
+      "top": [
+        "bookings.md › Where car bookings live (1.100)",
+        "bookings.md › Booking tabs on the Bookings page (1.100)",
+        "bookings.md › Searching for a booking (0.800)",
+        "bookings.md › Creating a new booking (0.800)",
+        "bookings.md › Editing a booking (0.800)"
+      ]
+    }
+  ]
+}

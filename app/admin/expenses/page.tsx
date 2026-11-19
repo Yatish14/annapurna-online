@@ -10,7 +10,7 @@ import { lock, LOCKED } from "@/lib/viewOnly";
 import { addDays, fmtRange, MONTHS_LONG, todayIST } from "@/lib/dates";
 import { listDrivers } from "@/lib/expenses/fleet";
 import { formatNumber, formatRupees } from "@/lib/expenses/money";
-import { monthSummary, outstanding, vehicleProfit, vehiclesMonth } from "@/lib/expenses/overview";
+import { moneyOutOf, monthSummary, outstanding, vehicleProfit, vehiclesMonth } from "@/lib/expenses/overview";
 import { balanceOf, listTrips, routeText, type Trip } from "@/lib/expenses/trips";
 import { reminders } from "@/lib/expenses/finance";
 import { formatPhone } from "@/lib/format";
@@ -80,7 +80,7 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
     owedPage = owedPages;
     dues = await listTrips("due", { customer: owedQ, page: owedPage, pageSize: OWED_PAGE_SIZE });
   }
-  const moneyOut = summary.driverPaid + summary.fuel + summary.other + summary.repairs + summary.fastag + summary.emi + summary.insurance;
+  const moneyOut = moneyOutOf(summary);
   const driversToPay = drivers.filter((d) => d.owed > 0);
   // Upcoming bookings in the next two weeks only
   const soon = addDays(todayIST(), 14);

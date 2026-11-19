@@ -1,0 +1,30 @@
+{"question": "How can I add the diesel I filled for a trip?", "expect": ["fuel-and-expenses.md"]}
+{"question": "A customer paid 5000 today, where do I enter that?", "expect": ["payments.md"]}
+{"question": "How do I give a new staff member a login?", "expect": ["users-and-roles.md"]}
+{"question": "What does balance due mean?", "expect": ["glossary.md", "payments.md"]}
+{"question": "How do customers send me files to print?", "expect": ["printouts.md"]}
+{"question": "Where do I get the monthly profit report as a PDF?", "expect": ["reports.md"]}
+{"question": "How do I add a new car to the fleet?", "expect": ["fleet.md"]}
+{"question": "Can I change a booking's dates after saving it?", "expect": ["bookings.md"]}
+{"question": "What is the office phone number?", "expect": ["business.md"]}
+{"question": "How many people fit in the Seltos?", "expect": ["business.md"]}
+{"question": "The assistant showed me a booking card, how do I actually save it?", "expect": ["assistant.md"]}
+{"question": "Why doesn't the mic work on my phone?", "expect": ["assistant.md"]}
+{"question": "Where do I put the car loan installment?", "expect": ["fuel-and-expenses.md", "fleet.md"]}
+{"question": "How do I stop people uploading printouts for a while?", "expect": ["printouts.md"]}
+{"question": "What's the difference between profit and money in?", "expect": ["glossary.md", "reports.md"]}
+{"question": "How do I cancel a trip?", "expect": ["bookings.md"]}
+{"question": "How do I record what I paid the driver?", "expect": ["payments.md"]}
+{"question": "డ్రైవర్‌ను ఎలా జోడించాలి?", "expect": ["fleet.md"]}
+{"question": "मैं अपना पासवर्ड कैसे बदलूं?", "expect": ["users-and-roles.md"]}
+{"question": "What is a viewer allowed to do?", "expect": ["users-and-roles.md", "assistant.md"]}
+{"question": "It warned me when I typed 120 rupees a litre, why?", "expect": ["fuel-and-expenses.md"], "hard": true}
+{"question": "The customer wants a bill showing every cost of the trip", "expect": ["reports.md", "glossary.md"], "hard": true}
+{"question": "I typed the same payment twice by mistake", "expect": ["payments.md"], "hard": true}
+{"question": "We sold the old car, what should I do with it here?", "expect": ["fleet.md"], "hard": true}
+{"question": "Toll and parking charges on a trip", "expect": ["fuel-and-expenses.md"], "hard": true}
+{"question": "What if the driver is already out on another trip those days?", "expect": ["bookings.md"], "hard": true}
+{"question": "Send the remaining amount to the customer on WhatsApp", "expect": ["payments.md"], "hard": true}
+{"question": "Where can I see who changed a booking?", "expect": ["reports.md", "glossary.md"], "hard": true}
+{"question": "Is there a limit on how many questions I can ask you?", "expect": ["assistant.md"], "hard": true}
+{"question": "Can someone look at the bookings without being able to change anything?", "expect": ["users-and-roles.md", "glossary.md"], "hard": true}

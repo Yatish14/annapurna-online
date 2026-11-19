@@ -371,3 +371,135 @@ ALTER TABLE vehicle_expenses ADD CONSTRAINT vehicle_expenses_trip_kinds CHECK (
   (trip_id IS NULL OR kind IN ('fuel', 'other')) AND (kind <> 'other' OR (trip_id IS NOT NULL AND description IS NOT NULL))
 );
 CREATE INDEX IF NOT EXISTS vehicle_expenses_kind_idx ON vehicle_expenses (kind, spent_on DESC);
+
+-- ---------- Annapurna Assist (AI assistant) ----------
+
+-- Questions each admin asked per day (India date), for the daily limit (lib/assistant/usage.ts)
+CREATE TABLE IF NOT EXISTS assistant_usage (
+  user_id   bigint NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  day       date   NOT NULL,
+  questions int    NOT NULL DEFAULT 0 CHECK (questions >= 0),
+  PRIMARY KEY (user_id, day)
+);
+
+-- Things the assistant prepared for an admin to confirm: a new booking now, a payment or fuel entry later
+-- (lib/assistant/draftStore.ts). The checked values live here, on the server: the chat's card carries only the id,
+-- so nothing the browser sends can change what gets saved. Only the admin who asked can confirm it, and only
+-- until it expires.
+CREATE TABLE IF NOT EXISTS assistant_drafts (
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  kind         text        NOT NULL CHECK (kind IN ('booking', 'payment', 'fuel')),
+  -- The checked values by the form's field names, exactly what Confirm will save
+  fields       jsonb       NOT NULL,
+  status       text        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  expires_at   timestamptz NOT NULL,
+  settled_at   timestamptz,
+  -- After Confirm: what it became, e.g. the booking number "VB-0042"
+  result       text,
+  CHECK (expires_at > created_at),
+  CHECK ((status = 'pending') = (settled_at IS NULL))
+);
+CREATE INDEX IF NOT EXISTS assistant_drafts_user_idx ON assistant_drafts (user_id, created_at DESC);
+
+-- Annapurna Assist's saved chats (Step 5, lib/assistant/chatStore.ts). Each admin sees only their own. The chat's
+-- id is made by the browser (a random UUID, so the chat has its address from the first question); the server
+-- creates the row for the signed-in admin and refuses an id that's someone else's.
+CREATE TABLE IF NOT EXISTS assistant_chats (
+  id          uuid        PRIMARY KEY,
+  user_id     bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  title       text        NOT NULL DEFAULT 'New chat' CHECK (length(title) BETWEEN 1 AND 80),
+  -- false: the title is still the first question, cut short; true: Flash-Lite (5.5) or the admin (5.6) wrote it
+  titled      boolean     NOT NULL DEFAULT false,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  -- The last question or answer: the chat list is newest first
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assistant_chats_user_idx ON assistant_chats (user_id, updated_at DESC);
+
+-- Every question and answer, in order. An answer keeps what the chat showed with it, so an old chat opens as it was:
+-- the tool chips (steps), the cards under it (tables, files, drafts), and the tools the model called (tool_calls,
+-- the names and inputs it chose: what happened, for Step 8's evals). Draft cards get their status from
+-- assistant_drafts when the chat is opened, so one confirmed later shows "Saved".
+CREATE TABLE IF NOT EXISTS assistant_messages (
+  id          bigserial   PRIMARY KEY,
+  chat_id     uuid        NOT NULL REFERENCES assistant_chats (id) ON DELETE CASCADE,
+  role        text        NOT NULL CHECK (role IN ('user', 'assistant')),
+  text        text        NOT NULL,
+  steps       jsonb,
+  cards       jsonb,
+  tool_calls  jsonb,
+  voice       boolean     NOT NULL DEFAULT false,
+  -- The reply was cut short with Stop
+  stopped     boolean     NOT NULL DEFAULT false,
+  -- Why the reply failed (shown in red; failed replies are never sent back to the model)
+  error       text,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS assistant_messages_chat_idx ON assistant_messages (chat_id, id);
+
+-- ---------- Annapurna Assist's help guides (Step 6, RAG) ----------
+-- pgvector: a column type for embeddings (lists of numbers) and operators to compare them. Neon and the Docker image
+-- (pgvector/pgvector) have it built in; PGlite loads it from @electric-sql/pglite-pgvector (lib/db.ts).
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- The guides in knowledge/*.md, split at their headings (one row per section), each with its embedding.
+-- Filled by `npm run kb:ingest` (scripts/kb-ingest.ts), never by the app. Not business data: the same help text for
+-- everyone, so no user_id.
+CREATE TABLE IF NOT EXISTS kb_chunks (
+  id          bigserial    PRIMARY KEY,
+  -- The file it came from, e.g. 'fuel-and-expenses.md', and the guide's title (its "# " heading)
+  source      text         NOT NULL,
+  guide       text         NOT NULL,
+  -- The section's heading ("## …"), and where it is in the file (0, 1, 2…), to show sections in order
+  section     text         NOT NULL,
+  position    int          NOT NULL,
+  -- What was embedded: the guide and section titles, then the section's text
+  text        text         NOT NULL,
+  -- A fingerprint of the text and the embedding settings: an unchanged section isn't embedded again (6.6)
+  hash        text         NOT NULL UNIQUE,
+  -- 768 numbers from gemini-embedding-2 (lib/assistant/kb/embeddings.ts, DIMENSIONS)
+  embedding   vector(768)  NOT NULL,
+  created_at  timestamptz  NOT NULL DEFAULT now()
+);
+-- 6.8: an HNSW index for the vector search (ORDER BY embedding <=> question). Without an index Postgres compares the
+-- question with every row: exact, and fine for a few hundred sections. HNSW ("hierarchical navigable small world")
+-- links each vector to a few near neighbours in layers, like express and local trains: the search hops from far
+-- to near and checks only a small part of the table. It's approximate (it can, rarely, miss the true closest
+-- match) but stays fast at millions of rows. vector_cosine_ops: built for <=>, the cosine distance we sort by.
+-- With so few rows Postgres usually still reads the whole table (it's quicker); the index is ready for when it grows.
+CREATE INDEX IF NOT EXISTS kb_chunks_embedding_idx ON kb_chunks USING hnsw (embedding vector_cosine_ops);
+-- 6.13: keyword search next to the vector search (hybrid). Postgres's own full-text search: to_tsvector turns the
+-- text into its words' stems ("recording" → "record"), without common words; a GIN index finds the rows that have
+-- a word. Generated: Postgres keeps it in step with `text` by itself. English stemming, so it can't help the Telugu
+-- or Hindi questions; the vector search still finds those.
+ALTER TABLE kb_chunks ADD COLUMN IF NOT EXISTS words tsvector GENERATED ALWAYS AS (to_tsvector('english', text)) STORED;
+CREATE INDEX IF NOT EXISTS kb_chunks_words_idx ON kb_chunks USING gin (words);
+
+-- ---------- Annapurna Assist's usage log (Step 8) ----------
+-- One row per question: every model call it made (the off-topic check, the answer's turns, the chat title), the
+-- tokens each used, and how long it took. What a question would cost on a paid model is worked out from these when
+-- the usage page shows them (lib/assistant/prices.ts), so a price change never needs the rows rewritten.
+CREATE TABLE IF NOT EXISTS assistant_requests (
+  id             bigserial   PRIMARY KEY,
+  user_id        bigint      NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  -- Kept when the chat is deleted: the tokens were still used
+  chat_id        uuid        REFERENCES assistant_chats (id) ON DELETE SET NULL,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  -- answered; off_topic (the check said no, so the main model never ran); stopped (Stop pressed); failed
+  outcome        text        NOT NULL CHECK (outcome IN ('answered', 'off_topic', 'stopped', 'failed')),
+  -- The model that answered (ASSISTANT_MODEL), and every call: [{ "model", "purpose", "input", "output", "cached", "thinking" }]
+  model          text        NOT NULL,
+  calls          jsonb       NOT NULL DEFAULT '[]',
+  -- Totals over the calls, for quick sums. output includes thinking (it's billed as output).
+  input_tokens   int         NOT NULL DEFAULT 0,
+  output_tokens  int         NOT NULL DEFAULT 0,
+  cached_tokens  int         NOT NULL DEFAULT 0,
+  -- The tools the model called, by name, in order
+  tools          text[]      NOT NULL DEFAULT '{}',
+  -- Milliseconds from the question arriving to the first word of the answer, and to its end
+  first_text_ms  int,
+  total_ms       int         NOT NULL
+);
+CREATE INDEX IF NOT EXISTS assistant_requests_time_idx ON assistant_requests (created_at DESC);

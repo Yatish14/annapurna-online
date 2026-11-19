@@ -51,6 +51,14 @@ export function vehicleProfit(
   return v.received - v.driverAmount - v.fuel - v.other - v.repairs - v.fastag - v.emi - v.insurance;
 }
 
+/**
+ * Everything paid out in the month: drivers, fuel, other booking expenses (tolls, parking…), repairs, FASTag,
+ * EMI and insurance. The overview's "Money out" tile, and Annapurna Assist's month_overview, so they always agree.
+ */
+export function moneyOutOf(s: MonthSummary): number {
+  return s.driverPaid + s.fuel + s.other + s.repairs + s.fastag + s.emi + s.insurance;
+}
+
 /** Money still to come in from customers, and still to be paid to drivers, over all bookings */
 export type Outstanding = { customerDue: number; customerTrips: number; driverDue: number; driverTrips: number };
 

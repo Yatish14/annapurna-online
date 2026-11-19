@@ -2,17 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
+// Longest question accepted; the API route checks it too
+import { MAX_LENGTH } from "@/lib/assistant/limits";
+// The languages the mic listens for, so the browser writes down Telugu or Hindi words correctly (shared with the
+// server, which tells the model which one was spoken: 7.7)
+import { LANGUAGES, type SpokenLanguage } from "@/lib/assistant/voice";
 import { useAssist, VIEW_ONLY } from "./AssistProvider";
-
-/** Longest question accepted (the API route will check this too) */
-export const MAX_LENGTH = 1000;
-
-/** The language the mic listens for, so the browser writes down Telugu or Hindi words correctly */
-const LANGUAGES = [
-  { code: "en-IN", short: "EN", label: "English", english: "English (India)" },
-  { code: "te-IN", short: "TE", label: "తెలుగు", english: "Telugu" },
-  { code: "hi-IN", short: "HI", label: "हिन्दी", english: "Hindi" },
-];
 
 // The browser's speech recognition. TypeScript doesn't ship types for it, so just the parts we use.
 type SpeechEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
@@ -54,9 +49,28 @@ const MIC_ERRORS: Record<string, string> = {
   "language-not-supported": "This browser can't listen in that language. Try English.",
 };
 
+/**
+ * 9.6: what goes to Google, under the chat box (the longer version on hover). Voice too: Chrome's speech recognition
+ * sends the sound to Google's speech service to turn it into words.
+ */
+const PRIVACY_NOTE = {
+  strict: {
+    short: "Privacy mode: your data stays here. What you type or say goes to Google.",
+    long: "Privacy mode is on: Google's AI sees only what you type or say, and the status of each lookup, never the bookings, names, phones or amounts it finds (those are on the cards). Voice uses Google's speech service too.",
+  },
+  normal: {
+    short: "What you type or say, and what the assistant looks up, goes to Google.",
+    long: "Google's Gemini gets your question and the results of each lookup (names, phones, amounts) to answer. Use sample data only, or turn on privacy-first mode (ASSISTANT_PRIVACY=strict). Voice uses Google's speech service too.",
+  },
+};
+
+/** Where this browser remembers the "send when I stop talking" choice (7.5): a convenience, so per browser is enough */
+const AUTO_SEND_KEY = "annapurna-assist-auto-send";
+
 type Props = {
   busy: boolean;
-  onSend: (text: string, voice: boolean) => void;
+  /** voice: the language it was spoken in, or null if it was typed */
+  onSend: (text: string, voice: SpokenLanguage | null) => void;
   onStop: () => void;
   /** Questions left today (the daily cap) */
   left: number;
@@ -65,18 +79,24 @@ type Props = {
 export default function Composer({ busy, onSend, onStop, left }: Props) {
   const [text, setText] = useState("");
   // The mic listens for Telugu unless another language is picked
-  const [lang, setLang] = useState("te-IN");
+  const [lang, setLang] = useState<SpokenLanguage>("te-IN");
   /** null until checked in the browser (the server can't know) */
   const [micProblem, setMicProblem] = useState<MicProblem | undefined>(undefined);
   const [listening, setListening] = useState(false);
   const [micError, setMicError] = useState("");
-  const [spoken, setSpoken] = useState(false);
+  /** The language of the words the mic put in the box, until it's sent (null: typed) */
+  const [spoken, setSpoken] = useState<SpokenLanguage | null>(null);
   const [langOpen, setLangOpen] = useState(false);
+  // 7.5: send the question by itself when you stop talking, or (the default) leave it in the box to check first.
+  // Speech-to-text gets names and numbers wrong often enough that checking first is the safer default.
+  const [autoSend, setAutoSend] = useState(false);
   const recognition = useRef<Recognition | null>(null);
+  /** Everything in the box at the last result, for sending when listening ends (state in the handler would be stale) */
+  const heard = useRef("");
   const box = useRef<HTMLTextAreaElement>(null);
   const voice = useRef<HTMLDivElement>(null);
   const language = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
-  const { canUse, notify } = useAssist();
+  const { canUse, strictPrivacy, notify } = useAssist();
   /** Viewers: everything looks the same but greyed out; touching it says why */
   const locked = canUse ? {} : { "aria-disabled": true as const };
   const tellViewer = () => notify(VIEW_ONLY.ask);
@@ -105,6 +125,18 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   }, []);
   // Stop listening when leaving the page
   useEffect(() => () => recognition.current?.stop(), []);
+  // The remembered choice (7.5). Storage can be blocked (private windows), so it's only ever a nice-to-have.
+  useEffect(() => {
+    try {
+      setAutoSend(localStorage.getItem(AUTO_SEND_KEY) === "1");
+    } catch {}
+  }, []);
+  function chooseAutoSend(on: boolean) {
+    setAutoSend(on);
+    try {
+      localStorage.setItem(AUTO_SEND_KEY, on ? "1" : "0");
+    } catch {}
+  }
 
   // The box grows with the text, up to a limit (CSS max-height)
   useEffect(() => {
@@ -115,14 +147,16 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
   }, [text]);
 
   const tooLong = text.length > MAX_LENGTH;
-  const canSend = Boolean(text.trim()) && !tooLong && !busy && left > 0;
+  const canSendText = (value: string) => Boolean(value.trim()) && value.length <= MAX_LENGTH && !busy && left > 0;
+  const canSend = canSendText(text);
 
-  function send() {
-    if (!canSend) return;
+  function send(value = text, voice = spoken) {
+    if (!canSendText(value)) return;
     recognition.current?.stop();
-    onSend(text.trim(), spoken);
+    onSend(value.trim(), voice);
     setText("");
-    setSpoken(false);
+    setSpoken(null);
+    heard.current = "";
   }
 
   function toggleMic() {
@@ -143,10 +177,12 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
     r.interimResults = true; // words appear while you talk
     r.continuous = false; // stops by itself after a pause
     const before = text.trim();
+    heard.current = "";
     r.onresult = (e) => {
-      const heard = Array.from(e.results, (result) => result[0].transcript).join("");
-      setText(before ? `${before} ${heard}` : heard);
-      setSpoken(true);
+      const words = Array.from(e.results, (result) => result[0].transcript).join("");
+      heard.current = before ? `${before} ${words}` : words;
+      setText(heard.current);
+      setSpoken(r.lang as SpokenLanguage);
     };
     r.onerror = (e) => {
       // "aborted" is us pressing stop; anything unknown shows its code so it can be looked up
@@ -155,7 +191,9 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
     r.onend = () => {
       setListening(false);
       recognition.current = null;
-      box.current?.focus();
+      // 7.5: sent as soon as you stop talking, if chosen and something was heard; otherwise it waits in the box
+      if (autoSend && heard.current) send(heard.current, r.lang as SpokenLanguage);
+      else box.current?.focus();
     };
     recognition.current = r;
     setMicError("");
@@ -265,6 +303,19 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
                     </button>
                   ))}
                   <p className="as-langmenu-note">The mic writes down what you say in this language.</p>
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={autoSend}
+                    className={`as-langmenu-auto ${autoSend ? "is-selected" : ""}`}
+                    onClick={() => chooseAutoSend(!autoSend)}
+                  >
+                    <span className="as-langmenu-name">
+                      <strong>Send when I stop talking</strong>
+                      <small>{autoSend ? "Sent straight away" : "Off: check the words, then press Send"}</small>
+                    </span>
+                    {autoSend && <Icon name="check" size={15} />}
+                  </button>
                 </div>
               )}
             </div>
@@ -290,11 +341,11 @@ export default function Composer({ busy, onSend, onStop, left }: Props) {
       </form>
       <p className="as-footnote">
         {!canUse
-          ? "View only: you can read these chats, but asking is for admins."
+          ? "View only: asking questions is for admins."
           : left > 0
             ? `${left} questions left today`
             : "No questions left today. The limit resets at midnight."}{" "}
-        · Sample answers: nothing is read from or saved to your data yet.
+        · <span title={strictPrivacy ? PRIVACY_NOTE.strict.long : PRIVACY_NOTE.normal.long}>{strictPrivacy ? PRIVACY_NOTE.strict.short : PRIVACY_NOTE.normal.short}</span>
       </p>
     </div>
   );

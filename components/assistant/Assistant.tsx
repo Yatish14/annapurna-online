@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
-import { SUGGESTIONS } from "@/lib/assistant/sample";
-import { DAILY_LIMIT, useAssist, VIEW_ONLY } from "./AssistProvider";
+import { DAILY_LIMIT } from "@/lib/assistant/limits";
+import { SUGGESTIONS } from "@/lib/assistant/suggestions";
+import type { Chat } from "@/lib/assistant/types";
+import type { SpokenLanguage } from "@/lib/assistant/voice";
+import { useAssist, VIEW_ONLY } from "./AssistProvider";
 import Composer from "./Composer";
 import History from "./History";
 import MessageView from "./Message";
@@ -14,16 +17,16 @@ type Props = {
   variant?: "page" | "panel";
   /** Panel only: the close button */
   onClose?: () => void;
-  /** Page only: open this chat first (the panel's "Open the full page" link sends it) */
-  initialChatId?: string;
+  /** Page only: a saved chat the server loaded, for its address /admin/assistant/<id> (5.3) */
+  initialChat?: Chat;
 };
 
 /** One view of the chats: the chat list, the open chat and the message box */
-export default function Assistant({ variant = "page", onClose, initialChatId }: Props) {
-  const { firstName, canUse, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat } = useAssist();
+export default function Assistant({ variant = "page", onClose, initialChat }: Props) {
+  const { firstName, canUse, canSeeUsage, notify, chats, emptyId, live, asked, send, stop, confirmDraft, cancelDraft, deleteChat, renameChat, adopt, load, reveal } = useAssist();
   /** Viewers: buttons look greyed out but still take the click, to say why (a disabled button can't) */
   const locked = canUse ? {} : { "aria-disabled": true as const };
-  const [activeId, setActiveId] = useState(initialChatId ?? emptyId);
+  const [activeId, setActiveId] = useState(initialChat?.id ?? emptyId);
   /** Full page on phones: the chat list drawer is open */
   const [historyOpen, setHistoryOpen] = useState(false);
   /** Side panel: showing the chat, or the list of chats in its place */
@@ -32,11 +35,34 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
   /** Follow new text to the bottom, unless you scrolled up to read */
   const stick = useRef(true);
 
-  // A deleted (or unknown) chat falls back to the empty one
-  const active = chats.find((c) => c.id === activeId) ?? chats.find((c) => c.id === emptyId) ?? chats[0];
+  // The chat the server loaded joins the chats here (shared with the side panel)…
+  useEffect(() => {
+    if (initialChat) adopt(initialChat);
+  }, [initialChat]); // not adopt: it's a new function on every render, and only a new chat should run this
+
+  // …and shows straight away, before that. A deleted (or unknown) chat falls back to the empty one.
+  const stored = chats.find((c) => c.id === activeId);
+  const active =
+    (stored && !stored.unloaded ? stored : initialChat?.id === activeId ? initialChat : stored) ??
+    chats.find((c) => c.id === emptyId) ??
+    chats[0];
   const panel = variant === "panel";
+  // A chat from the list, opened: its messages come from the server (5.4)
+  const waiting = active.unloaded === true;
+  useEffect(() => {
+    if (waiting) load(active.id);
+  }, [waiting, active.id]); // not load: a new function on every render
+
+  // Full page: the address follows the open chat, so a reload or a bookmark comes back to it (5.3). A new chat
+  // gets its address with its first question. replaceState changes the address without loading anything.
+  const saved = active.messages.length > 0 || active.unloaded;
+  useEffect(() => {
+    if (panel) return;
+    const address = saved ? `/admin/assistant/${active.id}` : "/admin/assistant";
+    if (window.location.pathname !== address) window.history.replaceState(null, "", address);
+  }, [panel, saved, active.id]);
   const listing = panel && view === "list";
-  const savedCount = chats.filter((c) => c.messages.length > 0).length;
+  const savedCount = chats.filter((c) => c.messages.length > 0 || c.unloaded).length;
   const busy = live !== null;
   // The panel sits on pages that have their own <h1>
   const Title = panel ? "h2" : "h1";
@@ -58,6 +84,8 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
     if (!historyOpen && !listing) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || document.querySelector(".xp-modal-backdrop")) return;
+      // Escape in a chat's name box (renaming) only cancels the rename
+      if (e.target instanceof HTMLElement && e.target.classList.contains("as-history-name")) return;
       e.preventDefault();
       setHistoryOpen(false);
       setView("chat");
@@ -66,7 +94,7 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
     return () => document.removeEventListener("keydown", onKey, true);
   }, [historyOpen, listing]);
 
-  function ask(question: string, voice = false) {
+  function ask(question: string, voice: SpokenLanguage | null = null) {
     stick.current = true;
     send(active.id, question, voice);
   }
@@ -78,13 +106,14 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
     setActiveId(emptyId);
   }
 
-  function selectChat(id: string) {
+  function selectChat(chat: Pick<Chat, "id" | "title" | "when">) {
+    reveal(chat); // a search can find a chat that isn't in the list yet
     setHistoryOpen(false);
     setView("chat");
-    setActiveId(id);
+    setActiveId(chat.id);
   }
 
-  const fullPageHref = active.messages.length ? `/admin/assistant?chat=${encodeURIComponent(active.id)}` : "/admin/assistant";
+  const fullPageHref = saved ? `/admin/assistant/${active.id}` : "/admin/assistant";
 
   const closeButton = (
     <>
@@ -104,7 +133,6 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
         <Title>Your chats</Title>
         <span className="as-head-sub">
           {savedCount} chat{savedCount === 1 ? "" : "s"}
-          <span className="ap-badge is-sample">Sample</span>
         </span>
       </div>
       <div className="as-head-tools">{closeButton}</div>
@@ -124,7 +152,6 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
         <Title>Annapurna Assist</Title>
         <span className="as-head-sub">
           Your business helper
-          <span className="ap-badge is-sample">Sample</span>
         </span>
       </div>
       {panel ? (
@@ -141,14 +168,21 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
           {closeButton}
         </div>
       ) : (
-        <button type="button" className="ap-btn ap-btn-ghost ap-btn-sm as-head-new" onClick={newChat} {...locked}>
-          <Icon name="plus" size={15} /> <span className="as-head-new-text">New chat</span>
-        </button>
+        <div className="as-head-tools">
+          {canSeeUsage && (
+            <Link href="/admin/assistant/usage" className="as-tool" aria-label="Usage and cost" title="Usage and cost">
+              <Icon name="chart" size={17} />
+            </Link>
+          )}
+          <button type="button" className="ap-btn ap-btn-ghost ap-btn-sm as-head-new" onClick={newChat} {...locked}>
+            <Icon name="plus" size={15} /> <span className="as-head-new-text">New chat</span>
+          </button>
+        </div>
       )}
     </header>
   );
 
-  const historyProps = { chats, activeId: active.id, onSelect: selectChat, onNew: newChat, onDelete: deleteChat };
+  const historyProps = { chats, activeId: active.id, onSelect: selectChat, onNew: newChat, onDelete: deleteChat, onRename: renameChat };
 
   return (
     <div className={`as-page ${panel ? "is-panel" : ""}`}>
@@ -171,7 +205,9 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
               stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
             }}
           >
-            {active.messages.length === 0 ? (
+            {waiting ? (
+              <p className="ap-empty-sm as-loading">Loading chat…</p>
+            ) : active.messages.length === 0 ? (
               <div className="as-welcome">
                 <span className="as-welcome-mark" aria-hidden="true">
                   <Icon name="sparkle" size={30} />
@@ -180,7 +216,7 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
                 <p>
                   {canUse
                     ? "Ask about bookings, money, drivers and vehicles, print orders, or how to use the admin. Before anything is saved, you'll see a draft to confirm."
-                    : "You can read the chats here. Asking questions and confirming drafts is for admins."}
+                    : "You can look around here. Asking questions and confirming drafts is for admins."}
                 </p>
                 <div className="as-suggest">
                   {SUGGESTIONS.map((s) => (
@@ -207,7 +243,8 @@ export default function Assistant({ variant = "page", onClose, initialChatId }: 
             )}
           </div>
 
-          <Composer busy={busy} onSend={ask} onStop={stop} left={DAILY_LIMIT - asked} />
+          {/* Waits while a chat's messages load, so a question can't land in it before its history */}
+          <Composer busy={busy || waiting} onSend={ask} onStop={stop} left={DAILY_LIMIT - asked} />
         </div>
       </section>
     </div>

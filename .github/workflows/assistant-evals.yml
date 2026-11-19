@@ -1,0 +1,44 @@
+# Annapurna Assist's free checks on every push (8.12): no Google, no key, no cost.
+# - the type check
+# - the eval set replayed from the last real run's recorded answers (evals/recordings/answers.json): the graph, the
+#   tools and the graders run for real on a throwaway database of sample data; only the model's turns are recorded
+# - the same in privacy-first mode, with the leak test (9.7)
+# - the tests that need no browser (drafts, chats, the help search, the usage log, privacy, the graders…)
+# Choosing well after a prompt or tool change still needs a real run on your computer: npm run eval
+name: Assistant evals (free)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # The fake models and fake embeddings: nothing is sent to Google
+      ASSISTANT_FAKE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Eval database (sample data, fake embeddings)
+        run: npm run eval:setup
+      - name: Eval set, replayed
+        run: npm run eval -- --model replay
+      - name: Privacy-first mode, replayed, with the leak test (no name, phone or amount from the database may reach the model)
+        run: npm run eval -- --model replay --privacy strict --leaks
+      - name: Tests without a browser
+        run: npx playwright test tests/drafts.spec.ts tests/chats.spec.ts tests/checkpointer.spec.ts tests/kb.spec.ts tests/usage.spec.ts tests/privacy.spec.ts tests/evals.spec.ts --reporter=line
+      - name: Keep the eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: evals/results/tools-replay.json
+          if-no-files-found: ignore

@@ -61,3 +61,18 @@ export const EMPTY_TRIP: TripFormValues = {
   fuel_amount: "",
   fuel_litres: "",
 };
+
+/**
+ * The form's values from a booking draft that Annapurna Assist prepared (its checked values, kept on the server by
+ * the form's own field names, lib/assistant/draftStore.ts). Anything the draft doesn't have keeps its default.
+ */
+export function valuesFromDraft(fields: Record<string, string>): TripFormValues {
+  const values = { ...EMPTY_TRIP };
+  for (const key of Object.keys(EMPTY_TRIP) as (keyof TripFormValues)[]) {
+    const value = fields[key];
+    if (typeof value !== "string") continue;
+    if (key === "round_trip" || key === "km_direct_on") values[key] = value === "1";
+    else values[key] = value;
+  }
+  return values;
+}

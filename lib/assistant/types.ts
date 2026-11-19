@@ -1,11 +1,20 @@
-// What the Annapurna Assist chat page shows. For now the messages come from lib/assistant/sample.ts;
-// later the API route (docs/assistant-plan.md, Step 1–2) sends the same shapes, so the UI doesn't change.
+// What the Annapurna Assist chat page shows: messages from the API route (app/api/assistant/route.ts) as they
+// arrive, and saved chats from the database (lib/assistant/chatStore.ts, Step 5), in the same shapes.
 import type { IconName } from "@/components/admin/Icon";
 
 /** A tool the assistant ran before answering, shown as a small chip: "Checked bookings" */
 export type ToolStep = { label: string; icon: IconName };
 
-export type BookingRow = { no: string; customer: string; vehicle: string; driver: string; dates: string; balance: number };
+export type BookingRow = {
+  no: string;
+  customer: string;
+  vehicle: string;
+  driver: string;
+  dates: string;
+  balance: number;
+  /** Privacy-first mode (9.4): the row's number, the same one the model was given, so "row 2" means the same to both */
+  row?: number;
+};
 
 /** Something richer than text under a reply: a table, numbers, a draft to confirm, a file, or help sources */
 export type Card =
@@ -13,18 +22,35 @@ export type Card =
   | { kind: "stats"; title: string; items: { label: string; value: string; tone?: "green" | "red" | "gold" | "navy" }[] }
   | {
       kind: "draft";
-      /** Later: the id of a row in assistant_drafts. The card never carries the data that gets saved. */
+      /** The id of a row in assistant_drafts (4.5). The card never carries the data that gets saved. */
       id: string;
       title: string;
       icon: IconName;
       fields: { label: string; value: string }[];
       warning?: string;
-      status: "pending" | "confirmed" | "cancelled";
+      /** expired: found to be past its 24 hours when Confirm or Cancel was pressed (4.11) */
+      status: "pending" | "confirmed" | "cancelled" | "expired";
+      /** True while Confirm is saving it (the buttons wait) */
+      saving?: boolean;
       /** Shown after Confirm, e.g. "Saved as VB-0042" */
       result?: string;
+      /** The saved booking's page, linked from the result */
+      resultHref?: string;
       formHref: string;
+      /** The form link's words: "Open in form" unless set (a payment opens its booking's page) */
+      formLabel?: string;
+      /** Privacy-first mode (9.5): typed on the card by the admin before Confirm, never in the chat */
+      needs?: readonly ("customer_name" | "customer_phone")[];
     }
-  | { kind: "file"; name: string; detail: string; href: string }
+  | {
+      kind: "file";
+      name: string;
+      detail: string;
+      /** The file itself (the Download button) */
+      href: string;
+      /** Optional: the same thing as a page on the website (the View link) */
+      view?: string;
+    }
   | { kind: "sources"; items: { title: string; section: string }[] };
 
 export type Message = {
@@ -40,9 +66,29 @@ export type Message = {
   voice?: boolean;
   /** The reply was cut short with Stop */
   stopped?: boolean;
+  /** Why the reply failed, shown in red under any words that did arrive. Failed replies aren't sent back to the model. */
+  error?: string;
 };
 
-export type Chat = { id: string; title: string; /** "Today", "Yesterday", "12 Oct" */ when: string; messages: Message[] };
+export type Chat = {
+  id: string;
+  title: string;
+  /** "Today", "Yesterday", "12 Oct" */
+  when: string;
+  messages: Message[];
+  /** A saved chat whose messages haven't been fetched yet (the list loads titles only, Step 5) */
+  unloaded?: boolean;
+};
 
-/** A reply before it gets an id and a time */
-export type Reply = Pick<Message, "text" | "steps" | "cards">;
+/**
+ * What /api/assistant sends while it answers: one of these as JSON on each line (NDJSON).
+ * - text: more words of the answer
+ * - step: a tool started ("running") or finished ("done"); `id` pairs the two when several run at once
+ * - card: a table or other card made from a finished tool's own result (lib/assistant/cards.ts)
+ * - title: a new chat's title, written by Flash-Lite (lib/assistant/titles.ts, 5.5), at the end of its first answer
+ */
+export type StreamEvent =
+  | { type: "text"; text: string }
+  | { type: "step"; state: "running" | "done"; id: string; step: ToolStep }
+  | { type: "card"; card: Card }
+  | { type: "title"; title: string };

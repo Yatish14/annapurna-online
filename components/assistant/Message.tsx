@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Icon from "@/components/admin/Icon";
 import type { Card, Message, ToolStep } from "@/lib/assistant/types";
-import CardView from "./Cards";
+import CardView, { type Typed } from "./Cards";
 
 type DraftCard = Extract<Card, { kind: "draft" }>;
 
@@ -45,7 +45,7 @@ type Props = {
   live?: boolean;
   /** The tool running right now (only while live) */
   running?: ToolStep | null;
-  onConfirm: (card: DraftCard) => void;
+  onConfirm: (card: DraftCard, typed?: Typed) => void;
   onCancel: (card: DraftCard) => void;
 };
 
@@ -105,6 +105,11 @@ export default function MessageView({ message, live, running, onConfirm, onCance
           </div>
         )}
         {message.text && <RichText text={message.text} />}
+        {message.error && (
+          <p className="ap-note ap-note-error as-error" role="alert">
+            <Icon name="xcircle" size={14} /> {message.error}
+          </p>
+        )}
 
         {message.cards?.map((card, i) => (
           <CardView key={i} card={card} onConfirm={onConfirm} onCancel={onCancel} />
