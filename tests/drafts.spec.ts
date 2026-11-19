@@ -122,6 +122,10 @@ test("a follow-up keeps the details the previous answer's attempt had; what the 
   expect(ready.ready).toBe(true);
   expect(ready.booking!.customer).toBe("Draft Test Customer");
   expect(ready.booking!.route).toContain("Guntur");
+  // As Flash-Lite sent it: round_trip false on its own, the drop city left out (it's kept)
+  const oneWay = await withSoFar({ vehicle: "Carens", round_trip: false, start_date: inDays(40), end_date: inDays(41) }, first);
+  expect(oneWay.ready, JSON.stringify(oneWay)).toBe(true);
+  expect(oneWay.booking!.route).toContain("Guntur");
   // What the model passes wins: a new name, and new dates (the earlier days aren't mixed with them)
   const changed = await withSoFar({ vehicle: "Carens", customer_name: "Someone Else", start_date: inDays(50) }, first);
   expect(changed.booking!.customer).toBe("Someone Else");

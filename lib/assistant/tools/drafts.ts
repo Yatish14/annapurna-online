@@ -116,11 +116,16 @@ const bookingArgs = z.object({
 });
 type BookingArgs = z.infer<typeof bookingArgs>;
 
-/** Details that go together: when the model gives any of a group, the earlier attempt's others in it aren't used */
+/**
+ * Details that go together: when the model gives any of a group, the earlier attempt's others in it aren't used
+ * (new dates replace all the old ones; a new city's state isn't the old city's). round_trip stands alone: the model
+ * sends "false" on its own, and that mustn't throw away the drop city (the eval case draft-follow-up caught it).
+ */
 const TOGETHER: (keyof BookingArgs)[][] = [
   ["start_date", "days", "end_date"],
   ["pickup_city", "pickup_state"],
-  ["round_trip", "drop_city", "drop_state", "destination_city", "destination_state"],
+  ["drop_city", "drop_state"],
+  ["destination_city", "destination_state"],
 ];
 
 /**
