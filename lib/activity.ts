@@ -131,3 +131,4 @@ export async function listTargetActivity(module: ActivityModule, target: string,
     [module, target, limit],
   );
 }
+
