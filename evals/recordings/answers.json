@@ -1,7 +1,11 @@
 {
   "recorded_on": "2026-11-18",
   "recorded_days": {
-    "draft-follow-up": "2026-11-19"
+    "draft-booking": "2026-11-23",
+    "draft-follow-up": "2026-11-23",
+    "draft-round-trip": "2026-11-23",
+    "hi-booking": "2026-11-23",
+    "seltos-too-many": "2026-11-23"
   },
   "passing": [
     "advance-cash",
@@ -321,31 +325,22 @@
           {
             "name": "draft_booking",
             "args": {
-              "driver_is_busy_ok": false,
-              "customer_phone": "98480 22338",
-              "total_amount": 9000,
-              "start_date": "2026-11-19",
-              "days": 2,
+              "customer_phone": "[phone 1]",
               "destination_city": "Guntur",
-              "pickup_city": "Vijayawada",
-              "vehicle": "Carens",
               "customer_name": "Ravi Kumar",
-              "round_trip": false
+              "start_date": "2026-11-24",
+              "round_trip": false,
+              "driver_is_busy_ok": false,
+              "vehicle": "Carens",
+              "total_amount": 9000,
+              "pickup_city": "Vijayawada",
+              "days": 2
             }
           }
         ]
       },
       {
-        "text": "",
-        "toolCalls": [
-          {
-            "name": "driver_summary",
-            "args": {}
-          }
-        ]
-      },
-      {
-        "text": "Which driver should I assign for this booking? (Available drivers: Ramesh Naidu, Suresh Babu, Venkat Rao)",
+        "text": "Who should be the driver for this trip?",
         "toolCalls": []
       }
     ],
@@ -1048,21 +1043,21 @@
           {
             "name": "draft_booking",
             "args": {
-              "pickup_city": "Vijayawada",
-              "days": 3,
-              "destination_city": "Tirupati",
+              "customer_phone": "[phone 1]",
               "customer_name": "Kiran Kumar",
-              "total_amount": 15000,
-              "vehicle": "Ertiga",
               "start_date": "2027-01-05",
-              "customer_phone": "9959933445",
+              "days": 3,
+              "vehicle": "Ertiga",
+              "destination_city": "Tirupati",
+              "pickup_city": "Vijayawada",
+              "total_amount": 15000,
               "round_trip": true
             }
           }
         ]
       },
       {
-        "text": "Who should be the driver for this booking?",
+        "text": "Which driver should I assign for this trip?",
         "toolCalls": []
       }
     ],
@@ -1200,12 +1195,13 @@
           {
             "name": "draft_booking",
             "args": {
-              "days": 2,
-              "start_date": "2026-11-19",
-              "destination_city": "गुंटूर",
-              "pickup_city": "विजयवाड़ा",
+              "driver_is_busy_ok": false,
+              "start_date": "2026-11-24",
+              "vehicle": "Carens",
               "round_trip": false,
-              "vehicle": "कैरेंस"
+              "drop_city": "Guntur",
+              "days": 2,
+              "pickup_city": "Vijayawada"
             }
           }
         ]
@@ -1216,20 +1212,21 @@
           {
             "name": "draft_booking",
             "args": {
-              "start_date": "2026-11-19",
-              "destination_city": "गुंटूर",
-              "vehicle": "कैरेंस",
-              "customer_phone": "9876500011",
-              "customer_name": "सुनीता",
+              "driver_is_busy_ok": false,
+              "drop_city": "Guntur",
+              "round_trip": false,
+              "vehicle": "Carens",
               "days": 2,
-              "pickup_city": "विजयवाड़ा",
-              "round_trip": false
+              "start_date": "2026-11-24",
+              "pickup_city": "Vijayawada",
+              "customer_name": "सुनीता",
+              "customer_phone": "[phone 1]"
             }
           }
         ]
       },
       {
-        "text": "गाड़ी के लिए ड्राइवर का नाम क्या रहेगा?",
+        "text": "गाड़ी के लिए ड्राइवर का नाम क्या है?",
         "toolCalls": []
       }
     ],
@@ -1728,52 +1725,19 @@
         "text": "",
         "toolCalls": [
           {
-            "name": "get_today",
-            "args": {
-              "plus_days": 1
-            }
-          }
-        ]
-      },
-      {
-        "text": "",
-        "toolCalls": [
-          {
             "name": "draft_booking",
             "args": {
-              "start_date": "2026-11-19",
-              "vehicle": "Seltos",
               "round_trip": false,
               "pickup_city": "Vijayawada",
-              "destination_city": "Guntur",
-              "customer_name": "Kiran Kumar",
-              "customer_phone": "9959933445"
+              "driver_is_busy_ok": false,
+              "vehicle": "Seltos",
+              "start_date": "2026-11-24"
             }
           }
         ]
       },
       {
-        "text": "",
-        "toolCalls": [
-          {
-            "name": "driver_summary",
-            "args": {}
-          }
-        ]
-      },
-      {
-        "text": "",
-        "toolCalls": [
-          {
-            "name": "search_help",
-            "args": {
-              "question": "seats"
-            }
-          }
-        ]
-      },
-      {
-        "text": "The Kia Seltos only fits up to 4 people, but you asked for 6 people (the Kia Carens fits up to 6 adults). Also, please choose a driver: Ramesh Naidu, Suresh Babu, or Venkat Rao. (From the Business Information Guide.)",
+        "text": "The Kia Seltos only seats up to 4 people, but our Kia Carens seats up to 7. Would you like to book the Carens for Kiran Kumar [phone 1] instead?",
         "toolCalls": []
       }
     ],
@@ -1785,16 +1749,18 @@
             "name": "draft_booking",
             "args": {
               "driver": "ramesh naidu",
-              "driver_is_busy_ok": false,
+              "pickup_city": "macherla",
+              "round_trip": false,
               "end_date": "2027-01-12",
-              "vehicle": "Innova Crysta",
+              "driver_is_busy_ok": false,
+              "vehicle": "crysta",
               "start_date": "2027-01-12"
             }
           }
         ]
       },
       {
-        "text": "The booking for Yatish in the Innova Crysta with Ramesh Naidu from Macherla to Guntur on 12 Jan 2027 is ready to check below. Nothing is saved until you press Confirm.",
+        "text": "The booking is ready to check below. Please double-check the details and press Confirm to save it.",
         "toolCalls": []
       }
     ]

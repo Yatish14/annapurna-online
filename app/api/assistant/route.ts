@@ -5,6 +5,7 @@ import { explain, savedAs } from "@/lib/assistant/replies";
 import { graph, RECURSION_LIMIT } from "@/lib/assistant/graph";
 import { isOnTopic, refusal } from "@/lib/assistant/guard";
 import { historyFor } from "@/lib/assistant/history";
+import { PhoneBook } from "@/lib/assistant/phones";
 import { DAILY_LIMIT, MAX_LENGTH } from "@/lib/assistant/limits";
 import { MAIN_MODEL, USE_FAKE } from "@/lib/assistant/model";
 import { systemPrompt } from "@/lib/assistant/prompt";
@@ -102,12 +103,16 @@ export async function POST(request: Request) {
     return event;
   };
   await save({ role: "user", text: message, voice });
+  // The phone labels for the off-topic check and the title writer: like the main model, they get "[phone 1]",
+  // never a typed number (lib/assistant/phones.ts). The chat itself saves the question as typed.
+  const asked = new PhoneBook();
   // A new chat: its first title is its first question, cut short (the same as the chat shows), and Flash-Lite
   // writes a better one alongside the answer (5.5). Saved whatever happens to the answer; sent at its end.
   const newChat = !chat.titled && chat.title === "New chat";
   if (newChat) await setTitle(chat.id, user.id, titleFrom(message), "question");
   const written: Promise<string | null> = newChat
-    ? writeTitle(message, [recorder])
+    ? // The question without its phone numbers (lib/assistant/phones.ts); a label in the title is put back
+      writeTitle(asked.mask(message), [recorder]).then((title) => title && asked.unmask(title))
         .then(async (title) => (title && (await setTitle(chat.id, user.id, title, "writer")) ? title : null))
         .catch(() => null) // a title isn't worth an error: the first question stays
     : Promise.resolve(null);
@@ -122,7 +127,7 @@ export async function POST(request: Request) {
   //    questions. The previous question goes along, so a follow-up like "and for 3?" makes sense.
   //    The "no" is sent like a normal reply, so the chat shows it as the assistant's answer.
   const earlier = history.findLast((m) => m instanceof HumanMessage)?.text;
-  if (!(await isOnTopic(message, earlier, request.signal, [recorder]))) {
+  if (!(await isOnTopic(asked.mask(message), earlier && asked.mask(earlier), request.signal, [recorder]))) {
     const text = refusal(message);
     await save({ role: "assistant", text });
     firstTextAt = Date.now();
@@ -152,7 +157,7 @@ export async function POST(request: Request) {
         callbacks: [recorder],
       },
     );
-    pieces = savedAs(events(stream as AsyncIterable<[string, unknown]>, (call) => answer.toolCalls!.push(call)), answer, save, request.signal);
+    pieces = savedAs(events(stream as AsyncIterable<[string, unknown]>, (call) => answer.toolCalls!.push(call), PhoneBook.from(messages)), answer, save, request.signal);
     // Wait for the first piece before answering: most failures (bad key, over the free limit) show up here,
     // while we can still send a proper error status. Once the 200 has gone out, the status can't change.
     first = await pieces.next();

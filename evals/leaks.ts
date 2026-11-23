@@ -6,20 +6,24 @@ import type { BaseMessage } from "@langchain/core/messages";
  * The leak test (9.7): does any customer's or driver's name, phone number, admin's name or money amount from the
  * database appear in what would be sent to Google? Plain code, checking every request the model would get.
  *
- * Checked: what OUR SERVER adds to each request, the system prompt and the tools' results. Not checked: the admin's
- * own question (they typed it, so it's theirs to send, and the chat box says so, 9.6), and the model's own words
- * (it can only repeat what it was sent, and replayed answers were recorded in normal mode).
+ * Checked: what OUR SERVER adds to each request, the system prompt and the tools' results, for every secret. And
+ * since phone masking (lib/assistant/phones.ts), the admin's own words and the chat's earlier answers too, for any
+ * phone number at all: a typed number must reach the model only as "[phone 1]". Names and amounts the admin types
+ * still go as typed (they're theirs to send, and the chat box says so, 9.6).
  */
 
-/** Hears every request the model would get, and keeps the parts our server added */
+/** Hears every request the model would get, and keeps the parts our server added, and the rest (for phones) */
 export class RequestRecorder extends BaseCallbackHandler {
   name = "annapurna-leaks";
   sent: string[] = [];
+  /** The admin's questions and the model's earlier answers, as sent */
+  typed: string[] = [];
 
   async handleChatModelStart(_llm: Serialized, messages: BaseMessage[][]) {
     for (const m of messages.flat()) {
       const type = m.getType();
       if (type === "system" || type === "tool") this.sent.push(m.text);
+      else this.typed.push(m.text, JSON.stringify((m as { tool_calls?: unknown }).tool_calls ?? []));
     }
   }
 }

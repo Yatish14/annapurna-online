@@ -1,5 +1,6 @@
 import { AIMessage, type BaseMessage, ToolMessage } from "@langchain/core/messages";
 import { cardFor } from "./cards";
+import { PhoneBook, StreamUnmasker } from "./phones";
 import { stepFor } from "./steps";
 import type { StreamEvent, ToolStep } from "./types";
 
@@ -16,26 +17,41 @@ export async function* events(
   stream: AsyncIterable<[string, unknown]>,
   /** Told about each tool the model calls, with the inputs it chose (the route saves them with the answer, 5.2) */
   onToolCall?: (call: { name: string; args: Record<string, unknown> }) => void,
+  /**
+   * The phone labels the model was given (lib/assistant/phones.ts), learnt from the messages the graph started
+   * with. The model writes "[phone 1]"; the admin sees, and the chat saves, the real number. It learns the steps'
+   * messages as they come, in the same order the graph's state gets them, so its labels match the model's.
+   */
+  book: PhoneBook = new PhoneBook(),
 ): AsyncGenerator<StreamEvent> {
   // tool call id → the call (for its card) and its chip, until it's done
   const running = new Map<string, { name: string; args: Record<string, unknown>; step: ToolStep }>();
+  const words = new StreamUnmasker(book);
   for await (const [kind, payload] of stream) {
     if (kind === "messages") {
       const [piece, details] = payload as [BaseMessage, Record<string, unknown>];
-      if (details.langgraph_node === "model" && piece.text) yield { type: "text", text: piece.text };
+      if (details.langgraph_node === "model" && piece.text) {
+        const text = words.push(piece.text);
+        if (text) yield { type: "text", text };
+      }
       continue;
     }
     if (kind !== "updates") continue;
     const update = payload as Record<string, { messages?: BaseMessage[] } | undefined>;
+    const said = words.flush(); // a step ended: nothing more is coming for a held-back "[…"
+    if (said) yield { type: "text", text: said };
     for (const message of update.model?.messages ?? []) {
+      book.learn([message]);
       for (const call of AIMessage.isInstance(message) ? (message.tool_calls ?? []) : []) {
         const id = call.id ?? call.name;
-        const step = stepFor(call.name, call.args);
-        running.set(id, { name: call.name, args: call.args, step });
-        onToolCall?.({ name: call.name, args: call.args });
+        const args = book.unmaskArgs(call.args);
+        const step = stepFor(call.name, args);
+        running.set(id, { name: call.name, args, step });
+        onToolCall?.({ name: call.name, args });
         yield { type: "step", state: "running", id, step };
       }
     }
+    book.learn(update.tools?.messages ?? []);
     for (const message of update.tools?.messages ?? []) {
       if (!ToolMessage.isInstance(message)) continue;
       const call = running.get(message.tool_call_id);
@@ -47,6 +63,8 @@ export async function* events(
       if (card) yield { type: "card", card };
     }
   }
+  const rest = words.flush();
+  if (rest) yield { type: "text", text: rest };
 }
 
 /** One event as a line of JSON (NDJSON: the chat splits the stream at each "\n") */
