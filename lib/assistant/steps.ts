@@ -34,6 +34,7 @@ const STEPS: Record<string, (args: Args) => ToolStep> = {
   draft_booking: () => ({ label: "Checked the booking details", icon: "plus" }),
   draft_payment: () => ({ label: "Checked the payment details", icon: "rupee" }),
   draft_fuel: () => ({ label: "Checked the fuel details", icon: "fuel" }),
+  draft_discount: () => ({ label: "Checked the discount", icon: "tag" }),
   search_help: () => ({ label: "Searched the help guides", icon: "file" }),
   // Neutral words: the chip shows before the tool runs, and the booking may not exist or may have no total yet
   expense_statement: (a) => ({ label: `Statement for ${text(a.number).toUpperCase() || "a booking"}`, icon: "receipt" }),

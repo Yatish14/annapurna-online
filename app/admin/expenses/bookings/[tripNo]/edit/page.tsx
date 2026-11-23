@@ -55,6 +55,10 @@ export default async function EditTripPage({ params }: { params: Params }) {
           notes: trip.notes ?? "",
           // Money and km as saved (payments and fuel are added, not edited, here)
           total_amount: trip.total_amount === null ? "" : String(trip.total_amount),
+          // Kept in rupees, so it opens in ₹ (a percentage given earlier shows as the rupees it came to)
+          discount_amount: trip.discount === null ? "" : String(trip.discount),
+          discount_mode: "rs",
+          discount_reason: trip.discount_reason ?? "",
           driver_amount: trip.driver_amount === null ? "" : String(trip.driver_amount),
           odometer_start: trip.odometer_start === null ? "" : String(trip.odometer_start),
           odometer_end: trip.odometer_end === null ? "" : String(trip.odometer_end),

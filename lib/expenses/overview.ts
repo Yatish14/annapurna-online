@@ -2,14 +2,17 @@ import { query } from "../db";
 
 /**
  * Figures for one month ("YYYY-MM"):
- * - bookings, km, billed and driver amounts: bookings starting in the month
+ * - bookings, km, billed, discounts and driver amounts: bookings starting in the month
  * - received and paid to drivers: payments made in the month
  * - fuel, other booking expenses (tolls, parking…), repairs, FASTag, EMI and insurance: payments dated in the month
  */
 export type MonthSummary = {
   bookings: number;
   km: number;
+  /** What the customers were billed: their totals less discounts */
   billed: number;
+  /** Discounts given on those bookings */
+  discounts: number;
   driverAmount: number;
   received: number;
   driverPaid: number;
@@ -28,6 +31,7 @@ export type VehicleMonth = {
   active: boolean;
   bookings: number;
   km: number;
+  /** Totals less discounts */
   billed: number;
   /** Paid so far by the customers of the bookings starting in the month */
   received: number;
@@ -71,7 +75,9 @@ export async function monthSummary(month: string): Promise<MonthSummary> {
        (SELECT count(*)::int FROM trips t WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS bookings,
        (SELECT coalesce(sum(coalesce(t.odometer_end - t.odometer_start, t.km_direct)), 0)::int FROM trips t
           WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS km,
-       (SELECT coalesce(sum(t.total_amount), 0)::float8 FROM trips t WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS billed,
+       (SELECT coalesce(sum(t.total_amount - coalesce(t.discount, 0)), 0)::float8 FROM trips t
+          WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS billed,
+       (SELECT coalesce(sum(t.discount), 0)::float8 FROM trips t WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS discounts,
        (SELECT coalesce(sum(t.driver_amount), 0)::float8 FROM trips t WHERE t.status = 'booked' AND ${IN_MONTH("t.start_date")}) AS "driverAmount",
        (SELECT coalesce(sum(p.amount), 0)::float8 FROM trip_payments p
           WHERE p.party = 'customer' AND p.deleted_at IS NULL AND ${IN_MONTH(PAID_DAY)}) AS received,
@@ -110,7 +116,7 @@ export async function vehiclesMonth(month: string): Promise<VehicleMonth[]> {
      FROM vehicles v
      LEFT JOIN LATERAL (
        SELECT count(*) AS bookings, sum(coalesce(t.odometer_end - t.odometer_start, t.km_direct)) AS km,
-              sum(t.total_amount) AS billed, sum(t.driver_amount) AS driver_amount,
+              sum(t.total_amount - coalesce(t.discount, 0)) AS billed, sum(t.driver_amount) AS driver_amount,
               sum((SELECT coalesce(sum(p.amount), 0) FROM trip_payments p
                    WHERE p.trip_id = t.id AND p.party = 'customer' AND p.deleted_at IS NULL)) AS received
        FROM trips t WHERE t.vehicle_id = v.id AND t.status = 'booked' AND ${IN_MONTH("t.start_date")}
@@ -136,7 +142,8 @@ export async function vehiclesMonth(month: string): Promise<VehicleMonth[]> {
 export async function outstanding(): Promise<Outstanding> {
   const [row] = await query<Outstanding>(
     `WITH b AS (
-       SELECT t.total_amount, t.driver_amount,
+       -- What each customer pays: the total less any discount (as balanceOf in trips.ts)
+       SELECT t.total_amount - coalesce(t.discount, 0) AS total_amount, t.driver_amount,
               coalesce(sum(p.amount) FILTER (WHERE p.party = 'customer'), 0) AS received,
               coalesce(sum(p.amount) FILTER (WHERE p.party = 'driver'), 0) AS driver_paid
        FROM trips t

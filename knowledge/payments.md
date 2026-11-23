@@ -35,7 +35,7 @@ A driver payment is always tied to one booking. To see everything a driver is ow
 
 ## The advance on a new booking
 
-The advance is the first payment the customer makes. On the **New booking** form, under **Money, fuel and km**, enter **Advance received (₹)** and choose **Advance paid by**. It is saved as the booking's first customer payment. The advance can't be more than the total. In the **Edit details** form, the same box is called **Add a payment received (₹)** and adds another payment; with it, the customer can't have paid more than the total.
+The advance is the first payment the customer makes. On the **New booking** form, under **Money, fuel and km**, enter **Advance received (₹)** and choose **Advance paid by**. It is saved as the booking's first customer payment. The advance can't be more than the total (less any discount). In the **Edit details** form, the same box is called **Add a payment received (₹)** and adds another payment; with it, the customer can't have paid more than the total.
 
 ## Setting the total and the driver amount
 
@@ -46,8 +46,9 @@ The balance can only be worked out once the total is entered. To set the total o
 On a booking:
 
 - **Total** is the amount agreed with the customer for the trip.
+- **Discount** is an amount taken off the total, if one was given. The customer then pays the total minus the discount ("To pay").
 - **Received** is the sum of all customer payments recorded so far.
-- **Balance due** is total minus received: what the customer still has to pay. It is never shown below zero. When nothing is left, it says **Fully paid**.
+- **Balance due** is total minus discount minus received: what the customer still has to pay. It is never shown below zero. When nothing is left, it says **Fully paid**.
 
 If more was received than the total, the panel shows a note saying how much extra was received. The **To collect from customers** figure on the Overview adds up balances over all bookings and all months.
 
@@ -63,10 +64,30 @@ The **To pay drivers** figure on the Overview adds this up over all bookings and
 
 Each booking that is not cancelled shows a payment badge, worked out from the total and the payments (it is never typed in):
 
-- **Paid**: received is at least the total.
-- **Partly paid**: some money is received, but less than the total.
+- **Paid**: received is at least the total (less any discount).
+- **Partly paid**: some money is received, but less than the total (less any discount).
 - **Payment due**: a total is set but nothing is received yet.
 - **Total not set**: no total entered yet.
+
+## Giving a discount
+
+A booking can have one discount off its total, for example ₹500 for a regular customer. The customer then pays the total minus the discount, and the balance due, the payment badge, the Overview, the reports, the expense statement and the WhatsApp message all use that amount.
+
+To give or change a discount:
+
+1. Open the booking and press **Edit details** (or fill it in on the **New booking** form).
+2. Under **Money, fuel and km**, find **Discount**. Choose **₹ Amount** or **% of total**.
+3. Enter the discount, for example 500, or 5 for 5% of the total. A percentage is worked out in rupees from the total and saved in rupees.
+4. Optionally add a **Reason**, such as "Regular customer" or "Festival offer".
+5. The **Customer pays** box shows the total minus the discount. Press **Save changes**.
+
+To remove a discount, clear the Discount box in Edit details, or press **Remove** next to the discount in the **Customer payments** panel. A discount needs a total, can't be more than the total, and can't make the customer owe less than they have already paid. Every change is recorded in the booking's History.
+
+## Settling the rest as discount
+
+When a customer pays a little less than they owe and you agree to let the rest go, open the booking and, in the **Customer payments** panel, press **Settle the rest as discount**. A popup asks you to confirm: the balance still due is added to the booking's discount, and the booking becomes **Fully paid**. For example, with ₹12,000 total and ₹11,800 received, settling gives a ₹200 discount. The History records it as "settled the balance of ₹200".
+
+Profit counts money actually received, so a discount lowers the profit. On the Overview and in the reports, **Billed** is the totals less discounts, and the discounts given are shown on their own too.
 
 ## Removing a payment entered by mistake
 

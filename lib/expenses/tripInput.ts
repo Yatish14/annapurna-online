@@ -4,7 +4,8 @@ import { fleetChoices } from "./fleet";
 import { logActivity, type Actor } from "../activity";
 import { formatNumber, formatRupees, isPaymentMethod, parseAmount, parseWhole, PAYMENT_METHODS } from "./money";
 import { cleanPlace, isState } from "./places";
-import { clashText, createTrip, expenseText, findClash, kmOf, paymentText, type Trip, type TripInput } from "./trips";
+import { parseDiscount } from "./discountInput";
+import { clashText, createTrip, discountText, expenseText, findClash, kmOf, paymentText, type Trip, type TripDiscount, type TripInput } from "./trips";
 
 /**
  * A booking's checks, in one place: the booking form (app/admin/expenses/bookings/actions.ts) and Annapurna Assist's
@@ -34,6 +35,8 @@ export type ParsedTrip =
       odometerEnd: number | null;
       kmDirect: number | null;
       totalAmount: number | null;
+      /** Off the total (lib/expenses/discountInput.ts); amount null: none */
+      discount: TripDiscount;
       driverAmount: number | null;
       advance: { amount: number; method: keyof typeof PAYMENT_METHODS } | null;
       fuel: { amount: number; litres: number | null; spentOn: string } | null;
@@ -114,13 +117,22 @@ export function parseTrip(get: Get, isNew: boolean): ParsedTrip {
   if (kmDirect === "invalid" || (kmDirect !== null && kmDirect > 999999)) return fail("km_direct", "Enter the km travelled as a whole number, like 340.");
   const totalAmount = parseAmount(get("total_amount"));
   if (totalAmount === "invalid") return fail("total_amount", "Enter the total as an amount in rupees, like 12000.");
+  // A discount off the total, in rupees or as a percentage of it (its rules are shared: discountInput.ts)
+  const discount = parseDiscount(get, totalAmount);
+  if (!discount.ok) return fail(discount.field, discount.error);
+  const payable = totalAmount === null ? null : totalAmount - (discount.discount.amount ?? 0);
   const driverAmount = parseAmount(get("driver_amount"));
   if (driverAmount === "invalid") return fail("driver_amount", "Enter the driver's amount in rupees, like 1500.");
   const advanceAmount = parseAmount(get("advance_amount"), { allowZero: false });
   if (advanceAmount === "invalid") return fail("advance_amount", "Enter the advance in rupees, like 2000 (or leave it empty).");
   // (When editing, the payments already received count too: checked in saveTrip)
-  if (isNew && advanceAmount !== null && totalAmount !== null && advanceAmount > totalAmount)
-    return fail("advance_amount", "The advance is more than the total. Check both amounts.");
+  if (isNew && advanceAmount !== null && payable !== null && advanceAmount > payable)
+    return fail(
+      "advance_amount",
+      discount.discount.amount
+        ? `The advance is more than the ${formatRupees(payable)} to pay after the discount. Check the amounts.`
+        : "The advance is more than the total. Check both amounts.",
+    );
   const method = String(get("advance_method") ?? "cash");
   // Fuel filled for the trip (optional). A new booking's: dated the start day, or today if the trip hasn't started yet;
   // fuel added while editing: today
@@ -138,6 +150,7 @@ export function parseTrip(get: Get, isNew: boolean): ParsedTrip {
     odometerEnd,
     kmDirect,
     totalAmount,
+    discount: discount.discount,
     driverAmount,
     advance: advanceAmount !== null ? { amount: advanceAmount, method: isPaymentMethod(method) ? method : "cash" } : null,
     fuel: fuelAmount !== null ? { amount: fuelAmount, litres, spentOn: isNew && startDate < today ? startDate : today } : null,
@@ -220,6 +233,7 @@ export async function createCheckedTrip(
     [`${input.customerName} (${input.customerPhone})`, `${vehicle.name} with ${driver.name}`, route,
       km !== null ? `${formatNumber(km)} km` : null,
       parsed.totalAmount !== null ? `Total ${formatRupees(parsed.totalAmount)}` : null,
+      parsed.discount.amount !== null ? `Discount ${discountText(parsed.discount.amount, parsed.discount.reason)}` : null,
       via ?? null].filter(Boolean).join(" · "),
   );
   if (parsed.advance) await logActivity(user, "payment.received", result.trip_no, `${paymentText(parsed.advance)} · Advance`);

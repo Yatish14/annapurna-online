@@ -9,7 +9,7 @@ import { query } from "@/lib/db";
  * admin can't confirm someone else's draft.
  */
 
-export type DraftKind = "booking" | "payment" | "fuel";
+export type DraftKind = "booking" | "payment" | "fuel" | "discount";
 
 /** How long a draft can be confirmed. Confirm checks everything again anyway; this keeps old drafts from lingering. */
 export const DRAFT_HOURS = 24;
@@ -124,7 +124,7 @@ export async function draftsOf(ids: string[], userId: number): Promise<Map<strin
   return new Map(rows.map((d) => [d.id, d]));
 }
 
-const KIND_NAMES: Record<DraftKind, string> = { booking: "booking", payment: "payment", fuel: "fuel entry" };
+const KIND_NAMES: Record<DraftKind, string> = { booking: "booking", payment: "payment", fuel: "fuel entry", discount: "discount" };
 
 /**
  * What became of a draft after the answer that showed it, for the model to read with that answer (4.7). Written by

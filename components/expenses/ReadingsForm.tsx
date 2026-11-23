@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { saveReadings } from "@/app/admin/expenses/bookings/actions";
 import Icon from "@/components/admin/Icon";
 import SubmitButton from "@/components/admin/SubmitButton";
+import { formatRupees } from "@/lib/expenses/money";
 
 type Props = {
   tripId: number;
@@ -12,6 +13,8 @@ type Props = {
   kmDirect: number | null;
   totalAmount: number | null;
   driverAmount: number | null;
+  /** The booking's discount (null: none): the total can't go below it */
+  discount?: number | null;
   /** View only: the boxes are shown but disabled, and Save says why when pressed */
   locked?: string | false;
 };
@@ -20,7 +23,7 @@ type Props = {
  * The booking's km and agreed amounts. Km comes from the two odometer readings, or (switch on) is typed
  * in directly when the odometer wasn't noted. Saving one way clears the other.
  */
-export default function ReadingsForm({ tripId, odometerStart, odometerEnd, kmDirect, totalAmount, driverAmount, locked }: Props) {
+export default function ReadingsForm({ tripId, odometerStart, odometerEnd, kmDirect, totalAmount, driverAmount, discount = null, locked }: Props) {
   const off = Boolean(locked);
   const [direct, setDirect] = useState(kmDirect !== null && odometerStart === null);
   const hasReadings = odometerStart !== null || odometerEnd !== null;
@@ -64,7 +67,18 @@ export default function ReadingsForm({ tripId, odometerStart, odometerEnd, kmDir
         )}
         <label className="ap-field">
           <span>Total from customer (₹)</span>
-          <input disabled={off} type="number" name="total_amount" inputMode="decimal" min="0" max="10000000" step="0.01" defaultValue={totalAmount ?? ""} />
+          <input
+            disabled={off}
+            type="number"
+            name="total_amount"
+            inputMode="decimal"
+            min={discount ?? 0}
+            max="10000000"
+            step="0.01"
+            required={discount !== null}
+            defaultValue={totalAmount ?? ""}
+          />
+          {discount !== null && <span className="mob-msg">Has a {formatRupees(discount)} discount: not below that</span>}
         </label>
         <label className="ap-field">
           <span>Amount for the driver (₹)</span>

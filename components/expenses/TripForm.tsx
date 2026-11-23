@@ -64,7 +64,13 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
   const driverChoices = drivers.filter((x) => x.active || String(x.id) === initial.driver_id);
   const days = dayCount(v.start_date, v.end_date);
   const received = soFar?.received ?? 0;
-  const paymentMax = v.total_amount ? String(Math.max(Number(v.total_amount) - received, 0)) : "10000000";
+  // The discount in rupees (a percentage is worked out from the total, as the server does) and what's left to pay
+  const total = v.total_amount !== "" && Number.isFinite(Number(v.total_amount)) ? Number(v.total_amount) : null;
+  const discountIn = Number(v.discount_amount) > 0 ? Number(v.discount_amount) : 0;
+  const percent = v.discount_mode === "pct";
+  const discountRs = total === null ? null : percent ? Math.round((total * discountIn) / 100) : discountIn;
+  const payable = total === null ? null : Math.max(total - (discountRs ?? 0), 0);
+  const paymentMax = payable !== null ? String(Math.max(payable - received, 0)) : "10000000";
   const off = (active: boolean) => (active ? "" : " (switched off)");
   const vehicleOptions = vehicleChoices.map((x) => ({ value: String(x.id), label: x.name + off(x.active) }));
   const driverOptions = driverChoices.map((x) => ({
@@ -388,6 +394,67 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
                 onChange={(e) => set("driver_amount", e.target.value)}
               />
             </label>
+          </div>
+
+          {/* A discount off the total, in rupees or as a percentage of it (kept in rupees: lib/expenses/discountInput.ts) */}
+          <div className="xp-subhead-row">
+            <p className="xp-subhead">Discount</p>
+            <span className="xp-unitswitch" role="radiogroup" aria-label="Discount in">
+              {(["rs", "pct"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={v.discount_mode === mode}
+                  className={v.discount_mode === mode ? "is-on" : ""}
+                  onClick={() => set("discount_mode", mode)}
+                >
+                  {mode === "rs" ? "₹ Amount" : "% of total"}
+                </button>
+              ))}
+            </span>
+          </div>
+          <input type="hidden" name="discount_mode" value={v.discount_mode} />
+          <div className="xp-grid xp-grid-4 xp-discount">
+            <label className="ap-field">
+              <span>{percent ? "Discount (%)" : "Discount (₹)"}</span>
+              <input
+                type="number"
+                name="discount_amount"
+                inputMode="decimal"
+                min="0"
+                max={percent ? "100" : total !== null ? String(total) : "10000000"}
+                step="0.01"
+                placeholder={percent ? "e.g. 5" : "e.g. 500"}
+                value={v.discount_amount}
+                onChange={(e) => set("discount_amount", e.target.value)}
+              />
+              {percent && discountIn > 0 && (
+                <span className="mob-msg">{total !== null ? `${formatRupees(discountRs ?? 0)} off` : "Enter the total first"}</span>
+              )}
+            </label>
+            <label className="ap-field xp-discount-reason">
+              <span>Reason (optional)</span>
+              <input
+                name="discount_reason"
+                maxLength={60}
+                autoComplete="off"
+                placeholder="e.g. Regular customer, Festival offer"
+                value={v.discount_reason}
+                onChange={(e) => set("discount_reason", e.target.value)}
+              />
+            </label>
+            <div className="xp-payable" aria-live="polite">
+              <span>Customer pays</span>
+              <strong>{payable === null ? "—" : formatRupees(payable)}</strong>
+              <small>
+                {total === null
+                  ? "Enter the total"
+                  : discountRs
+                    ? `${formatRupees(total)} − ${formatRupees(discountRs)} discount`
+                    : "No discount"}
+              </small>
+            </div>
           </div>
 
           <div className="xp-pair">

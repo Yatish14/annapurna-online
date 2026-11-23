@@ -7,6 +7,7 @@ import {
   driverOwed,
   kmOf,
   PAY_LABELS,
+  payableOf,
   payState,
   PHASE_LABELS,
   routeText,
@@ -68,7 +69,9 @@ export default function TripCard({ trip }: { trip: Trip }) {
               <>{formatRupees(trip.received)} · total not set</>
             ) : (
               <>
-                {formatRupees(trip.received)} of {formatRupees(trip.total_amount)}
+                {/* Of what they pay: the total less any discount */}
+                {formatRupees(trip.received)} of {formatRupees(payableOf(trip) ?? trip.total_amount)}
+                {trip.discount !== null && <span className="ap-muted"> ({formatRupees(trip.discount)} off)</span>}
                 {balance > 0 && trip.status === "booked" && <b className="xp-owed"> · {formatRupees(balance)} due</b>}
               </>
             )}

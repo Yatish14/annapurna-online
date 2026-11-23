@@ -3,6 +3,7 @@ import { BUSINESS } from "../config";
 import { daysText, diffDays, fmtLong, fmtRange, todayIST } from "../dates";
 import { formatPhone } from "../format";
 import { formatRupees, PAYMENT_METHODS } from "./money";
+import { SETTLE_REASON } from "./discountInput";
 import { embedFonts, fit, GOLD, GREEN, INK, IVORY, LINE, NAVY, RED, SOFT } from "./pdf";
 import { balanceOf, type Payment, type Trip } from "./trips";
 
@@ -10,8 +11,13 @@ const PAGE = { width: 595.28, height: 841.89, margin: 48 };
 
 export type StatementTrip = Pick<
   Trip,
-  "trip_no" | "customer_name" | "customer_phone" | "start_date" | "end_date" | "total_amount" | "received"
+  "trip_no" | "customer_name" | "customer_phone" | "start_date" | "end_date" | "total_amount" | "discount" | "discount_reason" | "received"
 >;
+
+/** The discount's words for the customer: its reason, unless it's our own note from "Settle the rest as discount" */
+export function discountLabel(reason: string | null): string {
+  return reason && reason !== SETTLE_REASON ? `Discount (${reason})` : "Discount";
+}
 
 /**
  * A one-page PDF for the customer: what the expenses came to, the payments received and what is still
@@ -66,6 +72,14 @@ export async function buildStatementPdf(trip: StatementTrip, payments: Payment[]
   textRight(formatRupees(trip.total_amount ?? 0), right - 10, y, 10.5, bold, NAVY);
   y -= 12;
   rule(y);
+  // A discount, as a line taken off the expenses
+  if (trip.discount !== null) {
+    y -= 20;
+    text(fit(discountLabel(trip.discount_reason), regular, 10.5, right - left - 140), left + 10, y, 10.5);
+    textRight(`− ${formatRupees(trip.discount)}`, right - 10, y, 10.5, bold, GREEN);
+    y -= 12;
+    rule(y);
+  }
 
   // ---------- Payments received ----------
   const received = payments.filter((p) => p.party === "customer" && !p.deleted_ist);
@@ -97,6 +111,7 @@ export async function buildStatementPdf(trip: StatementTrip, payments: Payment[]
   const boxX = right - boxW;
   const rows: [string, string, PDFFont, typeof INK][] = [
     ["Total", formatRupees(trip.total_amount ?? 0), regular, INK],
+    ...(trip.discount !== null ? [["Discount", `− ${formatRupees(trip.discount)}`, regular, GREEN] as [string, string, PDFFont, typeof INK]] : []),
     ["Paid", formatRupees(trip.received), regular, INK],
   ];
   y -= 26;

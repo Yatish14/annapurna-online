@@ -810,6 +810,15 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 .xp-moneybar strong { font-size: 1.05rem; overflow-wrap: anywhere; }
 .xp-moneybar .is-due strong { color: var(--err); }
 .xp-moneybar .is-clear strong { color: var(--ok); }
+.xp-moneybar small { font-size: .74rem; font-weight: 600; color: var(--ink-soft); }
+/* Customer payments: the discount given, with "Settle the rest as discount" and Remove */
+.xp-discountbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+  margin-top: 12px; padding: 9px 12px; border-radius: 12px; background: #fffaf0; border: 1px dashed rgba(201,162,74,.5);
+}
+.xp-discountbar-text { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; min-width: 0; }
+.xp-discountbar-text svg { color: var(--gold-600); flex-shrink: 0; }
+.xp-discountbar-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .xp-progress { height: 6px; margin: 12px 0 14px; border-radius: 999px; background: var(--ivory-2); overflow: hidden; }
 .xp-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2bb07f, var(--ok)); }
 .xp-hint-top { margin: -6px 0 12px; }
@@ -1108,6 +1117,25 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 @media (max-width: 1100px) { .xp-section .xp-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .xp-pair { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .xp-section .xp-grid-4 { grid-template-columns: 1fr; } }
 .xp-subhead-row { min-height: 22px; }
+
+/* Discount: ₹ / % switch, the amount, a reason across two columns, and what the customer pays */
+.xp-unitswitch { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--ivory-2); border: 1px solid var(--line); }
+.xp-unitswitch button {
+  border: 0; background: none; padding: 5px 12px; border-radius: 999px; font: inherit; font-size: .78rem; font-weight: 700;
+  color: var(--ink-soft); cursor: pointer; transition: background .15s, color .15s;
+}
+.xp-unitswitch button.is-on { background: var(--surface); color: var(--navy-900); box-shadow: 0 1px 3px rgba(16,26,51,.14); }
+.xp-unitswitch button:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 1px; }
+.xp-discount .xp-discount-reason { grid-column: span 2; }
+.xp-payable {
+  display: grid; align-content: center; gap: 2px; padding: 10px 14px; border-radius: 14px;
+  background: #fffaf0; border: 1px solid rgba(201,162,74,.35); min-height: 64px;
+}
+.xp-payable span { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-600); }
+.xp-payable strong { font-size: 1.15rem; color: var(--navy-900); }
+.xp-payable small { font-size: .76rem; font-weight: 600; color: var(--ink-soft); }
+@media (max-width: 1100px) { .xp-discount .xp-discount-reason { grid-column: 1 / -1; } }
+@media (max-width: 700px) { .xp-discount .xp-discount-reason { grid-column: auto; } }
 /* Fuel amount + litres and the two odometer readings are short numbers: side by side even on phones */
 .xp-pair .xp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
 /* WhatsApp button beside the "Booking details" title (wraps under it on narrow phones) */

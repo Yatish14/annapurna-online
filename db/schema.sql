@@ -362,6 +362,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS vehicle_expenses_emi_month ON vehicle_expenses
 -- Km travelled typed in directly, for bookings without odometer readings (used only when there are no readings)
 ALTER TABLE trips ADD COLUMN IF NOT EXISTS km_direct int CHECK (km_direct BETWEEN 0 AND 999999);
 
+-- A discount on the booking's total, in rupees, and why (optional). The customer pays total − discount. Only with a
+-- total, and never more than it. Existing bookings have none, so their numbers don't change.
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS discount numeric(12, 2);
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS discount_reason text;
+ALTER TABLE trips DROP CONSTRAINT IF EXISTS trips_discount;
+ALTER TABLE trips ADD CONSTRAINT trips_discount CHECK (
+  discount IS NULL OR (discount > 0 AND total_amount IS NOT NULL AND discount <= total_amount)
+);
+
 -- Fuel and a booking's other expenses (tolls, parking… named in description) belong to a booking;
 -- repairs, FASTag, EMI and insurance belong to the vehicle alone
 UPDATE vehicle_expenses SET trip_id = NULL WHERE kind NOT IN ('fuel', 'other') AND trip_id IS NOT NULL;
@@ -402,6 +411,9 @@ CREATE TABLE IF NOT EXISTS assistant_drafts (
   CHECK ((status = 'pending') = (settled_at IS NULL))
 );
 CREATE INDEX IF NOT EXISTS assistant_drafts_user_idx ON assistant_drafts (user_id, created_at DESC);
+-- A discount on a booking (draft_discount) is a draft too
+ALTER TABLE assistant_drafts DROP CONSTRAINT IF EXISTS assistant_drafts_kind_check;
+ALTER TABLE assistant_drafts ADD CONSTRAINT assistant_drafts_kind_check CHECK (kind IN ('booking', 'payment', 'fuel', 'discount'));
 
 -- Annapurna Assist's saved chats (Step 5, lib/assistant/chatStore.ts). Each admin sees only their own. The chat's
 -- id is made by the browser (a random UUID, so the chat has its address from the first question); the server

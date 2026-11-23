@@ -2,8 +2,10 @@ import type { SessionUser } from "@/lib/auth";
 import { cancelPendingDraft, claimDraft, type Draft, finishDraft, getDraft, releaseDraft } from "@/lib/assistant/draftStore";
 import { FUEL_PROBLEMS, parseFuel, saveFuel } from "@/lib/expenses/fuelInput";
 import { parsePayment, PAYMENT_PROBLEMS, savePayment } from "@/lib/expenses/paymentInput";
+import { DISCOUNT_PROBLEMS, saveDiscount } from "@/lib/expenses/discountInput";
+import { formatRupees } from "@/lib/expenses/money";
 import { checkTrip, createCheckedTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
-import { getTripById } from "@/lib/expenses/trips";
+import { balanceOf, getTripById } from "@/lib/expenses/trips";
 
 /**
  * What Annapurna Assist's draft card buttons do: Confirm (4.6) and Cancel (4.11), for an admin already checked by the
@@ -58,7 +60,9 @@ export async function confirmDraftAs(user: SessionUser, id: unknown, typed?: unk
       ? await saveBooking(fields, user)
       : draft.kind === "payment"
         ? await savePaymentDraft(draft.fields, user)
-        : await saveFuelDraft(draft.fields, user);
+        : draft.kind === "discount"
+          ? await saveDiscountDraft(draft.fields, user)
+          : await saveFuelDraft(draft.fields, user);
   if (!saved.ok) {
     await releaseDraft(id); // still pending: the admin can fix what's wrong, or ask again
     return { ok: false, error: `${saved.error} Nothing was saved.` };
@@ -96,6 +100,12 @@ function savedText(kind: Draft["kind"], fields: Record<string, string>, result: 
     const anchor = fields.party === "driver" ? "#driver-payments" : "#customer-payments";
     return { result: `Payment saved on ${result}.`, resultHref: `/admin/expenses/bookings/${result}${anchor}` };
   }
+  if (kind === "discount") {
+    return {
+      result: fields.discount_amount ? `Discount saved on ${result}.` : `Discount removed from ${result}.`,
+      resultHref: `/admin/expenses/bookings/${result}#customer-payments`,
+    };
+  }
   return fields.trip_id
     ? { result: `Fuel saved on ${result}.`, resultHref: `/admin/expenses/bookings/${result}#fuel` }
     : { result: `Fuel saved for ${result}.`, resultHref: `/admin/expenses/fleet/${fields.vehicle_id}#fuel` };
@@ -121,6 +131,26 @@ async function savePaymentDraft(fields: Record<string, string>, user: SessionUse
     return { ok: false, error: `${trip.trip_no} is cancelled, so payments can't be added to it.` };
   }
   return { ok: true, result: trip.trip_no };
+}
+
+/**
+ * A discount draft: the rupees shown on the card, checked again against the booking as it is now (paid or changed
+ * since?), then saved and logged like "Settle the rest as discount" or the edit form on the booking's page.
+ */
+async function saveDiscountDraft(fields: Record<string, string>, user: SessionUser): Promise<Saved> {
+  const trip = await getTripById(Number(fields.trip_id));
+  if (!trip) return { ok: false, error: DISCOUNT_PROBLEMS.missing };
+  const amount = fields.discount_amount ? Number(fields.discount_amount) : null;
+  if (amount !== null && !(amount > 0)) return { ok: false, error: DISCOUNT_PROBLEMS["too-big"] };
+  // A settle draft is for the balance it showed: if a payment came in since, the balance changed, so ask again
+  if (fields.settle === "1" && balanceOf(trip) !== Number(fields.settled_balance)) {
+    return { ok: false, error: `${trip.trip_no}'s balance has changed since this draft. Ask again to settle what's left now.` };
+  }
+  const saved = await saveDiscount(trip, { amount, reason: fields.discount_reason || null }, user, {
+    via: "via Annapurna Assist",
+    note: fields.settle === "1" ? `settled the balance of ${formatRupees(Number(fields.settled_balance))}` : undefined,
+  });
+  return saved.ok ? { ok: true, result: trip.trip_no } : { ok: false, error: DISCOUNT_PROBLEMS[saved.problem] };
 }
 
 /** A fuel draft (4.10): the fuel form's checks again, then saved and logged like one from the booking or vehicle page */

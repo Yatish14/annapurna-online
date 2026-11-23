@@ -26,6 +26,10 @@ export type TripFormValues = {
   km_direct_on: boolean;
   km_direct: string;
   total_amount: string;
+  /** Off the total: rupees, or a percentage of the total when discount_mode is "pct" */
+  discount_amount: string;
+  discount_mode: string;
+  discount_reason: string;
   advance_amount: string;
   advance_method: string;
   driver_amount: string;
@@ -55,6 +59,9 @@ export const EMPTY_TRIP: TripFormValues = {
   km_direct_on: false,
   km_direct: "",
   total_amount: "",
+  discount_amount: "",
+  discount_mode: "rs",
+  discount_reason: "",
   advance_amount: "",
   advance_method: "cash",
   driver_amount: "",

@@ -8,13 +8,16 @@ import { requireUser } from "@/lib/auth";
 import { isIsoDate, nowLocalIST } from "@/lib/dates";
 import { formatRupees, parseAmount, parseWhole } from "@/lib/expenses/money";
 import { cleanPlace, isState } from "@/lib/expenses/places";
+import { overpaidBy, saveDiscount, settledDiscount } from "@/lib/expenses/discountInput";
 import {
   addExpense,
   addPayment,
+  balanceOf,
   clashText,
   expenseText,
   getTripById,
   paymentText,
+  payableOf,
   removeExpense,
   removePayment,
   setTripStatus,
@@ -92,11 +95,17 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
     redirect(withFlash(tripPath(saved.tripNo), "trip-created", saved.tripNo));
   }
 
-  // A payment added while editing: with what is already received, it can't go past the total
+  // A discount can't leave the customer owing less than they've already paid (lib/expenses/discountInput.ts)
   const received = before?.received ?? 0;
-  if (parsed.advance && parsed.totalAmount !== null && received + parsed.advance.amount > parsed.totalAmount) {
+  const overpaid = overpaidBy(parsed.totalAmount, parsed.discount, received);
+  if (overpaid) return { error: overpaid, field: "discount_amount" };
+
+  // A payment added while editing: with what is already received, it can't go past the total (less any discount)
+  const payable = payableOf({ total_amount: parsed.totalAmount, discount: parsed.discount.amount });
+  if (parsed.advance && payable !== null && received + parsed.advance.amount > payable) {
+    const what = parsed.discount.amount ? `the ${formatRupees(payable)} to pay after the discount` : `the total of ${formatRupees(payable)}`;
     return {
-      error: `With this payment the customer would have paid ${formatRupees(received + parsed.advance.amount)}, more than the total of ${formatRupees(parsed.totalAmount)} (${formatRupees(received)} is received already). Check both amounts.`,
+      error: `With this payment the customer would have paid ${formatRupees(received + parsed.advance.amount)}, more than ${what} (${formatRupees(received)} is received already). Check the amounts.`,
       field: "advance_amount",
     };
   }
@@ -111,13 +120,17 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
   }
   if (result.changes.length) await logActivity(user, "trip.updated", result.trip_no, result.changes.join(" · "));
 
-  // Money, fuel and km, as on the booking's page: the readings and amounts, then any payment or fuel added
+  // Money, fuel and km, as on the booking's page: the readings, amounts and discount, then any payment or fuel added
   const readings = await updateReadings(
     id,
-    { odometerStart: parsed.odometerStart, odometerEnd: parsed.odometerEnd, kmDirect: parsed.kmDirect, totalAmount: parsed.totalAmount, driverAmount: parsed.driverAmount },
+    {
+      odometerStart: parsed.odometerStart, odometerEnd: parsed.odometerEnd, kmDirect: parsed.kmDirect,
+      totalAmount: parsed.totalAmount, driverAmount: parsed.driverAmount, discount: parsed.discount,
+    },
     user.name,
   );
   if (readings?.changes.length) await logActivity(user, "trip.readings_updated", result.trip_no, readings.changes.join(" · "));
+  if (readings?.discount) await logActivity(user, "trip.discount_changed", result.trip_no, readings.discount);
   if (parsed.advance) {
     const paid = await addPayment(id, { party: "customer", ...parsed.advance, paidAt: nowLocalIST(), note: null }, user.name);
     if (paid) await logActivity(user, "payment.received", result.trip_no, paymentText({ ...parsed.advance, note: null }));
@@ -134,7 +147,8 @@ export async function saveTrip(_prev: TripFormState, fd: FormData): Promise<Trip
     }
   }
 
-  const changed = result.changes.length > 0 || Boolean(readings?.changes.length) || parsed.advance !== null || parsed.fuel !== null;
+  const changed =
+    result.changes.length > 0 || Boolean(readings?.changes.length) || Boolean(readings?.discount) || parsed.advance !== null || parsed.fuel !== null;
   refresh();
   redirect(withFlash(tripPath(result.trip_no), changed ? "trip-updated" : "trip-unchanged", result.trip_no));
 }
@@ -159,12 +173,44 @@ export async function saveReadings(fd: FormData) {
   if (totalAmount === "invalid" || driverAmount === "invalid") redirect(withFlash(back, "amount-invalid") + "#readings");
   if (odometerEnd !== null && odometerStart === null) redirect(withFlash(back, "odometer-start-missing") + "#readings");
   if (odometerEnd !== null && odometerStart !== null && odometerEnd < odometerStart) redirect(withFlash(back, "odometer-order") + "#readings");
+  // The booking's discount stays: the total can't go below it (or be cleared while there is one)
+  if (trip.discount !== null && (totalAmount === null || totalAmount < trip.discount)) {
+    redirect(withFlash(back, "total-below-discount", formatRupees(trip.discount).replace("₹", "Rs ")) + "#readings");
+  }
 
   const result = await updateReadings(trip.id, { odometerStart, odometerEnd, kmDirect, totalAmount, driverAmount }, user.name);
   if (!result) redirect("/admin/expenses/bookings?flash=not-found");
   if (result.changes.length) await logActivity(user, "trip.readings_updated", result.trip_no, result.changes.join(" · "));
   refresh();
   redirect(withFlash(back, result.changes.length ? "readings-saved" : "trip-unchanged", result.trip_no));
+}
+
+// ---------- Discount: settle the rest, or remove ----------
+
+/**
+ * On the booking page's customer payments: "Settle the rest as discount" (the balance still to pay becomes discount,
+ * added to any discount already given) or "Remove discount". Giving or changing a discount is in the edit form.
+ */
+export async function changeDiscount(fd: FormData) {
+  const user = await requireUser("manageExpenses");
+  const trip = await getTripById(Number(fd.get("id")));
+  if (!trip) redirect("/admin/expenses/bookings?flash=not-found");
+  const back = tripPath(trip.trip_no);
+  const settle = fd.get("action") === "settle";
+  const discount = settle ? settledDiscount(trip) : { amount: null, reason: null };
+  // Nothing left to settle (paid meanwhile, or the total changed): the page is just shown again, up to date
+  if (!discount) redirect(withFlash(back, "nothing-to-settle") + "#customer-payments");
+
+  const balance = balanceOf(trip);
+  const saved = await saveDiscount(trip, discount, user, {
+    note: settle ? `settled the balance of ${formatRupees(balance)}` : undefined,
+  });
+  if (!saved.ok) redirect(withFlash(back, saved.problem === "cancelled" ? "trip-not-active" : "discount-invalid") + "#customer-payments");
+  refresh();
+  redirect(
+    withFlash(back, settle ? "discount-settled" : "discount-removed", settle ? formatRupees(balance).replace("₹", "Rs ") : trip.trip_no) +
+      "#customer-payments",
+  );
 }
 
 // ---------- Cancel / restore ----------

@@ -1,4 +1,4 @@
-import { deletePayment, recordPayment } from "@/app/admin/expenses/bookings/actions";
+import { changeDiscount, deletePayment, recordPayment } from "@/app/admin/expenses/bookings/actions";
 import Icon from "@/components/admin/Icon";
 import SubmitButton from "@/components/admin/SubmitButton";
 import Dropdown from "@/components/Dropdown";
@@ -10,19 +10,23 @@ type Props = {
   party: Party;
   trip: { id: number; trip_no: string; status: "booked" | "cancelled"; driver_name: string };
   payments: Payment[];
-  /** Total agreed (customer) or the driver's amount; null when not entered yet */
+  /** What's to be paid: the customer's total less any discount, or the driver's amount; null when not entered yet */
   due: number | null;
   paid: number;
+  /** Customer only: the total before the discount, and the discount (null: none) */
+  total?: number | null;
+  discount?: { amount: number; reason: string | null } | null;
   canManage: boolean;
   /** "Now" in Indian time, for the date-time field */
   now: string;
 };
 
 /** Money received from the customer, or paid to the driver: a timestamped list plus a form to add to it */
-export default function Payments({ party, trip, payments, due, paid, canManage, now }: Props) {
+export default function Payments({ party, trip, payments, due, paid, total = null, discount = null, canManage, now }: Props) {
   // Viewers see the buttons too, greyed out; pressing one says why
   const locked = !canManage && LOCKED.expenses;
   const isDriver = party === "driver";
+  const active = trip.status === "booked";
   const left = due === null ? null : Math.max(due - paid, 0);
   const extra = due !== null && paid > due ? paid - due : 0;
   const percent = due ? Math.min(100, Math.round((paid / due) * 100)) : paid > 0 ? 100 : 0;
@@ -42,8 +46,10 @@ export default function Payments({ party, trip, payments, due, paid, canManage, 
           <strong>{formatRupees(paid)}</strong>
         </div>
         <div>
-          <span>{isDriver ? "Driver amount" : "Total"}</span>
+          {/* With a discount, the customer's amount to pay is the total less the discount */}
+          <span>{isDriver ? "Driver amount" : discount ? "To pay" : "Total"}</span>
           <strong>{due === null ? "Not set" : formatRupees(due)}</strong>
+          {discount && total !== null && <small>{formatRupees(total)} − {formatRupees(discount.amount)}</small>}
         </div>
         <div className={left ? "is-due" : left === 0 ? "is-clear" : ""}>
           <span>{isDriver ? "Still to pay" : "Balance due"}</span>
@@ -60,8 +66,62 @@ export default function Payments({ party, trip, payments, due, paid, canManage, 
       )}
       {extra > 0 && (
         <p className="ap-note ap-note-warn">
-          {isDriver ? "Paid" : "Received"} {formatRupees(extra)} more than {isDriver ? "the driver amount" : "the total"}.
+          {isDriver ? "Paid" : "Received"} {formatRupees(extra)} more than{" "}
+          {isDriver ? "the driver amount" : discount ? "the amount to pay after the discount" : "the total"}.
         </p>
+      )}
+
+      {/* Customer: the discount given, and "Settle the rest as discount" while something is still to pay */}
+      {!isDriver && (discount || (active && left !== null && left > 0)) && (
+        <div className="xp-discountbar">
+          {discount ? (
+            <span className="xp-discountbar-text">
+              <Icon name="tag" size={15} />
+              <span>
+                <b>{formatRupees(discount.amount)} discount</b>
+                {discount.reason && <> · {discount.reason}</>}
+              </span>
+            </span>
+          ) : (
+            <span className="xp-discountbar-text ap-muted">
+              <Icon name="tag" size={15} /> No discount
+            </span>
+          )}
+          {active && (
+            <span className="xp-discountbar-actions">
+              {left !== null && left > 0 && (
+                <form action={changeDiscount}>
+                  <input type="hidden" name="id" value={trip.id} />
+                  <input type="hidden" name="action" value="settle" />
+                  <SubmitButton
+                    locked={locked}
+                    className="ap-btn ap-btn-ghost ap-btn-sm"
+                    title="The balance still to pay becomes discount, and the booking is fully paid"
+                    confirm={`Give ${formatRupees(left)} discount and mark ${trip.trip_no} as fully paid? The customer then owes nothing more.`}
+                    cancelLabel="Keep the balance"
+                  >
+                    <Icon name="check" size={14} /> Settle the rest as discount
+                  </SubmitButton>
+                </form>
+              )}
+              {discount && (
+                <form action={changeDiscount}>
+                  <input type="hidden" name="id" value={trip.id} />
+                  <input type="hidden" name="action" value="remove" />
+                  <SubmitButton
+                    locked={locked}
+                    className="ap-btn ap-btn-ghost ap-btn-sm xp-remove"
+                    title="Remove the discount (the customer owes the full total again)"
+                    confirm={`Remove the ${formatRupees(discount.amount)} discount from ${trip.trip_no}? The customer will owe the full total again.`}
+                    cancelLabel="Keep discount"
+                  >
+                    <Icon name="trash" size={13} /> Remove
+                  </SubmitButton>
+                </form>
+              )}
+            </span>
+          )}
+        </div>
       )}
 
       {payments.length === 0 ? (

@@ -4,6 +4,7 @@ import { fmtRange, fmtShort, isIsoDate, nowLocalIST, todayIST } from "@/lib/date
 import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { parsePayment, PAYMENT_PROBLEMS } from "@/lib/expenses/paymentInput";
 import { fromObject } from "@/lib/expenses/tripInput";
+import { payableOf } from "@/lib/expenses/trips";
 import { draftOwner, saveDraft } from "../draftStore";
 import { findBooking } from "./findBooking";
 import { freeText, toolReply } from "./result";
@@ -61,9 +62,10 @@ export const draftPayment = tool(
 
     // 3. What it leaves to pay, worked out by our code; more than that is a warning on the card, not a refusal
     //    (an extra charge may not be in the total yet)
-    const [total, paidSoFar] = p.party === "customer" ? [trip.total_amount, trip.received] : [trip.driver_amount, trip.driver_paid];
+    // The customer's side is what they pay: the total less any discount (payableOf, as the booking page)
+    const [total, paidSoFar] = p.party === "customer" ? [payableOf(trip), trip.received] : [trip.driver_amount, trip.driver_paid];
     const left = total !== null ? total - paidSoFar - p.amount : null;
-    const what = p.party === "customer" ? "total" : "driver's amount";
+    const what = p.party === "customer" ? (trip.discount ? "amount to pay after the discount" : "total") : "driver's amount";
     const after =
       left === null
         ? `No ${what} is set on ${trip.trip_no} yet`

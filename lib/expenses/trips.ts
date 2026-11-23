@@ -37,6 +37,9 @@ export type Trip = {
   /** Km typed in directly (only when there are no odometer readings) */
   km_direct: number | null;
   total_amount: number | null;
+  /** Rupees off the total (null: none). The customer pays total − discount: payableOf(). */
+  discount: number | null;
+  discount_reason: string | null;
   driver_amount: number | null;
   notes: string | null;
   status: "booked" | "cancelled";
@@ -83,7 +86,12 @@ export type TripReadings = {
   kmDirect: number | null;
   totalAmount: number | null;
   driverAmount: number | null;
+  /** The discount to save with them; left out, the booking keeps the one it has (the booking page's Readings form) */
+  discount?: TripDiscount;
 };
+
+/** A discount in rupees (null: none) and why */
+export type TripDiscount = { amount: number | null; reason: string | null };
 
 // ---------- Derived figures ----------
 
@@ -92,9 +100,19 @@ export function kmOf(t: Pick<Trip, "odometer_start" | "odometer_end"> & { km_dir
   return t.odometer_start !== null && t.odometer_end !== null ? t.odometer_end - t.odometer_start : (t.km_direct ?? null);
 }
 
-export function payState(t: Pick<Trip, "total_amount" | "received">): PayState {
-  if (t.total_amount === null) return "unset";
-  if (t.received >= t.total_amount) return "paid";
+/**
+ * What the customer pays: the total minus any discount (null until the total is entered). Every balance, "due" and
+ * "fully paid" in the app comes from this, so a discount counts the same everywhere, Annapurna Assist included.
+ */
+export function payableOf(t: Pick<Trip, "total_amount"> & { discount?: number | null }): number | null {
+  if (t.total_amount === null) return null;
+  return Math.max(t.total_amount - (t.discount ?? 0), 0);
+}
+
+export function payState(t: Pick<Trip, "total_amount" | "received"> & { discount?: number | null }): PayState {
+  const payable = payableOf(t);
+  if (payable === null) return "unset";
+  if (t.received >= payable) return "paid";
   return t.received > 0 ? "partial" : "due";
 }
 
@@ -112,9 +130,15 @@ export const PHASE_LABELS: Record<TripPhase, string> = {
   cancelled: "Cancelled",
 };
 
-/** Still to collect from the customer (never negative) */
-export function balanceOf(t: Pick<Trip, "total_amount" | "received">): number {
-  return Math.max((t.total_amount ?? 0) - t.received, 0);
+/** Still to collect from the customer: total − discount − received (never negative) */
+export function balanceOf(t: Pick<Trip, "total_amount" | "received"> & { discount?: number | null }): number {
+  return Math.max((payableOf(t) ?? 0) - t.received, 0);
+}
+
+/** "₹500 (Regular customer)", or "none" */
+export function discountText(amount: number | null, reason: string | null): string {
+  if (amount === null) return "none";
+  return `${formatRupees(amount)}${reason ? ` (${reason})` : ""}`;
 }
 
 /** Still to pay the driver (never negative) */
@@ -132,10 +156,11 @@ export function profitOf(t: Pick<Trip, "received" | "driver_amount" | "fuel" | "
   return t.received - (t.driver_amount ?? 0) - t.fuel - t.other;
 }
 
-/** The profit once the customer pays the full total (null until the total is entered) */
-export function profitWhenPaid(t: Pick<Trip, "total_amount" | "driver_amount" | "fuel" | "other">): number | null {
-  if (t.total_amount === null) return null;
-  return t.total_amount - (t.driver_amount ?? 0) - t.fuel - t.other;
+/** The profit once the customer pays all they owe (the total less any discount); null until the total is entered */
+export function profitWhenPaid(t: Pick<Trip, "total_amount" | "driver_amount" | "fuel" | "other"> & { discount?: number | null }): number | null {
+  const payable = payableOf(t);
+  if (payable === null) return null;
+  return payable - (t.driver_amount ?? 0) - t.fuel - t.other;
 }
 
 /** "Vijayawada → Hyderabad", or for a round trip "Vijayawada → Araku → Vijayawada" */
@@ -153,7 +178,8 @@ const TRIP_COLUMNS = `
          t.customer_name, t.customer_phone, t.start_date::text AS start_date, t.end_date::text AS end_date,
          t.pickup_state, t.pickup_city, t.drop_state, t.drop_city, t.round_trip, t.dest_state, t.dest_city,
          t.referrer_name, t.referrer_phone, t.odometer_start, t.odometer_end, t.km_direct,
-         t.total_amount::float8 AS total_amount, t.driver_amount::float8 AS driver_amount, t.notes, t.status, t.is_sample,
+         t.total_amount::float8 AS total_amount, t.discount::float8 AS discount, t.discount_reason,
+         t.driver_amount::float8 AS driver_amount, t.notes, t.status, t.is_sample,
          CASE WHEN t.status = 'cancelled' THEN 'cancelled'
               WHEN t.start_date > ${TODAY} THEN 'upcoming'
               WHEN t.end_date < ${TODAY} THEN 'completed'
@@ -199,7 +225,8 @@ const VIEW_WHERE: Record<TripView, string> = {
   upcoming: `t.status = 'booked' AND t.start_date > ${TODAY}`,
   ongoing: `t.status = 'booked' AND ${TODAY} BETWEEN t.start_date AND t.end_date`,
   completed: `t.status = 'booked' AND t.end_date < ${TODAY}`,
-  due: `t.status = 'booked' AND t.total_amount IS NOT NULL AND pay.received < t.total_amount`,
+  // Owes: received less than total − discount (as balanceOf)
+  due: `t.status = 'booked' AND t.total_amount IS NOT NULL AND pay.received < t.total_amount - coalesce(t.discount, 0)`,
   cancelled: `t.status = 'cancelled'`,
   all: `true`,
 };
@@ -352,7 +379,7 @@ export type SaveResult = { ok: true; trip_no: string } | { ok: false; reason: "v
 /** New booking, with the advance (if any) recorded as the first customer payment */
 export async function createTrip(
   input: TripInput,
-  readings: Pick<TripReadings, "odometerStart" | "odometerEnd" | "kmDirect" | "totalAmount" | "driverAmount">,
+  readings: Pick<TripReadings, "odometerStart" | "odometerEnd" | "kmDirect" | "totalAmount" | "driverAmount" | "discount">,
   advance: { amount: number; method: PaymentMethod } | null,
   fuel: { amount: number; litres: number | null; spentOn: string } | null,
   by: string,
@@ -363,8 +390,8 @@ export async function createTrip(
          INSERT INTO trips (vehicle_id, driver_id, customer_name, customer_phone, start_date, end_date,
                             pickup_state, pickup_city, drop_state, drop_city, round_trip, dest_state, dest_city,
                             referrer_name, referrer_phone, notes, odometer_start, total_amount, driver_amount, created_by,
-                            odometer_end, km_direct)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $26, $27)
+                            odometer_end, km_direct, discount, discount_reason)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $26, $27, $28, $29)
          RETURNING id, trip_no
        ), adv AS (
          INSERT INTO trip_payments (trip_id, party, amount, method, paid_at, note, created_by)
@@ -379,7 +406,8 @@ export async function createTrip(
         input.pickupState, input.pickupCity, input.dropState, input.dropCity, input.roundTrip, input.destState, input.destCity,
         input.referrerName, input.referrerPhone, input.notes, readings.odometerStart, readings.totalAmount, readings.driverAmount,
         by, advance?.amount ?? null, advance?.method ?? "cash", fuel?.amount ?? null, fuel?.spentOn ?? null, fuel?.litres ?? null,
-        readings.odometerEnd, readings.kmDirect,
+        readings.odometerEnd, readings.kmDirect, readings.discount?.amount ?? null,
+        readings.discount?.amount ? readings.discount.reason : null,
       ],
     );
     return { ok: true, trip_no: row.trip_no };
@@ -451,8 +479,23 @@ export async function updateTrip(id: number, input: TripInput, by: string): Prom
   return { ok: true, trip_no: before.trip_no, changes };
 }
 
-/** Odometer readings (or km typed in instead) and agreed amounts; returns what changed (empty when nothing did) */
-export async function updateReadings(id: number, r: TripReadings, by: string): Promise<{ trip_no: string; changes: string[] } | null> {
+/** "Discount: none → ₹500 (Regular customer)", or null when it's the same */
+export function discountChange(before: Pick<Trip, "discount" | "discount_reason">, after: TripDiscount): string | null {
+  const from = discountText(before.discount, before.discount_reason);
+  const to = discountText(after.amount, after.amount === null ? null : after.reason);
+  return from === to ? null : `Discount: ${from} → ${to}`;
+}
+
+/**
+ * Odometer readings (or km typed in instead) and agreed amounts, and the discount when given (r.discount), all in one
+ * statement: a lower total with a smaller discount is checked as a pair by the database's rule (discount ≤ total).
+ * Returns what changed: `changes` for the readings and amounts, `discount` for the discount (logged on its own).
+ */
+export async function updateReadings(
+  id: number,
+  r: TripReadings,
+  by: string,
+): Promise<{ trip_no: string; changes: string[]; discount: string | null } | null> {
   const before = await getTripById(id);
   if (!before) return null;
   const num = (n: number | null, unit: "km" | "rs") => (n === null ? "not set" : unit === "km" ? formatNumber(n) : formatRupees(n));
@@ -464,17 +507,48 @@ export async function updateReadings(id: number, r: TripReadings, by: string): P
   add("Km entered", before.km_direct, r.kmDirect, "km");
   add("Total from customer", before.total_amount, r.totalAmount, "rs");
   add("Driver amount", before.driver_amount, r.driverAmount, "rs");
-  if (changes.length === 0) return { trip_no: before.trip_no, changes };
+  const discount = r.discount ? discountChange(before, r.discount) : null;
+  if (changes.length === 0 && !discount) return { trip_no: before.trip_no, changes, discount };
   const km = kmOf({ odometer_start: r.odometerStart, odometer_end: r.odometerEnd, km_direct: r.kmDirect });
   if (km !== null && km !== kmOf(before) && r.kmDirect === null) changes.push(`${formatNumber(km)} km travelled`);
 
   await query(
     `UPDATE trips SET odometer_start = $2, odometer_end = $3, km_direct = $4, total_amount = $5, driver_amount = $6,
+            discount = CASE WHEN $8 THEN $9::numeric ELSE discount END,
+            discount_reason = CASE WHEN $8 THEN $10 ELSE discount_reason END,
             updated_at = now(), updated_by = $7
      WHERE id = $1`,
-    [id, r.odometerStart, r.odometerEnd, r.kmDirect, r.totalAmount, r.driverAmount, by],
+    [
+      id, r.odometerStart, r.odometerEnd, r.kmDirect, r.totalAmount, r.driverAmount, by,
+      r.discount !== undefined, r.discount?.amount ?? null, r.discount?.amount ? r.discount.reason : null,
+    ],
   );
-  return { trip_no: before.trip_no, changes };
+  return { trip_no: before.trip_no, changes, discount };
+}
+
+/**
+ * Sets (or with amount null, removes) a booking's discount on its own: "Settle the rest as discount" and "Remove
+ * discount" on the booking's page, and Annapurna Assist's discount drafts. Only on a booking that isn't cancelled,
+ * has its total, and only up to it (checked again here: the caller's checks may be a moment old). Returns the change
+ * for the activity log, or why not.
+ */
+export async function setDiscount(
+  id: number,
+  d: TripDiscount,
+  by: string,
+): Promise<{ ok: true; trip_no: string; change: string | null } | { ok: false; reason: "missing" | "cancelled" | "no-total" | "too-big" }> {
+  const before = await getTripById(id);
+  if (!before) return { ok: false, reason: "missing" };
+  if (before.status !== "booked") return { ok: false, reason: "cancelled" };
+  if (d.amount !== null && before.total_amount === null) return { ok: false, reason: "no-total" };
+  if (d.amount !== null && before.total_amount !== null && d.amount > before.total_amount) return { ok: false, reason: "too-big" };
+  const change = discountChange(before, d);
+  if (!change) return { ok: true, trip_no: before.trip_no, change };
+  await query(
+    `UPDATE trips SET discount = $2, discount_reason = $3, updated_at = now(), updated_by = $4 WHERE id = $1 AND status = 'booked'`,
+    [id, d.amount, d.amount === null ? null : d.reason, by],
+  );
+  return { ok: true, trip_no: before.trip_no, change };
 }
 
 /** Cancel a booking (frees the vehicle's dates) or restore it */

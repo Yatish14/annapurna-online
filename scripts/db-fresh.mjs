@@ -14,6 +14,12 @@ if (!url) {
   console.error("DATABASE_URL is not set. Add it to .env.local (see README.md).");
   process.exit(1);
 }
+// Another project's Postgres can run on this computer too (e.g. on port 5432): only the database called "annapurna"
+// (docker-compose.yml) is ever wiped
+if (databaseKind(url) === "docker" && new URL(url).pathname.replace(/^\//, "") !== "annapurna") {
+  console.error(`✗ Refusing to wipe the database "${new URL(url).pathname.slice(1)}": only Annapurna's own local database ("annapurna") is wiped.`);
+  process.exit(1);
+}
 console.log(`Starting fresh: ${describeTarget()}`);
 
 // Sign-ins for trying every role (local only, so the passwords can be simple).

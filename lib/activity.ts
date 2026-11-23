@@ -32,6 +32,7 @@ const ACTION_MODULES = {
   "trip.created": "expenses",
   "trip.updated": "expenses",
   "trip.readings_updated": "expenses",
+  "trip.discount_changed": "expenses",
   "trip.cancelled": "expenses",
   "trip.restored": "expenses",
   "payment.received": "expenses",

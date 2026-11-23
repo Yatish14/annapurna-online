@@ -22,6 +22,7 @@ import {
   kmOf,
   listPayments,
   otherExpenseNames,
+  payableOf,
   profitOf,
   profitWhenPaid,
   routeText,
@@ -60,8 +61,15 @@ export default async function TripPage({ params, searchParams }: { params: Param
   // Viewers see every button and form, greyed out; pressing one says why
   const locked = !canManage && LOCKED.expenses;
 
+  const payable = payableOf(trip);
   const tiles = [
-    { label: "Total", value: trip.total_amount === null ? "Not set" : formatRupees(trip.total_amount), tone: "navy" },
+    {
+      label: "Total",
+      value: trip.total_amount === null ? "Not set" : formatRupees(trip.total_amount),
+      // With a discount: how much off, and what the customer pays
+      sub: trip.discount !== null && payable !== null ? `${formatRupees(trip.discount)} discount · pays ${formatRupees(payable)}` : undefined,
+      tone: "navy",
+    },
     { label: "Received", value: formatRupees(trip.received), tone: "green" },
     { label: "Balance due", value: trip.total_amount === null ? "—" : formatRupees(balanceOf(trip)), tone: balanceOf(trip) > 0 ? "red" : "green" },
     {
@@ -263,13 +271,14 @@ export default async function TripPage({ params, searchParams }: { params: Param
               </div>
               {/* Keyed on the saved values so the form starts fresh after each save */}
               <ReadingsForm
-                key={[trip.odometer_start, trip.odometer_end, trip.km_direct, trip.total_amount, trip.driver_amount].join("|")}
+                key={[trip.odometer_start, trip.odometer_end, trip.km_direct, trip.total_amount, trip.driver_amount, trip.discount].join("|")}
                 tripId={trip.id}
                 odometerStart={trip.odometer_start}
                 odometerEnd={trip.odometer_end}
                 kmDirect={trip.km_direct}
                 totalAmount={trip.total_amount}
                 driverAmount={trip.driver_amount}
+                discount={trip.discount}
                 locked={locked}
               />
             </section>
@@ -290,8 +299,10 @@ export default async function TripPage({ params, searchParams }: { params: Param
             party="customer"
             trip={trip}
             payments={payments.filter((p) => p.party === "customer")}
-            due={trip.total_amount}
+            due={payable}
             paid={trip.received}
+            total={trip.total_amount}
+            discount={trip.discount !== null ? { amount: trip.discount, reason: trip.discount_reason } : null}
             canManage={canManage}
             now={nowLocalIST()}
           />

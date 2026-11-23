@@ -46,7 +46,7 @@ const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 type ReadyBooking = {
   ready: boolean;
-  booking: Record<"vehicle" | "driver" | "dates" | "route" | "total" | "advance" | "driver_amount", string> & {
+  booking: Record<"vehicle" | "driver" | "dates" | "route" | "total" | "discount" | "to_pay" | "advance" | "driver_amount", string> & {
     customer: string | null;
     phone: string | null;
     notes: string | null;
@@ -71,6 +71,13 @@ type ReadyFuel = {
   warning: string | null;
   draft_id: string;
   page: string;
+};
+
+type ReadyDiscount = {
+  ready: boolean;
+  discount: Record<"booking" | "action" | "total" | "before" | "after" | "to_pay" | "received" | "balance_after", string>;
+  warning: string | null;
+  draft_id: string;
 };
 
 type HelpSections = { sections: { guide: string; section: string }[] };
@@ -104,6 +111,31 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
         { label: "Litres", value: capital(f.litres) },
         { label: "When", value: f.when },
         ...(f.note ? [{ label: "Note", value: f.note }] : []),
+      ],
+      warning: warning ?? undefined,
+    };
+  },
+  // A discount ready to confirm: the rupees worked out by our code, and what the customer then pays and owes
+  draft_discount: (_args, result) => {
+    const { ready, discount: d, warning, draft_id } = result.data as ReadyDiscount;
+    if (!ready) return null;
+    const tripNo = d.booking.split(" · ")[0];
+    return {
+      kind: "draft",
+      id: draft_id,
+      title: d.action === "remove" ? "Remove discount" : d.action === "settle" ? "Settle the rest as discount" : "Discount",
+      icon: "tag",
+      status: "pending",
+      // The booking's page: its customer payments panel shows the discount
+      formHref: `/admin/expenses/bookings/${tripNo}#customer-payments`,
+      formLabel: "Open the booking",
+      fields: [
+        { label: "Booking", value: d.booking },
+        { label: "Total", value: d.total },
+        { label: "Discount", value: d.before === d.after ? capital(d.after) : `${capital(d.before)} → ${d.after}` },
+        { label: "Customer pays", value: d.to_pay },
+        { label: "Received", value: d.received },
+        { label: "After this", value: capital(d.balance_after) },
       ],
       warning: warning ?? undefined,
     };
@@ -155,6 +187,13 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
         { label: "Vehicle", value: b.vehicle },
         { label: "Driver", value: b.driver },
         { label: "Total", value: capital(b.total) },
+        // Only with a discount: how much off, and what the customer pays
+        ...(b.discount && b.discount !== "none"
+          ? [
+              { label: "Discount", value: b.discount },
+              { label: "Customer pays", value: capital(b.to_pay) },
+            ]
+          : []),
         { label: "Advance", value: capital(b.advance) },
         { label: "Driver's pay", value: capital(b.driver_amount) },
         ...(b.notes ? [{ label: "Notes", value: b.notes }] : []),
@@ -205,12 +244,23 @@ const CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => Card | 
   },
   // A booking's expense statement, with the same file name and link as the booking page's button
   expense_statement: (_args, result) => {
-    const s = result.data as { no: string; customer: string; total: number; received: number; balance: number; file: string; url: string; page: string };
+    const s = result.data as {
+      no: string;
+      customer: string;
+      total: number;
+      discount?: number | null;
+      received: number;
+      balance: number;
+      file: string;
+      url: string;
+      page: string;
+    };
     const owes = s.balance > 0 ? `${formatRupees(s.balance)} to pay` : "fully paid";
+    const off = s.discount ? `, ${formatRupees(s.discount)} discount` : "";
     return {
       kind: "file",
       name: s.file, // "expense-statement-VB-0012.pdf"
-      detail: `For ${s.customer} · total ${formatRupees(s.total)}, paid ${formatRupees(s.received)}, ${owes}`,
+      detail: `For ${s.customer} · total ${formatRupees(s.total)}${off}, paid ${formatRupees(s.received)}, ${owes}`,
       href: s.url,
       view: s.page,
     };
@@ -258,6 +308,7 @@ const STRICT_CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => 
         { label: "Vehicle · driver", value: `${str(b.vehicle)} · ${str(b.driver)}` },
         { label: "Status", value: `${str(b.status)} · ${str(b.payment)}` },
         { label: "Total", value: rupees(b.total as Num) },
+        ...(b.discount ? [{ label: "Discount", value: `${rupees(b.discount as Num)}${b.discount_reason ? ` · ${str(b.discount_reason)}` : ""}` }] : []),
         { label: "Received", value: rupees(b.received as Num), tone: "green" },
         { label: "Balance", value: rupees(b.balance as Num), tone: Number(b.balance) > 0 ? "red" : undefined },
         { label: "Driver amount · still owed", value: `${rupees(b.driver_amount as Num)} · ${rupees(b.driver_owed as Num)}` },
@@ -266,7 +317,7 @@ const STRICT_CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => 
     };
   },
   month_overview: (_args, { data }) => {
-    const m = data as { month: string; money_in: number; money_out: number; net: number; bookings: number; km: number; billed: number };
+    const m = data as { month: string; money_in: number; money_out: number; net: number; bookings: number; km: number; billed: number; discounts?: number };
     return {
       kind: "stats",
       title: `${m.month}: cash`,
@@ -275,7 +326,8 @@ const STRICT_CARDS: Record<string, (args: Args, result: ToolResult<unknown>) => 
         { label: "Money out", value: rupees(m.money_out), tone: "red" },
         { label: "Net", value: rupees(m.net), tone: m.net < 0 ? "red" : "navy" },
         { label: "Bookings starting", value: str(m.bookings) },
-        { label: "Billed", value: rupees(m.billed) },
+        { label: "Billed (after discounts)", value: rupees(m.billed) },
+        ...(m.discounts ? [{ label: "Discounts", value: rupees(m.discounts), tone: "gold" as const }] : []),
         { label: "Km", value: str(m.km) },
       ],
     };

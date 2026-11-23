@@ -19,7 +19,7 @@ export const balancesDue = tool(
     // Biggest balance first, for "who owes the most?"
     const owing = trips
       .map(bookingRow)
-      .map(({ no, customer, vehicle, driver, dates, status, total, received, balance }) => ({
+      .map(({ no, customer, vehicle, driver, dates, status, total, discount, received, balance }) => ({
         no,
         customer,
         vehicle,
@@ -27,6 +27,7 @@ export const balancesDue = tool(
         dates,
         status,
         total,
+        discount, // null if none; balance is already after it
         received,
         balance,
       }))
@@ -55,7 +56,7 @@ export const balancesDue = tool(
       "Money still owed, over all bookings: what customers still have to pay us in total and how many bookings that is, " +
       "what we still have to pay drivers in total, and each booking that owes us, biggest balance first. " +
       "Use its totals for any 'how much is due' question; never add up balances yourself. " +
-      "Bookings whose total isn't set yet aren't counted as owing.",
+      "Balances are after any discount (total − discount − received). Bookings whose total isn't set yet aren't counted as owing.",
     schema: z.object({}), // no inputs
     responseFormat: "content_and_artifact",
   },
@@ -89,7 +90,8 @@ export const monthOverview = tool(
       // Bookings starting in the month
       bookings: s.bookings,
       km: s.km,
-      billed: s.billed, // their agreed totals
+      billed: s.billed, // their agreed totals less discounts: what the customers pay
+      discounts: s.discounts, // rupees of discount given on those bookings
       driver_amounts: s.driverAmount, // agreed with the drivers for them
     };
     const nothing = !s.bookings && !s.received && !moneyOut;
@@ -101,8 +103,8 @@ export const monthOverview = tool(
       "The car business for one month, as the Expense Tracker overview shows it: money in (received from customers), " +
       "money out (drivers, fuel, other expenses, repairs, FASTag, EMI, insurance, each listed) and net (in − out), " +
       "all counting payments made during the month; plus the bookings starting in the month, their km, the amount " +
-      "billed and the driver amounts agreed. Use it for cash questions: 'how much came in this month', 'what did " +
-      "we spend on fuel'. Net here is cash in − cash out, not profit: for a month's profit, use report (the Reports " +
+      "billed (after discounts), the discounts given on them and the driver amounts agreed. Use it for cash questions: " +
+      "'how much came in this month', 'what did we spend on fuel', and for 'how much discount did we give'. Net here is cash in − cash out, not profit: for a month's profit, use report (the Reports " +
       "page's profit, by the bookings starting in the month); for one vehicle's profit, use vehicle_summary.",
     schema: z.object({ month: monthInput.optional().describe(`${monthInput.description} Leave out for this month.`) }),
     responseFormat: "content_and_artifact",

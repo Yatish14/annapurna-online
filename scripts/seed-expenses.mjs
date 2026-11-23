@@ -64,10 +64,11 @@ const ROUTES = [
 
 // vehicle, driver, start (days from today), days, route, extras
 // pay: "full" (default for finished trips) | "partial" | "advance"   driverPay: "full" (default) | "half" | "none"
+// discount: rupees off the total (with reason) · discountPct: a percentage of it · settle: rupees of the balance let go
 const BOOKINGS = [
   [0, 0, -80, 3, 1, {}],
   [1, 1, -75, 2, 0, { referrer: 0 }],
-  [1, 1, -62, 3, 3, {}],
+  [1, 1, -62, 3, 3, { discount: 500, reason: "Regular customer" }],
   [2, 2, -66, 2, 9, {}],
   [0, 0, -70, 2, 4, { pay: "partial" }],
   [0, 0, -58, 4, 7, { referrer: 1 }],
@@ -75,7 +76,7 @@ const BOOKINGS = [
   [0, 1, -45, 1, 9, { driverPay: "half" }],
   [2, 2, -40, 3, 5, { referrer: 2 }],
   [1, 1, -38, 5, 11, { note: "Family trip, 7 people with luggage carrier." }],
-  [0, 0, -33, 3, 1, {}],
+  [0, 0, -33, 3, 1, { settle: 300 }],
   [2, 2, -28, 2, 6, { pay: "advance" }],
   [1, 1, -25, 2, 0, { cancelled: true }],
   [0, 0, -20, 2, 0, { acRepair: true }],
@@ -88,7 +89,7 @@ const BOOKINGS = [
   [1, 1, 3, 1, 9, { advance: true }],
   [0, 0, 6, 2, 0, { advance: true }],
   [1, 1, 10, 3, 3, {}],
-  [0, 0, 15, 4, 7, { advance: true, referrer: 0 }],
+  [0, 0, 15, 4, 7, { advance: true, referrer: 0, discountPct: 5, reason: "Festival offer" }],
   [2, 2, 20, 2, 4, { noTotal: true }],
 ];
 
@@ -188,7 +189,9 @@ for (const [name, phone] of DRIVERS) {
   await log(at(-90, "10:05"), "driver.created", `${name} (${phone})`);
 }
 
-const counts = { trips: 0, payments: 0, fuel: 0, other: 0, repairs: 0, fastag: 0, emi: 0, insurance: 0 };
+const counts = { trips: 0, discounts: 0, payments: 0, fuel: 0, other: 0, repairs: 0, fastag: 0, emi: 0, insurance: 0 };
+/** The same words as "Settle the rest as discount" on the booking page (lib/expenses/discountInput.ts) */
+const SETTLE_REASON = "Balance let go when settling";
 
 // ---------- Loans (EMI) and insurance ----------
 const thisMonth = todayIST.slice(0, 7);
@@ -279,6 +282,9 @@ for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
   const roundTrip = Boolean(route.to);
   const drop = roundTrip ? route.p : route.d;
   const total = extra.noTotal ? null : roundTo(route.km * v.rate + days * 300, 100);
+  // A discount given when booking: rupees, or a percentage of the total (as the booking form works it out)
+  const discount = total === null ? null : extra.discount ?? (extra.discountPct ? Math.round((total * extra.discountPct) / 100) : null);
+  const payable = total === null ? null : total - (discount ?? 0);
   const driverAmount = days * 700;
   const referrer = extra.referrer !== undefined ? REFERRERS[extra.referrer] : null;
 
@@ -298,20 +304,22 @@ for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
     `INSERT INTO trips (vehicle_id, driver_id, customer_name, customer_phone, start_date, end_date,
                         pickup_state, pickup_city, drop_state, drop_city, round_trip, dest_state, dest_city,
                         referrer_name, referrer_phone, notes, odometer_start, odometer_end, total_amount, driver_amount,
-                        status, created_at, created_by, is_sample)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, true)
+                        status, created_at, created_by, is_sample, discount, discount_reason)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, true, $24, $25)
      RETURNING id, trip_no`,
     [
       vehicleIds[vi], driverIds[di], customer, phone, day(offset), day(end),
       route.p[0], route.p[1], drop[0], drop[1], roundTrip, route.to?.[0] ?? null, route.to?.[1] ?? null,
       referrer?.[0] ?? null, referrer?.[1] ?? null, extra.note ?? null, odoStart, odoEnd, total, driverAmount,
-      phase === "cancelled" ? "cancelled" : "booked", at(created, "11:00"), actor.name,
+      phase === "cancelled" ? "cancelled" : "booked", at(created, "11:00"), actor.name, discount, discount ? extra.reason ?? null : null,
     ],
   );
   counts.trips++;
+  if (discount) counts.discounts++;
   const routeText = roundTrip ? `${route.p[1]} → ${route.to[1]} → ${route.p[1]} (round trip)` : `${route.p[1]} → ${route.d[1]}`;
   await log(at(created, "11:00"), "trip.created", trip.trip_no,
-    [`${customer} (${phone})`, `${v.name} with ${driverName}`, routeText, total !== null ? `Total ${rupees(total)}` : null].filter(Boolean).join(" · "));
+    [`${customer} (${phone})`, `${v.name} with ${driverName}`, routeText, total !== null ? `Total ${rupees(total)}` : null,
+      discount ? `Discount ${rupees(discount)}${extra.reason ? ` (${extra.reason})` : ""}` : null].filter(Boolean).join(" · "));
 
   if (phase === "cancelled") {
     await log(at(offset - 2, "16:20"), "trip.cancelled", trip.trip_no, `${customer} · ${v.name}`);
@@ -350,7 +358,7 @@ for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
   }
 
   // Customer: an advance when booking (not for every upcoming booking), the rest after the trip
-  const advance = total === null ? null : Math.max(1000, roundTo(total * 0.25, 500));
+  const advance = payable === null ? null : Math.min(payable, Math.max(1000, roundTo(payable * 0.25, 500)));
   const takesAdvance = phase !== "upcoming" || extra.advance;
   if (advance && takesAdvance) await pay("customer", advance, i % 2 ? "upi" : "cash", at(created, "11:10"), "Advance");
 
@@ -384,9 +392,17 @@ for (const { b: [vi, di, offset, days, ri, extra], i } of order) {
     await log(at(end, "20:30"), "trip.readings_updated", trip.trip_no,
       `Odometer at end: not set → ${odoEnd.toLocaleString("en-IN")} · ${(odoEnd - odoStart).toLocaleString("en-IN")} km travelled`);
     const plan = extra.pay ?? "full";
-    const rest = total - (advance ?? 0);
-    if (plan === "full" && rest > 0) await pay("customer", rest, i % 3 ? "upi" : "cash", at(end, "20:00"), "Balance");
+    const rest = payable - (advance ?? 0);
+    // settle: the customer paid all but a little, and that little was let go as discount ("Settle the rest as discount")
+    const paidRest = extra.settle ? rest - extra.settle : rest;
+    if (plan === "full" && paidRest > 0) await pay("customer", paidRest, i % 3 ? "upi" : "cash", at(end, "20:00"), "Balance");
     if (plan === "partial") await pay("customer", roundTo(rest / 2, 500), "upi", at(end, "20:00"), "Part of the balance");
+    if (extra.settle) {
+      await db.query(`UPDATE trips SET discount = $2, discount_reason = $3 WHERE id = $1`, [trip.id, extra.settle, SETTLE_REASON]);
+      counts.discounts++;
+      await log(at(end, "20:05"), "trip.discount_changed", trip.trip_no,
+        `Discount: none → ${rupees(extra.settle)} (${SETTLE_REASON}) · settled the balance of ${rupees(extra.settle)}`);
+    }
     const driverPlan = extra.driverPay ?? "full";
     if (driverPlan === "full") await pay("driver", driverAmount, "cash", at(end, "21:00"), `Batta for ${days} day${days === 1 ? "" : "s"}`);
     if (driverPlan === "half") await pay("driver", driverAmount / 2, "cash", at(end, "21:00"), "Half now");
@@ -414,7 +430,7 @@ for (const [vi, offset, amount, app] of VEHICLE_FASTAG) {
 }
 
 console.log(
-  `✓ Added ${VEHICLES.length} vehicles, ${DRIVERS.length} drivers, ${counts.trips} bookings, ${counts.payments} payments, ` +
+  `✓ Added ${VEHICLES.length} vehicles, ${DRIVERS.length} drivers, ${counts.trips} bookings (${counts.discounts} with a discount), ${counts.payments} payments, ` +
     `${counts.fuel} fuel, ${counts.other} toll/parking, ${counts.repairs} repair, ${counts.fastag} FASTag, ${counts.emi} EMI and ${counts.insurance} insurance entries (marked as samples).`,
 );
 console.log("  Remove them with: npm run db:seed-expenses -- --clear");

@@ -37,6 +37,7 @@ const ACTIONS: Record<ActivityAction, { icon: IconName; tone: string; text: (tar
   "trip.created": { icon: "bookings", tone: "gold", text: (t) => <>created booking <b>{t}</b></> },
   "trip.updated": { icon: "edit", tone: "navy", text: (t) => <>edited booking <b>{t}</b></> },
   "trip.readings_updated": { icon: "edit", tone: "navy", text: (t) => <>updated the readings and amounts of <b>{t}</b></> },
+  "trip.discount_changed": { icon: "tag", tone: "gold", text: (t) => <>changed the discount on <b>{t}</b></> },
   "trip.cancelled": { icon: "xcircle", tone: "red", text: (t) => <>cancelled booking <b>{t}</b></> },
   "trip.restored": { icon: "undo", tone: "green", text: (t) => <>restored booking <b>{t}</b></> },
   "payment.received": { icon: "rupee", tone: "green", text: (t) => <>recorded a customer payment for <b>{t}</b></> },

@@ -11,6 +11,7 @@ import {
   listPayments,
   listTrips,
   PAY_LABELS,
+  payableOf,
   payState,
   PHASE_LABELS,
   profitOf,
@@ -38,12 +39,14 @@ export function bookingRow(t: Trip) {
     vehicle: freeText(t.vehicle_name, 60),
     driver: freeText(t.driver_name, 60),
     dates: fmtRangeCompact(t.start_date, t.end_date), // "12–14 Nov"
-    balance: balanceOf(t), // still to collect from the customer, in rupees
+    balance: balanceOf(t), // still to collect from the customer, in rupees: total − discount − received
     start_date: t.start_date,
     end_date: t.end_date,
     route: routeText(t),
     status: PHASE_LABELS[t.phase], // Upcoming / On trip / Completed / Cancelled
     total: t.total_amount, // null when the total isn't entered yet
+    discount: t.discount, // rupees off the total; null when there's none
+    to_pay: payableOf(t), // what the customer pays: total − discount (null until the total is entered)
     received: t.received,
     // Paid / Partly paid / Payment due / Total not set. Without it, a booking with no total looks fully paid (balance 0)
     payment: PAY_LABELS[payState(t)],
@@ -87,7 +90,8 @@ export const listBookings = tool(
     description:
       "Lists car bookings, with the total count and how many have each status (by_status). Filter by dates (bookings on the road on any day from `from` to `to`) " +
       "and/or by status. For 'today' or 'tomorrow' pass that date as `from` only. Each booking has its number (VB-…), " +
-      "customer, vehicle, driver, dates, route, status, total, received, balance (rupees still to collect) and payment " +
+      "customer, vehicle, driver, dates, route, status, total, discount (rupees off the total, null if none), to_pay " +
+      "(total − discount), received, balance (rupees still to collect: to_pay − received) and payment " +
       "(Paid / Partly paid / Payment due / Total not set: when the total isn't set, the balance is unknown, not zero).",
     schema: z.object({
       status: z
@@ -130,6 +134,8 @@ export const getBooking = tool(
         customer_phone: trip.customer_phone,
         driver_phone: trip.driver_phone,
         referred_by: freeText(trip.referrer_name, 60),
+        // Typed by an admin, like the notes: cleaned, and information only
+        discount_reason: freeText(trip.discount_reason, 60),
         km: kmOf(trip), // null until the odometer readings (or km) are entered
         driver_amount: trip.driver_amount, // agreed with the driver; null if not set
         driver_paid: trip.driver_paid,
@@ -137,7 +143,7 @@ export const getBooking = tool(
         fuel: trip.fuel,
         other_expenses: trip.other, // tolls, parking…
         profit_so_far: profitOf(trip), // received − driver amount − fuel − other expenses
-        profit_when_paid: profitWhenPaid(trip), // the same once the customer pays the full total
+        profit_when_paid: profitWhenPaid(trip), // the same once the customer pays all of to_pay (the total less any discount)
         // Removed payments and expenses stay in the database for the record, but don't count
         payments: payments
           .filter((p) => !p.deleted_ist)
@@ -160,9 +166,9 @@ export const getBooking = tool(
     name: "get_booking",
     description:
       "Gets everything about one car booking by its number (VB-…): customer and driver with phone numbers, dates, route, " +
-      "km, the money (total, received, balance, driver amount and what's paid or owed to the driver, fuel, other " +
-      "expenses, profit), every payment and expense, and the notes. Use it when the admin names a booking, or to " +
-      "look closer at one from list_bookings.",
+      "km, the money (total, discount and its reason, to_pay, received, balance, driver amount and what's paid or owed " +
+      "to the driver, fuel, other expenses, profit), every payment and expense, and the notes. Use it when the admin " +
+      "names a booking, or to look closer at one from list_bookings.",
     schema: z.object({
       number: z.string().max(20).describe("The booking number, e.g. VB-0012 (12 or vb12 work too)."),
     }),
@@ -231,6 +237,7 @@ export const expenseStatement = tool(
         no: trip.trip_no,
         customer: freeText(trip.customer_name, 60),
         total: trip.total_amount,
+        discount: trip.discount, // shown on the PDF as a line off the total; null if none
         received: trip.received,
         balance: balanceOf(trip),
         file: `expense-statement-${trip.trip_no}.pdf`,
@@ -242,8 +249,8 @@ export const expenseStatement = tool(
   {
     name: "expense_statement",
     description:
-      "Gets a booking's expense statement: the one-page PDF for the customer with the total, the payments received " +
-      "and the balance still to pay (no vehicle or driver details). The admin gets a Download button for it. Use it " +
+      "Gets a booking's expense statement: the one-page PDF for the customer with the total, any discount, the payments " +
+      "received and the balance still to pay (no vehicle or driver details). The admin gets a Download button for it. Use it " +
       "when the admin wants a statement, bill or PDF to send a customer. Only for bookings that aren't cancelled and " +
       "have their total entered.",
     schema: z.object({

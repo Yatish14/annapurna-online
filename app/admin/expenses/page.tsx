@@ -99,7 +99,8 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
     {
       label: "Bookings",
       value: String(summary.bookings),
-      sub: `${formatNumber(summary.km)} km · billed ${formatRupees(summary.billed)}`,
+      // Billed is after discounts; the discounts are named when there are any
+      sub: `${formatNumber(summary.km)} km · billed ${formatRupees(summary.billed)}${summary.discounts ? ` after ${formatRupees(summary.discounts)} discounts` : ""}`,
       icon: "bookings" as const,
       tone: "gold",
     },

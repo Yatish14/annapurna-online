@@ -8,6 +8,7 @@ import {
   EXPENSE_LABELS,
   expensesIn,
   kmOf,
+  payableOf,
   profitOf,
   profitWhenPaid,
   tripsStartingIn,
@@ -149,6 +150,10 @@ async function bookingsReport(month: string): Promise<Report> {
   const due = sum(booked, balanceOf);
   const km = sum(booked, kmOf);
   const totalProfit = profit - repairs - fastag - emi - insurance;
+  // Billed = the totals less discounts (what the customers pay); the discounts are shown on their own too
+  const discounts = sum(booked, (t) => t.discount);
+  const billed = sum(booked, payableOf);
+  const withDiscount = booked.filter((t) => t.discount !== null).length;
 
   return {
     tab: "bookings",
@@ -156,9 +161,16 @@ async function bookingsReport(month: string): Promise<Report> {
     month,
     tiles: [
       { label: "Bookings", value: booked.length, money: false, sub: km ? `${km.toLocaleString("en-IN")} km` : undefined, tone: "navy" },
-      { label: "Billed", value: sum(booked, (t) => t.total_amount), money: true, tone: "navy" },
+      {
+        label: "Billed",
+        value: billed,
+        money: true,
+        sub: discounts ? `After ${formatRupees(discounts)} discounts` : undefined,
+        tone: "navy",
+      },
       { label: "Received", value: sum(booked, (t) => t.received), money: true, tone: "green" },
       { label: "Balance due", value: due, money: true, tone: due > 0 ? "red" : "green" },
+      { label: "Discounts", value: discounts, money: true, sub: plural(withDiscount, "booking"), tone: "gold" },
       { label: "Driver pay", value: sum(booked, (t) => t.driver_amount), money: true, tone: "plum" },
       { label: "Fuel", value: sum(booked, (t) => t.fuel), money: true, tone: "gold" },
       { label: "Other expenses", value: sum(booked, (t) => t.other), money: true, sub: "Tolls, parking…", tone: "gold" },
@@ -181,11 +193,12 @@ async function bookingsReport(month: string): Promise<Report> {
           text("Booking", 6),
           text("Dates", 7),
           text("Customer", 10),
-          text("To", 12.5),
-          text("Vehicle", 9),
-          text("Driver", 9.5),
-          count("Km"),
+          text("To", 10.5),
+          text("Vehicle", 8.5),
+          text("Driver", 8.5),
+          count("Km", 4.5),
           money("Total"),
+          money("Discount", 6.5),
           money("Received"),
           money("Balance", 7, "due"),
           money("Driver pay"),
@@ -197,11 +210,11 @@ async function bookingsReport(month: string): Promise<Report> {
           href: `/admin/expenses/bookings/${t.trip_no}`,
           cells: [
             t.trip_no, fmtRangeCompact(t.start_date, t.end_date), t.customer_name, wentTo(t), t.vehicle_name, t.driver_name, kmOf(t),
-            t.total_amount, t.received, balanceOf(t), t.driver_amount, t.fuel, t.other, profitOf(t),
+            t.total_amount, t.discount, t.received, balanceOf(t), t.driver_amount, t.fuel, t.other, profitOf(t),
           ],
         })),
         total: [
-          "Total", "", "", "", "", "", km, sum(booked, (t) => t.total_amount), sum(booked, (t) => t.received), due,
+          "Total", "", "", "", "", "", km, sum(booked, (t) => t.total_amount), discounts, sum(booked, (t) => t.received), due,
           sum(booked, (t) => t.driver_amount), sum(booked, (t) => t.fuel), sum(booked, (t) => t.other), profit,
         ],
         empty: `No bookings start in ${monthLabel(month)}.`,
@@ -223,6 +236,7 @@ async function bookingsReport(month: string): Promise<Report> {
     ],
     notes: [
       "Bookings profit = received from the customer − driver pay − fuel − other expenses (tolls, parking…), for bookings starting in the month.",
+      "Balance = total − discount − received. Billed is the totals less discounts: what the customers pay.",
       "Total profit = bookings profit − repairs − FASTag − EMI − insurance. Repairs, FASTag, EMI and insurance count in the month of the date entered on them (an EMI paid on 5 Oct counts in October).",
       ...(cancelled ? [`${plural(cancelled, "cancelled booking")} ${cancelled === 1 ? "isn't" : "aren't"} listed or counted.`] : []),
     ],
@@ -242,13 +256,16 @@ async function customersReport(month: string): Promise<Report> {
     // The name on their latest booking
     name: trips[trips.length - 1].customer_name,
     bookings: trips.length,
-    billed: sum(trips, (t) => t.total_amount),
+    // Billed: their totals less discounts, so billed − paid = still to pay
+    billed: sum(trips, payableOf),
+    discount: sum(trips, (t) => t.discount),
     paid: sum(trips, (t) => t.received),
     owes: sum(trips, balanceOf),
   }));
   // Who owes the most first, then by name
   customers.sort((a, b) => b.owes - a.owes || a.name.localeCompare(b.name));
   const billed = sum(customers, (c) => c.billed);
+  const discounts = sum(customers, (c) => c.discount);
   const paid = sum(customers, (c) => c.paid);
   const owes = sum(customers, (c) => c.owes);
   const owing = customers.filter((c) => c.owes > 0).length;
@@ -259,7 +276,7 @@ async function customersReport(month: string): Promise<Report> {
     month,
     tiles: [
       { label: "Customers", value: customers.length, money: false, sub: plural(booked.length, "booking"), tone: "navy" },
-      { label: "Billed", value: billed, money: true, tone: "navy" },
+      { label: "Billed", value: billed, money: true, sub: discounts ? `After ${formatRupees(discounts)} discounts` : undefined, tone: "navy" },
       { label: "Paid", value: paid, money: true, tone: "green" },
       { label: "Still to pay us", value: owes, money: true, sub: owing ? `${plural(owing, "customer")} owe${owing === 1 ? "s" : ""}` : "All paid", tone: owes > 0 ? "red" : "green" },
     ],
@@ -270,20 +287,21 @@ async function customersReport(month: string): Promise<Report> {
           text("Customer", 14),
           text("Mobile", 9),
           count("Bookings", 6),
+          money("Discount", 7),
           money("Billed", 8),
           money("Paid", 8),
           money("Still to pay us", 9, "due"),
         ],
         rows: customers.map((c) => ({
           href: `/admin/expenses/bookings?q=${c.phone}`,
-          cells: [c.name, formatPhone(c.phone), c.bookings, c.billed, c.paid, c.owes],
+          cells: [c.name, formatPhone(c.phone), c.bookings, c.discount || null, c.billed, c.paid, c.owes],
         })),
-        total: ["Total", "", booked.length, billed, paid, owes],
+        total: ["Total", "", booked.length, discounts, billed, paid, owes],
         empty: `No bookings start in ${monthLabel(month)}.`,
       },
     ],
     notes: [
-      `For the bookings starting in ${monthLabel(month)}: what each customer was billed, what they have paid so far and what they still have to pay us. Customers are matched by mobile number.`,
+      `For the bookings starting in ${monthLabel(month)}: what each customer was billed (their totals less any discount), what they have paid so far and what they still have to pay us. Customers are matched by mobile number.`,
     ],
     contents: plural(customers.length, "customer"),
   };
@@ -396,7 +414,7 @@ async function vehiclesReport(month: string): Promise<Report> {
     ],
     notes: [
       "Profit = received − driver pay − fuel − other booking expenses − repairs − FASTag − EMI − insurance.",
-      "Billed, received, driver pay, fuel and other expenses are for the bookings starting in the month (received = paid so far), as in the Bookings report. Repairs, FASTag, EMI and insurance count in the month of the date entered on them.",
+      "Billed (totals less discounts), received, driver pay, fuel and other expenses are for the bookings starting in the month (received = paid so far), as in the Bookings report. Repairs, FASTag, EMI and insurance count in the month of the date entered on them.",
     ],
     contents: `${plural(vehicles.length, "vehicle")}, ${plural(costs.length, "cost")}`,
   };

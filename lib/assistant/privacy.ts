@@ -102,7 +102,8 @@ export function strictContent(tool: string, content: string, result: ToolResult<
       break;
     case "draft_booking":
     case "draft_payment":
-    case "draft_fuel": {
+    case "draft_fuel":
+    case "draft_discount": {
       if (result.status === "found" && data.ready) {
         Object.assign(out, { ready: true, has_warning: Boolean(data.warning || data.driver_busy) || undefined, note: STRICT_NOTES.ready });
         break;

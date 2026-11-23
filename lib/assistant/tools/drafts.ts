@@ -6,7 +6,7 @@ import { fleetChoices } from "@/lib/expenses/fleet";
 import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import { STATES } from "@/lib/expenses/places";
 import { checkTrip, fromObject, parseTrip } from "@/lib/expenses/tripInput";
-import { routeText } from "@/lib/expenses/trips";
+import { discountText, routeText } from "@/lib/expenses/trips";
 import { draftOwner, saveDraft } from "../draftStore";
 import { isStrict } from "../privacy";
 import { choiceNames, matchName, nameAmong, placesNamed } from "../match";
@@ -108,6 +108,14 @@ const bookingArgs = z.object({
   destination_city: z.string().max(60).optional().describe("Where a round trip goes."),
   destination_state: z.string().max(60).optional(),
   total_amount: z.number().nonnegative().optional().describe("Rupees agreed with the customer, if the admin said."),
+  discount: z.number().positive().optional().describe("Rupees off the total, only if the admin said a discount in rupees (\"500 off\")."),
+  discount_percent: z
+    .number()
+    .positive()
+    .max(100)
+    .optional()
+    .describe('Only if the admin said a percentage discount: 5 for "5% off". Our code works out the rupees. Never both this and discount.'),
+  discount_reason: z.string().max(60).optional().describe('Why, if the admin said ("regular customer").'),
   advance_amount: z.number().positive().optional().describe("Rupees the customer has already paid, if any."),
   advance_method: z.enum(["cash", "upi", "bank", "other"]).optional(),
   driver_amount: z.number().nonnegative().optional().describe("Rupees agreed with the driver, if the admin said."),
@@ -126,6 +134,8 @@ const TOGETHER: (keyof BookingArgs)[][] = [
   ["pickup_city", "pickup_state"],
   ["drop_city", "drop_state"],
   ["destination_city", "destination_state"],
+  // A new discount (rupees or a percentage) replaces the earlier one, whichever way it was given
+  ["discount", "discount_percent"],
 ];
 
 /**
@@ -213,6 +223,10 @@ export const draftBooking = tool(
       round_trip: a.round_trip ? "1" : "",
       ...(a.round_trip ? { dest_state: other.state, dest_city: other.city } : { drop_state: other.state, drop_city: other.city }),
       total_amount: a.total_amount != null ? String(a.total_amount) : "",
+      // A percentage is turned into rupees of the total by the form's own rules (discountInput.ts)
+      discount_amount: a.discount_percent != null ? String(a.discount_percent) : a.discount != null ? String(a.discount) : "",
+      discount_mode: a.discount_percent != null ? "pct" : "rs",
+      discount_reason: a.discount_reason ?? "",
       advance_amount: a.advance_amount != null ? String(a.advance_amount) : "",
       advance_method: a.advance_method ?? "cash",
       driver_amount: a.driver_amount != null ? String(a.driver_amount) : "",
@@ -254,6 +268,10 @@ export const draftBooking = tool(
           dates: `${fmtRange(input.startDate, input.endDate)} (${daysText(days)})`,
           route: routeText({ pickup_city: input.pickupCity, drop_city: input.dropCity, round_trip: input.roundTrip, dest_city: input.destCity }),
           total: parsed.totalAmount !== null ? formatRupees(parsed.totalAmount) : "not set yet",
+          // Worked out by our code: the discount in rupees (from a percentage too) and what the customer pays
+          discount: parsed.discount.amount !== null ? discountText(parsed.discount.amount, freeText(parsed.discount.reason, 60)) : "none",
+          to_pay:
+            parsed.totalAmount !== null ? formatRupees(parsed.totalAmount - (parsed.discount.amount ?? 0)) : "not set yet",
           advance: parsed.advance ? `${formatRupees(parsed.advance.amount)} by ${PAYMENT_METHODS[parsed.advance.method]}` : "none",
           driver_amount: parsed.driverAmount !== null ? formatRupees(parsed.driverAmount) : "not set yet",
           notes: freeText(input.notes, 300),
