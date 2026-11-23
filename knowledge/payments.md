@@ -76,12 +76,12 @@ A booking can have one discount off its total, for example ₹500 for a regular 
 To give or change a discount:
 
 1. Open the booking and press **Edit details** (or fill it in on the **New booking** form).
-2. Under **Money, fuel and km**, find **Discount**. Choose **₹ Amount** or **% of total**.
-3. Enter the discount, for example 500, or 5 for 5% of the total. A percentage is worked out in rupees from the total and saved in rupees.
-4. Optionally add a **Reason**, such as "Regular customer" or "Festival offer".
-5. The **Customer pays** box shows the total minus the discount. Press **Save changes**.
+2. Under **Money, fuel and km**, press **Add a discount**. (A booking that already has one shows its discount card straight away.)
+3. In the discount card, choose **₹** or **%** in the amount box, then type the discount or tap a quick pick (₹200, ₹500, ₹1,000, or 5%, 10%, 15%). A percentage is worked out in rupees from the total and saved in rupees.
+4. Optionally add a **Reason**, or tap one: Regular customer, Festival offer, Referral, Long trip.
+5. The bill on the right shows the total, the discount and what the **Customer pays**. Press **Save changes** (or **Create booking**).
 
-To remove a discount, clear the Discount box in Edit details, or press **Remove** next to the discount in the **Customer payments** panel. A discount needs a total, can't be more than the total, and can't make the customer owe less than they have already paid. Every change is recorded in the booking's History.
+To remove a discount, press **Remove** on the discount card in Edit details, or **Remove** next to the discount in the **Customer payments** panel. A discount needs a total, can't be more than the total, and can't make the customer owe less than they have already paid. Every change is recorded in the booking's History.
 
 ## Settling the rest as discount
 

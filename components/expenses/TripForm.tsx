@@ -9,6 +9,7 @@ import MobileInput from "@/components/MobileInput";
 import { formatRupees, PAYMENT_METHODS } from "@/lib/expenses/money";
 import type { CustomerChoice } from "@/lib/expenses/trips";
 import CustomerCombo from "./CustomerCombo";
+import DiscountField from "./DiscountField";
 import PlacePicker from "./PlacePicker";
 import QuickAddDialog, { type DriverChoice, type VehicleChoice } from "./QuickAddDialog";
 import type { TripFormValues } from "./tripFormValues";
@@ -396,66 +397,14 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
             </label>
           </div>
 
-          {/* A discount off the total, in rupees or as a percentage of it (kept in rupees: lib/expenses/discountInput.ts) */}
-          <div className="xp-subhead-row">
-            <p className="xp-subhead">Discount</p>
-            <span className="xp-unitswitch" role="radiogroup" aria-label="Discount in">
-              {(["rs", "pct"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  role="radio"
-                  aria-checked={v.discount_mode === mode}
-                  className={v.discount_mode === mode ? "is-on" : ""}
-                  onClick={() => set("discount_mode", mode)}
-                >
-                  {mode === "rs" ? "₹ Amount" : "% of total"}
-                </button>
-              ))}
-            </span>
-          </div>
-          <input type="hidden" name="discount_mode" value={v.discount_mode} />
-          <div className="xp-grid xp-grid-4 xp-discount">
-            <label className="ap-field">
-              <span>{percent ? "Discount (%)" : "Discount (₹)"}</span>
-              <input
-                type="number"
-                name="discount_amount"
-                inputMode="decimal"
-                min="0"
-                max={percent ? "100" : total !== null ? String(total) : "10000000"}
-                step="0.01"
-                placeholder={percent ? "e.g. 5" : "e.g. 500"}
-                value={v.discount_amount}
-                onChange={(e) => set("discount_amount", e.target.value)}
-              />
-              {percent && discountIn > 0 && (
-                <span className="mob-msg">{total !== null ? `${formatRupees(discountRs ?? 0)} off` : "Enter the total first"}</span>
-              )}
-            </label>
-            <label className="ap-field xp-discount-reason">
-              <span>Reason (optional)</span>
-              <input
-                name="discount_reason"
-                maxLength={60}
-                autoComplete="off"
-                placeholder="e.g. Regular customer, Festival offer"
-                value={v.discount_reason}
-                onChange={(e) => set("discount_reason", e.target.value)}
-              />
-            </label>
-            <div className="xp-payable" aria-live="polite">
-              <span>Customer pays</span>
-              <strong>{payable === null ? "—" : formatRupees(payable)}</strong>
-              <small>
-                {total === null
-                  ? "Enter the total"
-                  : discountRs
-                    ? `${formatRupees(total)} − ${formatRupees(discountRs)} discount`
-                    : "No discount"}
-              </small>
-            </div>
-          </div>
+          {/* A discount off the total: "+ Add a discount", then a card with ₹ / %, quick picks and what the customer pays */}
+          <DiscountField
+            amount={v.discount_amount}
+            mode={v.discount_mode}
+            reason={v.discount_reason}
+            total={total}
+            onChange={(change) => setV((old) => ({ ...old, ...change }))}
+          />
 
           <div className="xp-pair">
             <div>

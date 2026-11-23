@@ -1118,24 +1118,87 @@ a.ap-pgbtn:hover { background: var(--surface); border-color: rgba(16,26,51,.18);
 @media (max-width: 700px) { .xp-section .xp-grid-4 { grid-template-columns: 1fr; } }
 .xp-subhead-row { min-height: 22px; }
 
-/* Discount: ₹ / % switch, the amount, a reason across two columns, and what the customer pays */
-.xp-unitswitch { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--ivory-2); border: 1px solid var(--line); }
-.xp-unitswitch button {
-  border: 0; background: none; padding: 5px 12px; border-radius: 999px; font: inherit; font-size: .78rem; font-weight: 700;
-  color: var(--ink-soft); cursor: pointer; transition: background .15s, color .15s;
+/* Discount in the booking form (components/expenses/DiscountField.tsx): closed, one "+ Add a discount" button;
+   open, a card with the amount (₹ / % in the box), quick picks, reasons, and a small bill on the right */
+.xp-dc-closed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 4px 0 18px; font-size: .84rem; }
+.xp-dc-add {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; cursor: pointer;
+  border: 1.5px dashed rgba(201,162,74,.65); background: #fffaf0; color: var(--gold-600); font: inherit; font-size: .88rem; font-weight: 700;
+  transition: background .15s, border-color .15s, transform .15s;
 }
-.xp-unitswitch button.is-on { background: var(--surface); color: var(--navy-900); box-shadow: 0 1px 3px rgba(16,26,51,.14); }
-.xp-unitswitch button:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 1px; }
-.xp-discount .xp-discount-reason { grid-column: span 2; }
-.xp-payable {
-  display: grid; align-content: center; gap: 2px; padding: 10px 14px; border-radius: 14px;
-  background: #fffaf0; border: 1px solid rgba(201,162,74,.35); min-height: 64px;
+.xp-dc-add:hover { background: #fff3d9; border-color: var(--gold-500); transform: translateY(-1px); }
+.xp-dc-add:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 2px; }
+
+.xp-dc {
+  display: grid; grid-template-columns: minmax(0, 1fr) 280px; margin: 4px 0 20px; overflow: hidden;
+  border-radius: 18px; border: 1px solid rgba(201,162,74,.4); background: linear-gradient(135deg, #fffdf7, #fff8ea);
+  animation: xp-dc-in .22s ease-out;
 }
-.xp-payable span { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-600); }
-.xp-payable strong { font-size: 1.15rem; color: var(--navy-900); }
-.xp-payable small { font-size: .76rem; font-weight: 600; color: var(--ink-soft); }
-@media (max-width: 1100px) { .xp-discount .xp-discount-reason { grid-column: 1 / -1; } }
-@media (max-width: 700px) { .xp-discount .xp-discount-reason { grid-column: auto; } }
+@keyframes xp-dc-in { from { opacity: 0; transform: translateY(-4px); } }
+.xp-dc-main { display: grid; gap: 12px; padding: 16px 18px 18px; min-width: 0; }
+.xp-dc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.xp-dc-title { display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-600); }
+.xp-dc-remove {
+  display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 4px 8px; border-radius: 8px;
+  font: inherit; font-size: .8rem; font-weight: 700; color: var(--ink-soft); cursor: pointer;
+}
+.xp-dc-remove:hover { color: var(--err); background: rgba(180,35,24,.06); }
+
+/* The amount box: [₹ | %] then the number, as one control */
+.xp-dc-amount {
+  display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 5px 14px 5px 5px; border-radius: 14px;
+  border: 1px solid rgba(16,26,51,.16); background: var(--surface); transition: border-color .15s, box-shadow .15s;
+}
+.xp-dc-amount:focus-within { border-color: var(--gold-500); box-shadow: 0 0 0 3px rgba(201,162,74,.22); }
+.xp-dc-amount.is-invalid { border-color: var(--err); box-shadow: 0 0 0 3px rgba(180,35,24,.12); }
+.xp-dc-units { display: inline-flex; flex-shrink: 0; padding: 3px; border-radius: 10px; background: var(--ivory-2); }
+.xp-dc-units button {
+  min-width: 38px; height: 34px; border: 0; border-radius: 8px; background: none; cursor: pointer;
+  font: inherit; font-size: 1rem; font-weight: 800; color: var(--ink-soft); transition: background .15s, color .15s;
+}
+.xp-dc-units button.is-on { background: var(--navy-900); color: #fff; box-shadow: 0 2px 6px rgba(16,26,51,.25); }
+.xp-dc-units button:focus-visible { outline: 2px solid var(--gold-500); outline-offset: 1px; }
+.xp-dc-amount input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: none; padding: 8px 0;
+  font: inherit; font-size: 1.15rem; font-weight: 700; color: var(--ink);
+}
+.xp-dc-suffix { flex-shrink: 0; font-size: .82rem; font-weight: 700; color: var(--ink-soft); }
+
+/* Quick picks and reasons */
+.xp-dc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.xp-dc-chips button {
+  padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(16,26,51,.12); background: var(--surface); cursor: pointer;
+  font: inherit; font-size: .8rem; font-weight: 700; color: var(--ink); transition: background .15s, border-color .15s, color .15s;
+}
+.xp-dc-chips button:hover { border-color: var(--gold-500); }
+.xp-dc-chips button.is-on { background: var(--gold-300); border-color: var(--gold-500); color: var(--navy-950); }
+.xp-dc-chips.is-reasons button { font-weight: 600; color: var(--ink-soft); }
+.xp-dc-chips.is-reasons button.is-on { color: var(--navy-950); }
+.xp-dc-reason { display: grid; gap: 6px; margin-top: 4px; }
+.xp-dc-reason span { font-size: .84rem; font-weight: 700; color: var(--ink-soft); }
+.xp-dc-reason input {
+  font: inherit; font-size: .95rem; font-weight: 500; color: var(--ink); width: 100%; padding: 10px 14px; border-radius: 12px;
+  border: 1px solid rgba(16,26,51,.16); background: var(--surface); transition: border-color .15s, box-shadow .15s;
+}
+.xp-dc-reason input:focus { outline: none; border-color: var(--gold-500); box-shadow: 0 0 0 3px rgba(201,162,74,.22); }
+
+/* The bill: total, discount, what the customer pays */
+.xp-dc-bill {
+  display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 18px 20px;
+  background: var(--navy-900); color: rgba(255,255,255,.82);
+  background-image: radial-gradient(circle at 100% 0, rgba(241,217,154,.16), transparent 55%);
+}
+.xp-dc-bill div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: .9rem; }
+.xp-dc-bill b { color: #fff; font-weight: 700; }
+.xp-dc-bill .is-off b { color: #7ee2b0; }
+.xp-dc-bill .is-pays { margin-top: 2px; padding-top: 12px; border-top: 1px dashed rgba(255,255,255,.25); }
+.xp-dc-bill .is-pays span { font-size: .74rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-300); }
+.xp-dc-bill .is-pays strong { font-family: var(--serif); font-size: 1.65rem; font-weight: 600; color: #fff; }
+.xp-dc-bill small { font-size: .76rem; color: rgba(255,255,255,.6); }
+@media (max-width: 860px) {
+  .xp-dc { grid-template-columns: 1fr; }
+  .xp-dc-amount { max-width: none; }
+}
 /* Fuel amount + litres and the two odometer readings are short numbers: side by side even on phones */
 .xp-pair .xp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
 /* WhatsApp button beside the "Booking details" title (wraps under it on narrow phones) */

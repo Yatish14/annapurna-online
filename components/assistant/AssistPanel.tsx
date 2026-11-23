@@ -14,6 +14,9 @@ export default function AssistPanel() {
   const pathname = usePathname();
   // The full page already is the assistant
   const onAssistPage = pathname.startsWith("/admin/assistant");
+  // The booking forms (new and edit) are long, and the button sat on top of their Save button: no button there.
+  // A chat already open (e.g. after a draft card's "Open in form") stays open.
+  const onBookingForm = /^\/admin\/expenses\/bookings\/(new|[^/]+\/edit)\/?$/.test(pathname);
   const [open, setOpen] = useState(false);
   const isOpen = open && !onAssistPage;
   const panel = useRef<HTMLElement>(null);
@@ -60,7 +63,7 @@ export default function AssistPanel() {
 
   return (
     <>
-      {!onAssistPage && (
+      {!onAssistPage && !onBookingForm && (
         <button
           type="button"
           className={`as-fab ${isOpen ? "is-hidden" : ""}`}
