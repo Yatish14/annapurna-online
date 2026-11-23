@@ -38,9 +38,31 @@ too, since the model can't read it out.
 
 - No open-ended analysis of the data ("which customer pays late most often?"): the model can't see it.
 - Sentences with numbers come from the cards, not the model: "₹42,000 came in" becomes "the figures are below".
-- What the admin **types or says** still goes to Google (the question itself). So in strict mode the customer's
-  name and phone for a new booking are typed into the draft card, not the chat (9.5), and a note under the chat box
-  says so (9.6). Voice goes through the browser's speech service (Google, in Chrome).
+- What the admin **types or says** still goes to Google (the question itself), except phone numbers, which are
+  masked (below). So in strict mode the customer's name and phone for a new booking are typed into the draft card,
+  not the chat (9.5), and a note under the chat box says so (9.6). Voice goes through the browser's speech service
+  (Google, in Chrome).
+
+## Phone numbers typed in the chat are masked (23 Nov 2026)
+
+Privacy-first mode controls what our server adds; the admin's own words still went to Google as typed. So phone
+numbers are now swapped out of everything the model gets, in both modes (`lib/assistant/phones.ts`):
+
+- **Where:** the main model (the question, the chat's earlier turns, the tools' results), the off-topic check and
+  the title writer. The model reads `[phone 1]`, `[phone 2]`…
+- **How it still works:** the model passes the label on ("customer_phone: [phone 1]"), and the graph's tools step
+  puts the real number back before the tool runs. The draft, the card, the saved chat and the answer the admin
+  reads all have the real number; the answer's words are unmasked as they stream.
+- **No memory needed:** labels are numbered in the order the numbers first appear in the messages, so the model
+  step, the tools step and the route showing the answer each work them out from the same messages and agree.
+- **What counts as a phone:** a mobile (10 digits from 6-9, with or without +91, 91 or 0, split by spaces,
+  hyphens, dots or brackets, in Telugu or Hindi digits too) and a landline with its 0. Dates, amounts (no commas
+  allowed inside a number) and booking numbers are left alone. Every case is in `tests/phones.spec.ts`.
+- **What it can't catch:** numbers said in words, or split over two messages. Names aren't masked: "Ravi" could
+  be a customer, a driver or a place, so typing names on the card (9.5) is still the rule in strict mode.
+- **Checked:** the leak test now also searches the admin's questions and the model's earlier answers in every
+  request for any phone number. Replayed, all 101 cases in both modes: none. With Gemini 3.5 Flash-Lite on the 5
+  cases with phone numbers: 5/5 passed, no number sent, and the tools got the real numbers.
 
 ## The leak test (9.7)
 

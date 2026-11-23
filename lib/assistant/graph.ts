@@ -4,6 +4,7 @@ import type { RunnableConfig } from "@langchain/core/runnables";
 import { type BaseCheckpointSaver, END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode, toolsCondition } from "@langchain/langgraph/prebuilt";
 import { mainModel } from "./model";
+import { PhoneBook } from "./phones";
 import { isStrict, strictContent } from "./privacy";
 import type { ToolResult } from "./tools/result";
 import { TOOLS } from "./tools";
@@ -72,13 +73,16 @@ export function buildGraph(maxRounds = MAX_TOOL_ROUNDS, checkpointer?: BaseCheck
   /** The "model" node: send all the messages so far to the model, with the list of tools it may ask for */
   async function callModel(state: typeof MessagesAnnotation.State, config: RunnableConfig) {
     // `config` carries the Stop signal and LangGraph's listeners (that's how the reply streams out word by word).
+    // The model never gets a phone number, only its label ("[phone 1]", lib/assistant/phones.ts). The state keeps
+    // the real numbers; the tools step puts them back into the model's tool calls.
+    const sent = new PhoneBook().maskMessages(state.messages);
     if (toolRounds(state.messages) < maxRounds) {
       // bindTools: the tools' names, descriptions and inputs go with every request, so the model knows what it can ask for
-      const reply = await model().bindTools!(TOOLS).invoke(state.messages, config);
+      const reply = await model().bindTools!(TOOLS).invoke(sent, config);
       return { messages: [reply] };
     }
     // Out of tool rounds: no tools offered, and a note saying so
-    const reply = await model().invoke([...state.messages, new HumanMessage(OUT_OF_ROUNDS)], config);
+    const reply = await model().invoke([...sent, new HumanMessage(OUT_OF_ROUNDS)], config);
     // Its words (already streamed to the admin) are the answer. If it has none, or still asks for a tool, our code
     // answers instead, and drops the tool call so no chip spins for a tool that will never run.
     if (reply.text.trim() && !reply.tool_calls?.length) return { messages: [reply] };
@@ -99,7 +103,24 @@ export function buildGraph(maxRounds = MAX_TOOL_ROUNDS, checkpointer?: BaseCheck
    */
   const toolNode = new ToolNode(TOOLS);
   async function runTools(state: typeof MessagesAnnotation.State, config: RunnableConfig) {
-    const out = (await toolNode.invoke(state, config)) as { messages: BaseMessage[] };
+    // The model asked with labels ("[phone 1]"): the tools get the real numbers. The labels are worked out from the
+    // same messages the model step masked, so they mean the same numbers.
+    const book = PhoneBook.from(state.messages);
+    const asked = state.messages.at(-1);
+    const real =
+      asked && AIMessage.isInstance(asked) && asked.tool_calls?.length
+        ? [
+            ...state.messages.slice(0, -1),
+            new AIMessage({
+              content: asked.content,
+              tool_calls: asked.tool_calls.map((c) => ({ ...c, args: book.unmaskArgs(c.args) })),
+              additional_kwargs: asked.additional_kwargs,
+              response_metadata: asked.response_metadata,
+              id: asked.id,
+            }),
+          ]
+        : state.messages;
+    const out = (await toolNode.invoke({ messages: real }, config)) as { messages: BaseMessage[] };
     if (!isStrict()) return out;
     return {
       messages: out.messages.map((m) =>

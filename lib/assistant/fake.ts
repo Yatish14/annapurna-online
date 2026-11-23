@@ -36,7 +36,8 @@ let callNo = 0;
 
 /** The [tool:…] tags in a question, as tool calls. Inputs are JSON; a tag without them sends {}. */
 function taggedCalls(question: string): Call[] {
-  return [...question.matchAll(/\[tool:(\w+)(?:\s+(\{[^\]]*\}))?\]/g)].map(([, name, json]) => ({
+  // The inputs may hold phone labels ("[phone 1]", lib/assistant/phones.ts): the model gets those, never numbers
+  return [...question.matchAll(/\[tool:(\w+)(?:\s+(\{(?:[^\]]|\[phone \d+\])*?\}))?\]/g)].map(([, name, json]) => ({
     name,
     args: json ? (JSON.parse(json) as Record<string, unknown>) : {},
   }));

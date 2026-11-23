@@ -47,6 +47,7 @@ const { isOnTopic } = await import("../lib/assistant/guard");
 const { mainModel } = await import("../lib/assistant/model");
 const { systemPrompt } = await import("../lib/assistant/prompt");
 const { bookingSoFar } = await import("../lib/assistant/history");
+const { findPhones, PhoneBook } = await import("../lib/assistant/phones");
 const { questionCostInr } = await import("../lib/assistant/prices");
 const { UsageRecorder } = await import("../lib/assistant/requestLog");
 const { findSecrets, loadSecrets, RequestRecorder } = await import("./leaks");
@@ -172,6 +173,8 @@ function saveProgress() {
 }
 /** What our server put in each case's requests (system prompts, tool results), for the leak test */
 const sentByCase = new Map<string, string[]>();
+/** The admins' words and the model's earlier answers in each case's requests: no phone number may be in them */
+const typedByCase = new Map<string, string[]>();
 const turnsOf = (messages: BaseMessage[]): Turn[] =>
   messages
     .filter((m) => AIMessage.isInstance(m))
@@ -230,8 +233,11 @@ for (const c of cases) {
       // Only this question's turns: the earlier ones were given, not answered
       turns = turnsOf(out.messages.slice(input.length));
       for (const _ of turns) sentAt.push(Date.now());
-      calls = turns.flatMap((t) => t.toolCalls);
-      answer = turns.at(-1)?.text ?? "";
+      // The model wrote phone labels ("[phone 1]", lib/assistant/phones.ts); graded with the real numbers, as the
+      // tools got them and the admin sees them. The recording keeps the labels: the model's own words.
+      const book = PhoneBook.from(out.messages);
+      calls = turns.flatMap((t) => t.toolCalls).map((x) => ({ ...x, args: book.unmaskArgs(x.args) }));
+      answer = book.unmask(turns.at(-1)?.text ?? "");
       grade = gradeCase(c.expect, calls, answer, dayOf(c.id));
     }
     if (RECORD) {
@@ -248,6 +254,7 @@ for (const c of cases) {
   }
   const used = recorder.calls;
   sentByCase.set(c.id, requests.sent);
+  typedByCase.set(c.id, requests.typed);
   results.push({
     id: c.id,
     tags: c.tags,
@@ -275,11 +282,14 @@ if (LEAKS) {
   const secrets = await loadSecrets(query);
   for (const [id, sent] of sentByCase) {
     const found = [...new Set(sent.flatMap((text) => findSecrets(text, secrets)))];
+    // A typed phone number reaches the model only as "[phone 1]" (lib/assistant/phones.ts), whoever's it is
+    for (const phone of new Set((typedByCase.get(id) ?? []).flatMap((text) => findPhones(text)))) found.push(`typed phone ${phone}`);
     if (found.length) leaks.push({ id, found });
   }
   console.log(
     `\nLeak test: ${sentByCase.size} cases, ${[...sentByCase.values()].flat().length} system prompts and tool results checked for ` +
-      `${secrets.names.length} names, ${secrets.phones.length} phones, ${secrets.amounts.length} amounts from the database.`,
+      `${secrets.names.length} names, ${secrets.phones.length} phones, ${secrets.amounts.length} amounts from the database; ` +
+      `${[...typedByCase.values()].flat().length} questions and answers for any phone number.`,
   );
   if (leaks.length) {
     console.log(`✗ Found in ${leaks.length} cases:`);
