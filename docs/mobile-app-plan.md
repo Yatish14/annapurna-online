@@ -60,8 +60,10 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   with the new print orders badge), `app/admin/more/page.tsx` (the drawer's links as big rows, account, sign out),
   `app/admin-mobile.css`. The sidebar and the More page share one menu list (`components/admin/nav.ts`).
   On phones: the ☰ button, the drawer and the floating "Ask Assist" button are gone (the drawer's code too).
-- [ ] **M2 Navy app header.** The top bar and each page's title become one navy header; the first card on the page
-  overlaps it a little (as in the designs). Pages with a Save bar get it above the tab bar.
+- [x] **M2 Navy app header** (26 Nov 2026). The top bar, the back link ("← All bookings") and each page's title block
+  (`.ap-pagehead`, and `.xp-editablehead` on a vehicle or driver) share one navy background and read as one header; the
+  first card overlaps its bottom edge. Navy things (QR poster, Super admin card) sit below it instead. The month switcher
+  is see-through with white text, as in the designs. CSS only, in `app/admin-mobile.css`. (Save bars above the tab bar: done in M1.)
 
 ### Pages
 - [ ] **M3 Print orders** (`/admin/print`): compact order cards, each file's settings and its own print button, uploads switch in the header.

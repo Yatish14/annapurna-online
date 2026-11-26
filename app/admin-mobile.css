@@ -83,4 +83,51 @@
 
   /* The avatar in the top bar opens My account */
   .ap-mobilebar .ap-avatar { text-decoration: none; }
+
+  /* ---------- M2: navy app header ----------
+     The top bar, a page's back link and its title block share one navy background, so they read as one header.
+     A left-to-right gradient looks the same on every row, so the three blocks join without a seam. */
+  :root { --head-bg: linear-gradient(90deg, var(--navy-950), var(--navy-900) 55%, var(--navy-800)); --head-overlap: 28px; }
+  .ap-mobilebar { background: var(--head-bg); }
+
+  /* Pages with a title block start right under the top bar (no cream gap) */
+  .ap-page:has(> .ap-pagehead, > .xp-editablehead) { padding-top: 0; }
+
+  /* The navy reaches both edges of the screen: out through the page's 16px side padding, and back in for the text */
+  .ap-page > .xp-back,
+  .ap-page > .ap-pagehead,
+  .ap-page > .xp-editablehead { margin-inline: -16px; padding-inline: 16px; background: var(--head-bg); color: #fff; }
+
+  /* "← All bookings" and the like: on top of the title, in light gold */
+  .ap-page > .xp-back { display: flex; margin-bottom: 0; padding-top: 14px; color: var(--gold-300); }
+
+  /* The title block; the extra space at the bottom is where the first card overlaps it */
+  .ap-page > .ap-pagehead,
+  .ap-page > .xp-editablehead { margin-top: 0; margin-bottom: 0; padding-top: 14px; padding-bottom: calc(var(--head-overlap) + 18px); }
+  .ap-page > .xp-back + .ap-pagehead,
+  .ap-page > .xp-back + .xp-editablehead { padding-top: 6px; }
+  .ap-pagehead h1, .xp-editablehead h1 { color: #fff; font-size: 1.95rem; font-weight: 600; }
+  .ap-pagehead .ap-eyebrow, .xp-editablehead .ap-eyebrow { color: var(--gold-300); }
+  .ap-pagehead p, .xp-editablehead .xp-headsub { color: rgba(255,255,255,.68); font-size: .86rem; }
+  .ap-pagehead .ap-link { color: var(--gold-300); }
+  /* The pencil next to a vehicle's or driver's name */
+  .xp-editablehead .xp-editbtn { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.08); }
+
+  /* The first thing under the title moves up to overlap the navy, like a card sitting on the header */
+  .ap-page > .ap-pagehead + *,
+  .ap-page > .xp-editablehead + * { position: relative; z-index: 1; margin-top: calc(-1 * var(--head-overlap)); }
+
+  /* Except things that are navy themselves (the QR poster, the Super admin card on Users & roles):
+     they'd vanish into the header, so they sit below it instead */
+  .ap-page > .ap-pagehead:has(+ .ap-poster, + .ap-roles) { padding-bottom: 18px; }
+  .ap-page > .ap-pagehead + :is(.ap-poster, .ap-roles) { margin-top: 20px; }
+
+  /* The month switcher on the navy: see-through, white text (as in the designs) */
+  .ap-pagehead .ap-cal-nav { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.14); box-shadow: none; color: #fff; }
+  .ap-pagehead .ap-cal-nav a { background: rgba(255,255,255,.1); color: #fff; }
+  /* On a phone it spans the width, arrows at the ends */
+  .ap-pagehead-side .ap-cal-nav { flex: 1 1 100%; justify-content: space-between; }
+
+  /* White pills on the navy keep dark text (they'd inherit the header's white otherwise) */
+  .ap-pagehead .ap-uploads { color: var(--ink); }
 }
