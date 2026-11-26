@@ -101,7 +101,9 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
 - [x] **M10 Annapurna Assist** (`/admin/assistant…`, 26 Nov 2026): the full page's header is navy like the other pages
   (the side panel keeps its look), and the page fits exactly between the top bar (54px, `--bar-h`) and the tab bar.
   The chat list already slides in from the left on phones; the usage page got the navy header in M2. CSS only. Not tested.
-- [ ] **M11 Users and account** (`/admin/users`, `/admin/account`).
+- [x] **M11 Users and account** (`/admin/users`, `/admin/account`, 26 Nov 2026): the three role cards become a row you
+  swipe sideways, so the list of people comes sooner; the profile on My account is a row (avatar beside the name).
+  CSS only. Not tested.
 - [ ] **M12 Sign in** (`/login`): optional polish, same navy and gold.
 
 ### Finish

@@ -411,6 +411,19 @@
   /* QR poster: Download and Print share the width */
   .ap-qr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
 
+  /* ---------- M11: Users & roles, My account ---------- */
+  /* What each role can do: a row of cards you swipe sideways, so the people come sooner */
+  .ap-roles {
+    display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+    margin-inline: -16px; padding: 2px 16px 8px; scroll-padding-inline: 16px;
+  }
+  .ap-roles::-webkit-scrollbar { display: none; }
+  .ap-role-card { flex: 0 0 80%; scroll-snap-align: start; padding: 14px 16px; }
+  /* My account: the profile as a row (avatar beside the name), not a tall centred card */
+  .ap-profile { grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; gap: 2px 14px; padding: 16px; text-align: left; }
+  .ap-profile .ap-avatar-lg { grid-row: span 3; width: 60px; height: 60px; font-size: 1.15rem; }
+  .ap-profile strong { margin-top: 0; font-size: 1.2rem; }
+
   /* ---------- M6: one booking ---------- */
   /* Booking details in two columns: the facts are short */
   .xp-facts { grid-template-columns: 1fr 1fr; gap: 12px 14px; }
