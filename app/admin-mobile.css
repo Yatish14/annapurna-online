@@ -459,6 +459,22 @@
   .ap-login-brand span { margin-top: 4px; font-size: .74rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--gold-300); }
   .ap-login-card h1 { font-size: 1.7rem; }
 
+  /* ---------- Panel titles and table cards, every page ---------- */
+  /* A panel's title and its link ("Coming up (next 14 days)" · "All upcoming →"): a smaller title, the link on one
+     line, so neither breaks into two */
+  .ap-panel-head { gap: 10px; }
+  .ap-panel-head h2 { font-size: 1.15rem; line-height: 1.25; }
+  .ap-panel-head > .ap-link { flex: none; white-space: nowrap; }
+
+  /* Tables shown as cards (vehicles, EMI, reports, Assist usage): each label above its value, like a caption, and the
+     value on one line ("RECEIVED ₹21,400" and "PROFIT −₹20,579" no longer break) */
+  .xp-table tr { gap: 8px 14px; }
+  .xp-table td::before { display: block; margin: 0 0 1px; font-size: .62rem; }
+  .xp-table td { font-weight: 600; }
+  /* Vehicles' values are all numbers and amounts: kept on one line. (Other tables can hold longer text, like the tools
+     an Assist question used, which must still wrap so the card stays on the screen) */
+  .xp-vehtable td { white-space: nowrap; }
+
   /* ---------- Assist usage: the four tiles, smaller, two to a row ---------- */
   .as-usage .ap-tiles { gap: 8px; }
   .as-usage .ap-tile { padding: 12px 14px; }
