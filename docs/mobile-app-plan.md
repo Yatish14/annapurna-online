@@ -95,7 +95,9 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   only acts on fields that are hidden). Left out: vehicles and drivers as tap cards (the searchable dropdowns stay).
 - [x] **M8 Fleet and cost pages** (26 Nov 2026): these already stacked and showed tables as cards on phones. Now the summary
   tiles are smaller and always two to a row, and on Vehicles & drivers the lists come before the "add" forms. CSS only. Not tested.
-- [ ] **M9 Activity pages and QR poster**: printout and expense activity as a timeline, QR poster sized for a phone.
+- [x] **M9 Activity pages and QR poster** (26 Nov 2026): an activity entry's time moves under its text, so the text gets
+  the full width (all activity lists, a booking's History too). The QR poster's Download and Print share the width (the
+  poster already had phone rules). CSS only. Not tested.
 - [ ] **M10 Annapurna Assist** (`/admin/assistant…`): full screen above the tab bar, chat list as a sheet.
 - [ ] **M11 Users and account** (`/admin/users`, `/admin/account`).
 - [ ] **M12 Sign in** (`/login`): optional polish, same navy and gold.

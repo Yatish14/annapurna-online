@@ -388,6 +388,19 @@
   .xp-fleet > .ap-panel > .xp-addrow { order: 2; margin: 14px 0 0; padding-top: 14px; border-top: 1px dashed var(--line); }
   .xp-fleetmain .ap-muted { font-size: .78rem; }
 
+  /* ---------- M9: activity (Printout, Expense Tracker, a booking's History) and the QR poster ---------- */
+  /* An entry: the icon on the timeline, the text using the full width, its time under it (not a narrow column beside) */
+  .ap-act { display: grid; grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px; padding: 8px 0; }
+  .ap-act-main p { font-size: .88rem; }
+  .ap-act-details { font-size: .78rem; }
+  .ap-act-side, .xp-history .ap-act-side {
+    grid-column: 2; display: flex; gap: 6px; justify-items: start; max-width: none; padding-top: 3px;
+    text-align: left; white-space: normal; font-size: .72rem;
+  }
+  .ap-act-day + .ap-act-day { margin-top: 16px; }
+  /* QR poster: Download and Print share the width */
+  .ap-qr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+
   /* ---------- M6: one booking ---------- */
   /* Booking details in two columns: the facts are short */
   .xp-facts { grid-template-columns: 1fr 1fr; gap: 12px 14px; }
