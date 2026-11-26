@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "Annapurna Online Services",
   description:
     "Annapurna Online Services & Annapurna Tours & Travels — Aadhaar, PAN, certificates, bill payments, AEPS cash withdrawal, flight, train and bus tickets. All your needs in one place.",
+  // iPhone "Add to Home Screen": open full screen, with this name under the icon (the icon is app/apple-icon.png)
+  appleWebApp: { capable: true, title: "Annapurna", statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {
