@@ -116,6 +116,7 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   Also done here, the M5 leftover: the chosen filter chip is scrolled into view on phones (`TabBar.tsx`).
 
 ### Still to do
-- [ ] Type check (`npx tsc --noEmit`) and run the tests: from M7 on, the code was written without them, as asked.
+- [x] Type check (`npx tsc --noEmit`): passes (26 Nov 2026, after M13).
+- [ ] Run the tests (`npm run test:e2e`, including the new `tests/mobile.spec.ts`): from M7 on, the code was written without running them, as asked.
 - [ ] Push, then try it on a phone: the installed app picks up the new `/launch` start page when Android refreshes it
   (or reinstall).
