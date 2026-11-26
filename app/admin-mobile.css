@@ -8,6 +8,8 @@
 .xp-mobsum { display: none; }
 /* A booking's date tile and amount column (components/expenses/TripCard.tsx): desktop shows the full card */
 .xp-datetile, .xp-tripamt { display: none; }
+/* One booking's money card, quick buttons and section bar (bookings/[tripNo]/page.tsx): desktop shows the tiles */
+.xp-mobbal, .xp-quick, .xp-jump { display: none; }
 
 /* ---------- More page (app/admin/more): only phones link to it, but it reads fine on any screen ---------- */
 .mo-page { max-width: 640px; }
@@ -178,6 +180,62 @@
     box-shadow: 0 14px 28px -10px rgba(168,130,47,.85), inset 0 1px 0 rgba(255,255,255,.5);
   }
   .ap-page:has(.xp-newfab) { padding-bottom: 96px; }
+
+  /* ---------- M6: one booking (bookings/[tripNo]/page.tsx) ---------- */
+  /* The money card in place of the seven tiles */
+  .ap-page:has(> .xp-mobbal) > .xp-sumtiles { display: none; }
+  .xp-mobbal {
+    display: block; padding: 18px 18px 14px; border-radius: 20px;
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .xp-mobbal-label { font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+  .xp-mobbal-big { display: block; margin: 2px 0 10px; font-family: var(--serif); font-weight: 600; font-size: 2.3rem; line-height: 1.05; }
+  .xp-mobbal .is-due { color: var(--err); }
+  .xp-mobbal .is-paid { color: var(--ok); }
+  /* How much has been paid, as a green bar */
+  .xp-mobbal-bar { height: 8px; border-radius: 5px; overflow: hidden; background: var(--ivory-2); }
+  .xp-mobbal-bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--ok), #2fa877); }
+  .xp-mobbal-of { display: block; margin-top: 7px; font-size: .8rem; font-weight: 600; color: var(--ink-soft); }
+  .xp-mobbal-of b { color: var(--ok); }
+  .xp-mobbal-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+  .xp-mobbal-mini > div { display: grid; gap: 2px; min-width: 0; }
+  .xp-mobbal-mini > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
+  .xp-mobbal-mini span { font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  .xp-mobbal-mini strong { font-family: var(--serif); font-weight: 600; font-size: 1.05rem; }
+
+  /* Call · Send balance · Payment · Fuel */
+  .xp-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 16px 0 4px; }
+  .xp-quick a { display: grid; justify-items: center; gap: 6px; font-size: .74rem; font-weight: 700; color: var(--ink); text-decoration: none; text-align: center; -webkit-tap-highlight-color: transparent; }
+  .xp-quick span {
+    width: 54px; height: 54px; border-radius: 18px; display: grid; place-items: center;
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--gold-600);
+  }
+  .xp-quick span.is-wa { color: #128c4b; }
+  .xp-quick a:active span { background: var(--ivory); }
+
+  /* Details · Money · Costs · History: sticks under the top bar (54px) while you scroll */
+  :root { --bar-h: 54px; }
+  .xp-jump {
+    position: sticky; top: var(--bar-h); z-index: 20; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 14px 0 12px; padding: 4px; border-radius: 14px; background: var(--ivory-2);
+    box-shadow: 0 8px 18px -14px rgba(10,24,56,.45);
+  }
+  .xp-jump a { padding: 8px 0; border-radius: 10px; text-align: center; font-size: .84rem; font-weight: 700; color: var(--ink-soft); text-decoration: none; }
+  .xp-jump a:active, .xp-jump a:hover { background: var(--surface); color: var(--navy-900); }
+  /* A part opened from the bar lands below the top bar and the bar itself, not under them */
+  .ap-page:has(> .xp-jump) [id] { scroll-margin-top: calc(var(--bar-h) + 66px); }
+
+  /* On phones the parts come in this order: details, money (customer, then driver), costs (fuel, then other
+     expenses), then the readings form. The two columns step aside (display: contents) so the parts can be reordered */
+  /* stretch: every part the full width (desktop's align-items: start would shrink a short one, like an empty Fuel) */
+  .ap-page:has(> .xp-jump) .xp-detail { display: flex; flex-direction: column; align-items: stretch; }
+  .ap-page:has(> .xp-jump) .xp-col { display: contents; }
+  .xp-detail > .xp-col > #details { order: 1; }
+  .xp-detail > .xp-col > #customer-payments { order: 2; }
+  .xp-detail > .xp-col > #driver-payments { order: 3; }
+  .xp-detail > .xp-col > #fuel { order: 4; }
+  .xp-detail > .xp-col > #other-expenses { order: 5; }
+  .xp-detail > .xp-col > #readings { order: 6; }
 }
 
 /* ---------- Phones (560px and narrower) ---------- */
@@ -281,6 +339,11 @@
 
   /* "Created by" and the "Open booking" button: the whole card opens it */
   .xp-trip .ap-card-foot { display: none; }
+
+  /* ---------- M6: one booking ---------- */
+  /* Booking details in two columns: the facts are short */
+  .xp-facts { grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+  .xp-facts .ap-wide { grid-column: 1 / -1; }
 
   .xp-tripamt { grid-area: amt; display: grid; align-content: start; justify-items: end; gap: 1px; text-align: right; }
   .xp-tripamt strong { font-family: var(--serif); font-size: 1.05rem; font-weight: 600; }

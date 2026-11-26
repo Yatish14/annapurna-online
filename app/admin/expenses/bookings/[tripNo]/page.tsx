@@ -62,6 +62,8 @@ export default async function TripPage({ params, searchParams }: { params: Param
   const locked = !canManage && LOCKED.expenses;
 
   const payable = payableOf(trip);
+  const balance = balanceOf(trip);
+  const owed = driverOwed(trip);
   const tiles = [
     {
       label: "Total",
@@ -71,11 +73,11 @@ export default async function TripPage({ params, searchParams }: { params: Param
       tone: "navy",
     },
     { label: "Received", value: formatRupees(trip.received), tone: "green" },
-    { label: "Balance due", value: trip.total_amount === null ? "—" : formatRupees(balanceOf(trip)), tone: balanceOf(trip) > 0 ? "red" : "green" },
+    { label: "Balance due", value: trip.total_amount === null ? "—" : formatRupees(balance), tone: balance > 0 ? "red" : "green" },
     {
       label: "Driver",
       value: trip.driver_amount === null ? "Not set" : formatRupees(trip.driver_amount),
-      sub: trip.driver_amount === null ? undefined : driverOwed(trip) > 0 ? `${formatRupees(driverOwed(trip))} to pay` : "Settled",
+      sub: trip.driver_amount === null ? undefined : owed > 0 ? `${formatRupees(owed)} to pay` : "Settled",
       tone: "plum",
     },
     { label: "Fuel", value: formatRupees(trip.fuel), tone: "gold" },
@@ -131,6 +133,82 @@ export default async function TripPage({ params, searchParams }: { params: Param
       <Flash params={query} floating />
       {!active && <p className="ap-alert ap-alert-warn">This booking is cancelled. Restore it to change it or add payments and costs.</p>}
 
+      {/* Phones and tablets (admin-mobile.css; hidden on desktop): the tiles below in short, one-tap actions, and
+          links to the parts of this long page */}
+      <section className="xp-mobbal" aria-label="Money in short">
+        {payable === null ? (
+          <>
+            <span className="xp-mobbal-label">Total not set</span>
+            <strong className="xp-mobbal-big">{formatRupees(trip.received)}</strong>
+            <span className="xp-mobbal-of">received so far</span>
+          </>
+        ) : (
+          <>
+            <span className="xp-mobbal-label">{balance > 0 ? "Balance due" : "Fully paid"}</span>
+            <strong className={`xp-mobbal-big ${balance > 0 ? "is-due" : "is-paid"}`}>{formatRupees(balance > 0 ? balance : payable)}</strong>
+            {/* How much of what the customer pays has come in */}
+            <div className="xp-mobbal-bar" aria-hidden="true">
+              <i style={{ width: `${payable > 0 ? Math.min(100, (trip.received / payable) * 100) : 100}%` }} />
+            </div>
+            <span className="xp-mobbal-of">
+              <b>{formatRupees(trip.received)} received</b> of {formatRupees(payable)}
+              {trip.discount !== null && <> (after {formatRupees(trip.discount)} off)</>}
+            </span>
+          </>
+        )}
+        <div className="xp-mobbal-mini">
+          <div>
+            <span>Driver to pay</span>
+            <strong className={owed > 0 ? "is-due" : ""}>{trip.driver_amount === null ? "Not set" : owed > 0 ? formatRupees(owed) : "Settled"}</strong>
+          </div>
+          <div>
+            <span>Costs</span>
+            <strong>{formatRupees(trip.fuel + trip.other)}</strong>
+          </div>
+          <div>
+            <span>Profit</span>
+            <strong className={profit < 0 ? "is-due" : "is-paid"}>{formatRupees(profit)}</strong>
+          </div>
+        </div>
+      </section>
+      <nav className="xp-quick" aria-label="Quick actions">
+        <a href={`tel:+91${trip.customer_phone}`}>
+          <span>
+            <Icon name="phone" size={20} />
+          </span>
+          Call
+        </a>
+        {active && (
+          <>
+            <a href={customerWhatsAppLink(trip)} target="_blank" rel="noopener noreferrer">
+              <span className="is-wa">
+                <Icon name="whatsapp" size={20} />
+              </span>
+              {balance > 0 ? "Send balance" : "WhatsApp"}
+            </a>
+            <a href="#customer-payments">
+              <span>
+                <Icon name="rupee" size={20} />
+              </span>
+              Payment
+            </a>
+            <a href="#fuel">
+              <span>
+                <Icon name="fuel" size={20} />
+              </span>
+              Fuel
+            </a>
+          </>
+        )}
+      </nav>
+      {/* Stays under the top bar while scrolling: each part of the page is one tap away */}
+      <nav className="xp-jump" aria-label="Parts of this booking">
+        <a href="#details">Details</a>
+        <a href="#customer-payments">Money</a>
+        <a href="#fuel">Costs</a>
+        <a href="#history">History</a>
+      </nav>
+
       <section className="xp-sumtiles">
         {tiles.map((t) => (
           <div key={t.label} className={`xp-sumtile is-${t.tone}`}>
@@ -143,7 +221,7 @@ export default async function TripPage({ params, searchParams }: { params: Param
 
       <div className="xp-detail">
         <div className="xp-col">
-          <section className="ap-panel">
+          <section className="ap-panel" id="details">
             <div className="ap-panel-head">
               <h2>Booking details</h2>
               {active && (
@@ -154,7 +232,7 @@ export default async function TripPage({ params, searchParams }: { params: Param
                   className="xp-walink"
                   title="Opens WhatsApp with a message to the customer about the amount to pay"
                 >
-                  <Icon name="whatsapp" size={14} /> {balanceOf(trip) > 0 ? "Send balance on WhatsApp" : "Message on WhatsApp"}
+                  <Icon name="whatsapp" size={14} /> {balance > 0 ? "Send balance on WhatsApp" : "Message on WhatsApp"}
                 </a>
               )}
             </div>

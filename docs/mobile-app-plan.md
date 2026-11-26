@@ -80,8 +80,12 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   (hidden on desktop), and `monthShort()` in `lib/dates.ts`. On phones the list leaves out the mobile number, "Created by"
   and the Open button (the whole card opens the booking). Gold "New booking" floats above the tab bar (`.xp-newfab`).
   Still to do: when a filter chip past the screen's edge is the selected one (e.g. Cancelled), it isn't scrolled into view.
-- [ ] **M6 One booking** (`/admin/expenses/bookings/[tripNo]`): balance-due card with a paid bar, Call / WhatsApp /
-  Payment / Fuel buttons, the page split into Details · Money · Costs · History tabs, "Record payment" fixed at the bottom.
+- [x] **M6 One booking** (`/admin/expenses/bookings/[tripNo]`, 26 Nov 2026): a money card in place of the seven tiles (balance
+  due or "Fully paid", a paid bar, Driver to pay · Costs · Profit); Call · Send balance · Payment · Fuel buttons; a
+  Details · Money · Costs · History bar that sticks under the top bar and jumps to each part. The four tabs are a jump bar,
+  not hidden panels: no JavaScript, and nothing is out of reach. Phone order: details, payments, fuel and other expenses, readings.
+  Details in two columns. New markup (hidden on desktop): `.xp-mobbal`, `.xp-quick`, `.xp-jump`, and `id="details"`.
+  Left out: a "Record payment" bar fixed at the bottom. The Payment button and the tab bar already cover it, and a third bar would crowd the screen.
 - [ ] **M7 Booking form, in steps** (`…/new`, `…/[tripNo]/edit`): Customer → Vehicle & dates → Route → Amounts, with a
   progress bar and Back / Next; vehicles and drivers as tap cards.
 - [ ] **M8 Fleet and cost pages**: vehicles & drivers, one vehicle, one driver, repairs, FASTag, EMI & insurance, reports.
