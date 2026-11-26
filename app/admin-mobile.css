@@ -94,6 +94,9 @@
   /* The avatar in the top bar opens My account */
   .ap-mobilebar .ap-avatar { text-decoration: none; }
 
+  /* iPhones zoom the whole page in when a box with text under 16px is tapped: every text box is 16px on phones */
+  .ap-field input:not([type="radio"]):not([type="checkbox"]), .ap-field textarea, .ap-field select, .ap-search input { font-size: 16px; }
+
   /* ---------- M2: navy app header ----------
      The top bar, a page's back link and its title block share one navy background, so they read as one header.
      A left-to-right gradient looks the same on every row, so the three blocks join without a seam. */
@@ -410,6 +413,23 @@
   .ap-act-day + .ap-act-day { margin-top: 16px; }
   /* QR poster: Download and Print share the width */
   .ap-qr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+
+  /* ---------- M12: sign in (app/login/page.tsx) ----------
+     A sheet rising from the bottom of the navy screen, with the brand above it, like an app's sign-in. */
+  .ap-login { place-items: end stretch; padding: 0; }
+  .ap-login-card {
+    position: relative; width: 100%; border-radius: 28px 28px 0 0;
+    padding: 28px 22px calc(28px + env(safe-area-inset-bottom)); box-shadow: 0 -24px 60px -24px rgba(0,0,0,.55);
+  }
+  /* The brand sits on the navy, above the sheet: a large lotus, "Annapurna" in white */
+  .ap-login-brand {
+    position: absolute; left: 0; right: 0; bottom: 100%; margin: 0 0 48px;
+    flex-direction: column; gap: 10px; text-align: center;
+  }
+  .ap-login-brand svg { width: 76px; height: 76px; }
+  .ap-login-brand strong { color: #fff; font-size: 2rem; }
+  .ap-login-brand span { margin-top: 4px; font-size: .74rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--gold-300); }
+  .ap-login-card h1 { font-size: 1.7rem; }
 
   /* ---------- M11: Users & roles, My account ---------- */
   /* What each role can do: a row of cards you swipe sideways, so the people come sooner */

@@ -7,6 +7,8 @@ import SubmitButton from "@/components/admin/SubmitButton";
 import { currentUser } from "@/lib/auth";
 import { login } from "./actions";
 import "../admin.css";
+// Phones: the sign-in sheet (this page isn't inside the admin layout, which imports it for the other pages)
+import "../admin-mobile.css";
 
 export const metadata: Metadata = {
   title: "Sign in · Annapurna",

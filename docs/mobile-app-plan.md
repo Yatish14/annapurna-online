@@ -104,7 +104,9 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
 - [x] **M11 Users and account** (`/admin/users`, `/admin/account`, 26 Nov 2026): the three role cards become a row you
   swipe sideways, so the list of people comes sooner; the profile on My account is a row (avatar beside the name).
   CSS only. Not tested.
-- [ ] **M12 Sign in** (`/login`): optional polish, same navy and gold.
+- [x] **M12 Sign in** (`/login`, 26 Nov 2026): on phones the form is a white sheet rising from the bottom of the navy
+  screen, with a large lotus and "Annapurna" above it (`app/login/page.tsx` now imports `admin-mobile.css`). Also for
+  every page on phones and tablets: text boxes are 16px, so iPhones don't zoom the page in when one is tapped. Not tested.
 
 ### Finish
 - [ ] **M13 Tests**: a Playwright test that opens every URL above at phone size (no sideways scrolling, tab bar
