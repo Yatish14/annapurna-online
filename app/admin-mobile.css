@@ -167,6 +167,17 @@
   }
   .as-page:not(.is-panel) .as-main .as-head .as-head-new { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); color: #fff; }
 
+  /* A note straight under the title (e.g. Assist usage's "← Back to Annapurna Assist · Answers by…") sits below the
+     navy header: grey text overlapping the navy would be hard to read */
+  .ap-page > .ap-pagehead:has(+ .ap-hint) { padding-bottom: 18px; }
+  .ap-page > .ap-pagehead + .ap-hint { margin-top: 12px; }
+
+  /* ---------- Assist usage (app/admin/assistant/usage/page.tsx) ----------
+     Its tables turn into a card per row (admin.css, 700px), each value labelled with its column (data-label).
+     The row's first cell (the kind of call, the admin, the day, the time) is the card's title. */
+  .as-usage .xp-table td:first-child { grid-column: 1 / -1; margin-bottom: 4px; font-size: .98rem; font-weight: 800; color: var(--ink); }
+  .as-usage .xp-table td:first-child::before { content: none; }
+
   /* ---------- M4: Overview (app/admin/expenses/page.tsx) ---------- */
   /* One summary card in place of the four tiles */
   .ap-page:has(> .xp-mobsum) > .ap-tiles { display: none; }
@@ -447,6 +458,14 @@
   .ap-login-brand strong { color: #fff; font-size: 2rem; }
   .ap-login-brand span { margin-top: 4px; font-size: .74rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--gold-300); }
   .ap-login-card h1 { font-size: 1.7rem; }
+
+  /* ---------- Assist usage: the four tiles, smaller, two to a row ---------- */
+  .as-usage .ap-tiles { gap: 8px; }
+  .as-usage .ap-tile { padding: 12px 14px; }
+  .as-usage .ap-tile-icon { width: 32px; height: 32px; margin-bottom: 6px; border-radius: 10px; }
+  .as-usage .ap-tile-label { font-size: .72rem; }
+  .as-usage .ap-tile-value { font-size: 1.35rem; }
+  .as-usage .xp-tilesub { font-size: .7rem; }
 
   /* ---------- M11: Users & roles, My account ---------- */
   /* What each role can do: a row of cards you swipe sideways, so the people come sooner */

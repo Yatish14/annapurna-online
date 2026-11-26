@@ -47,7 +47,7 @@ export default async function AssistantUsagePage() {
   ];
 
   return (
-    <main className="ap-page">
+    <main className="ap-page as-usage">
       <PageHeader
         title="Assistant usage"
         subtitle={`Annapurna Assist over the last ${DAYS} days: questions, tokens, answer times, and what it would cost on Gemini's paid tier.`}
@@ -102,10 +102,10 @@ export default async function AssistantUsagePage() {
                     {byPurpose.map((p) => (
                       <tr key={p.purpose}>
                         <td>{PURPOSES[p.purpose] ?? p.purpose}</td>
-                        <td>{num(p.calls)}</td>
-                        <td>{num(p.input)}</td>
-                        <td>{num(p.output)}</td>
-                        <td className="xp-nowrap">{formatInr(p.inr)}</td>
+                        <td data-label="Calls">{num(p.calls)}</td>
+                        <td data-label="Tokens in">{num(p.input)}</td>
+                        <td data-label="Tokens out">{num(p.output)}</td>
+                        <td data-label="Would cost" className="xp-nowrap">{formatInr(p.inr)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -132,10 +132,10 @@ export default async function AssistantUsagePage() {
                     {byAdmin.map((a) => (
                       <tr key={a.name}>
                         <td>{a.name}</td>
-                        <td>{num(a.questions)}</td>
-                        <td>{num(a.offTopic)}</td>
-                        <td>{num(a.failed)}</td>
-                        <td className="xp-nowrap">{formatInr(a.inr)}</td>
+                        <td data-label="Questions">{num(a.questions)}</td>
+                        <td data-label="Off topic">{num(a.offTopic)}</td>
+                        <td data-label="Failed">{num(a.failed)}</td>
+                        <td data-label="Would cost" className="xp-nowrap">{formatInr(a.inr)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -167,13 +167,13 @@ export default async function AssistantUsagePage() {
                   {byDay.map((d) => (
                     <tr key={d.day}>
                       <td className="xp-nowrap">{d.day === today ? "Today" : fmtShort(d.day)}</td>
-                      <td>{num(d.questions)}</td>
-                      <td>{num(d.calls)}</td>
-                      <td>{num(d.input)}</td>
-                      <td>{cachedShare(d)}</td>
-                      <td>{num(d.output)}</td>
-                      <td>{secs(d.total)}</td>
-                      <td className="xp-nowrap">{formatInr(d.inr)}</td>
+                      <td data-label="Questions">{num(d.questions)}</td>
+                      <td data-label="Model calls">{num(d.calls)}</td>
+                      <td data-label="Tokens in">{num(d.input)}</td>
+                      <td data-label="Cached">{cachedShare(d)}</td>
+                      <td data-label="Tokens out">{num(d.output)}</td>
+                      <td data-label="Answer time">{secs(d.total)}</td>
+                      <td data-label="Would cost" className="xp-nowrap">{formatInr(d.inr)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -207,16 +207,16 @@ export default async function AssistantUsagePage() {
                       <td className="xp-nowrap">
                         {r.day === today ? "Today" : fmtShort(r.day)} {r.time}
                       </td>
-                      <td>{r.name}</td>
-                      <td>{OUTCOMES[r.outcome]}</td>
-                      <td>{r.tools.length ? r.tools.join(", ") : "—"}</td>
-                      <td>{r.calls.length}</td>
-                      <td className="xp-nowrap">
+                      <td data-label="Admin">{r.name}</td>
+                      <td data-label="Outcome">{OUTCOMES[r.outcome]}</td>
+                      <td data-label="Tools">{r.tools.length ? r.tools.join(", ") : "—"}</td>
+                      <td data-label="Calls">{r.calls.length}</td>
+                      <td data-label="Tokens in / out" className="xp-nowrap">
                         {num(r.input_tokens)} / {num(r.output_tokens)}
                       </td>
-                      <td>{secs(r.first_text_ms)}</td>
-                      <td>{secs(r.total_ms)}</td>
-                      <td className="xp-nowrap">{formatInr(r.inr)}</td>
+                      <td data-label="First words">{secs(r.first_text_ms)}</td>
+                      <td data-label="Total">{secs(r.total_ms)}</td>
+                      <td data-label="Would cost" className="xp-nowrap">{formatInr(r.inr)}</td>
                     </tr>
                   ))}
                 </tbody>
