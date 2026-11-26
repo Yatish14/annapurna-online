@@ -91,6 +91,20 @@
   /* The middle tab opens Annapurna Assist, so no floating "Ask Assist" button */
   .as-fab { display: none; }
 
+  /* The booking form (new and edit, main.xp-formpage): no tab bar. Its own bar takes the bottom of the screen
+     (Back · Next, or Back · Create booking), like an app's action bar; "← All bookings" and Back are the way out */
+  .ap-shell:has(.xp-formpage) .ap-tabbar { display: none; }
+  .ap-shell:has(.xp-formpage) .ap-content { padding-bottom: 0; }
+  .xp-formpage { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .xp-formpage .xp-formbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 34; margin: 0; gap: 10px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -10px 30px -20px rgba(10,24,56,.35);
+  }
+  .xp-formpage .xp-formbar .ap-btn { padding: 14px 18px; white-space: nowrap; }
+  .xp-formpage .xp-formbar :is(.xp-stepback, .xp-formcancel) { flex: 0 0 auto; min-width: 104px; }
+  .xp-formpage .xp-formbar :is(.xp-stepnext, .xp-formsave) { flex: 1; }
+
   /* The avatar in the top bar opens My account */
   .ap-mobilebar .ap-avatar { text-decoration: none; }
 
