@@ -43,9 +43,16 @@ export default async function TripsPage({ searchParams }: { searchParams: Search
   return (
     <main className="ap-page">
       <PageHeader eyebrow="Expense Tracker" title="Bookings" subtitle="Every booking of your vehicles, with what the customer paid and what each trip cost.">
-        {/* Viewers see it too, greyed out (pressing it says why). xp-newfab: on phones it floats above the tab bar */}
-        <Link href="/admin/expenses/bookings/new" className="ap-btn ap-btn-gold xp-newfab" {...lock(!can(user, "manageExpenses") && LOCKED.expenses)}>
-          <Icon name="plus" size={16} /> New booking
+        {/* Viewers see it too, greyed out (pressing it says why). xp-newfab: on phones it's a round "+" floating above
+            the tab bar (the words are hidden there; aria-label still names it) */}
+        <Link
+          href="/admin/expenses/bookings/new"
+          className="ap-btn ap-btn-gold xp-newfab"
+          aria-label="New booking"
+          title="New booking"
+          {...lock(!can(user, "manageExpenses") && LOCKED.expenses)}
+        >
+          <Icon name="plus" size={16} /> <span className="xp-newfab-text">New booking</span>
         </Link>
       </PageHeader>
       <Flash params={params} />

@@ -144,6 +144,19 @@
   /* White pills on the navy keep dark text (they'd inherit the header's white otherwise) */
   .ap-pagehead .ap-uploads { color: var(--ink); }
 
+  /* ---------- List pages (Print orders, Bookings, Activity, Reports): no white box around the list ----------
+     On desktop the filter chips, search and cards sit in one white panel. On phones, as in the designs, they sit
+     straight on the cream page under the navy header: the chips and search white, each card its own white card. */
+  .ap-panel:has(> .ap-toolbar) { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+  /* The header doesn't make room for an overlapping card here: the chips start just below it */
+  .ap-page > .ap-pagehead:has(+ .ap-panel > .ap-toolbar) { padding-bottom: 18px; }
+  .ap-page > .ap-pagehead + .ap-panel:has(> .ap-toolbar) { margin-top: 14px; }
+  /* On the cream, chips and search are white with a fine border (their desktop beige would barely show) */
+  .ap-panel:has(> .ap-toolbar) :is(.ap-tabs, .ap-pills) a:not(.is-active) { background: var(--surface); border: 1px solid var(--line); }
+  .ap-panel:has(> .ap-toolbar) .ap-search { background: var(--surface); border-color: var(--line); }
+  /* Activity: the ring around each timeline icon matches the page, not a white panel */
+  .ap-panel:has(> .ap-toolbar) .ap-act-icon { box-shadow: 0 0 0 4px var(--bg); }
+
   /* ---------- M10: Annapurna Assist, the full page (components/assistant/Assistant.tsx) ----------
      Its header joins the navy app header, like every other page's title. The side panel (.is-panel) keeps its own look. */
   .as-page:not(.is-panel) .as-main .as-head { background: var(--head-bg); border-bottom: 0; color: #fff; }
@@ -189,12 +202,14 @@
   .xp-owedrow { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 
   /* ---------- M5: Bookings list ---------- */
-  /* "New booking" floats above the tab bar, always in reach of the thumb; the list leaves room for it at the end */
+  /* "New booking": a round gold "+" floating above the tab bar, always in reach of the thumb; the list leaves room for it */
   .xp-newfab {
-    position: fixed; right: 16px; bottom: calc(var(--tabbar-space) + 14px); z-index: 33;
-    padding: 14px 20px; border-radius: 18px; font-size: .95rem;
+    position: fixed; right: 18px; bottom: calc(var(--tabbar-space) + 16px); z-index: 33;
+    width: 58px; height: 58px; padding: 0; border-radius: 50%;
     box-shadow: 0 14px 28px -10px rgba(168,130,47,.85), inset 0 1px 0 rgba(255,255,255,.5);
   }
+  .xp-newfab svg { width: 26px; height: 26px; stroke-width: 2.2; }
+  .xp-newfab-text { display: none; }
   .ap-page:has(.xp-newfab) { padding-bottom: 96px; }
 
   /* ---------- M6: one booking (bookings/[tripNo]/page.tsx) ---------- */
@@ -267,6 +282,8 @@
   }
   .ap-tabs::-webkit-scrollbar, .ap-pills::-webkit-scrollbar { display: none; }
   .ap-tabs a, .ap-pills a { flex: none; }
+  /* On a list page with no white panel, the chips swipe out to the screen's edges (the page's 16px padding) */
+  .ap-panel:has(> .ap-toolbar) :is(.ap-tabs, .ap-pills) { margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
 
   /* ---------- M3: print orders (components/admin/PrintOrderCard.tsx) ---------- */
   .ap-porder { padding: 14px; }

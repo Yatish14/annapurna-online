@@ -115,6 +115,12 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   to the missing field); /launch goes on to the dashboard. On a desktop: no phone parts, the whole form, Create as before.
   Also done here, the M5 leftover: the chosen filter chip is scrolled into view on phones (`TabBar.tsx`).
 
+### Closer to the designs (after trying it, 26 Nov 2026)
+- [x] List pages (Print orders, Bookings, Activity, Reports: a panel with filter chips) lose their white box on phones and
+  tablets. The chips (white), search and cards sit straight on the cream under the navy header, as in designs 02 and 05,
+  and nothing overlaps the header there. Content cards (Reminders, Booking details, payments…) stay cards.
+- [x] The floating "New booking" is a round gold "+" (the words are hidden on phones; `aria-label` keeps the name).
+
 ### Still to do
 - [x] Type check (`npx tsc --noEmit`): passes (26 Nov 2026, after M13).
 - [ ] Run the tests (`npm run test:e2e`, including the new `tests/mobile.spec.ts`): from M7 on, the code was written without running them, as asked.
