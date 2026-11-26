@@ -8,6 +8,7 @@ import { lock } from "@/lib/viewOnly";
 import Icon, { type IconName } from "./Icon";
 import LinkPending from "./LinkPending";
 import Lotus from "./Lotus";
+import { NAV_MODULES } from "./nav";
 import { MODULES_COOKIE, SIDEBAR_COOKIE, type ModuleId } from "./sidebarCookie";
 
 type Props = {
@@ -38,45 +39,19 @@ const isDesktop = () => window.matchMedia("(min-width: 1001px)").matches;
 export default function Sidebar(props: Props) {
   const { user, printCount, lockUsers, lockActivity, initialCollapsed, initialOpen, localData } = props;
   const pathname = usePathname();
-  const [drawer, setDrawer] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(initialCollapsed); // desktop icon-only mode
   const [flyout, setFlyout] = useState<{ id: ModuleId; top: number; left: number } | null>(null);
   const flyoutRef = useRef<HTMLDivElement>(null);
 
-  const modules: Module[] = [
-    {
-      id: "print",
-      label: "Printout",
-      icon: "printer",
-      items: [
-        { href: "/admin/print", label: "Orders", icon: "inbox", badge: printCount },
-        { href: "/admin/print/qr", label: "QR poster", icon: "qr" },
-        { href: "/admin/print/activity", label: "Activity", icon: "activity", locked: lockActivity },
-      ],
-    },
-    {
-      id: "expenses",
-      label: "Expense Tracker",
-      icon: "wallet",
-      items: [
-        { href: "/admin/expenses", label: "Overview", icon: "overview" },
-        { href: "/admin/expenses/bookings", label: "Bookings", icon: "bookings" },
-        { href: "/admin/expenses/fleet", label: "Vehicles & drivers", icon: "car" },
-        { href: "/admin/expenses/repairs", label: "Repairs", icon: "wrench" },
-        { href: "/admin/expenses/fastag", label: "FASTag", icon: "tag" },
-        { href: "/admin/expenses/emi", label: "EMI & insurance", icon: "shield" },
-        { href: "/admin/expenses/reports", label: "Reports", icon: "download" },
-        { href: "/admin/expenses/activity", label: "Activity", icon: "activity", locked: lockActivity },
-      ],
-    },
-    // Car Bookings (WhatsApp enquiries, app/admin/cars) is hidden from the menu: it's only legal with
-    // yellow-plate (commercial) cars. The pages and code are kept; to bring it back, add:
-    // { id: "cars", label: "Car Bookings", icon: "car", items: [
-    //   { href: "/admin/cars", label: "Overview", icon: "overview" },
-    //   { href: "/admin/cars/bookings", label: "Bookings", icon: "bookings" },
-    //   { href: "/admin/cars/calendar", label: "Calendar", icon: "calendar" },
-    //   { href: "/admin/cars/activity", label: "Activity", icon: "activity" } ] },
-  ];
+  // The shared menu (nav.ts), plus the new orders count and the locks for this role
+  const modules: Module[] = NAV_MODULES.map((m) => ({
+    ...m,
+    items: m.items.map((i) => ({
+      ...i,
+      badge: i.href === "/admin/print" ? printCount : undefined,
+      locked: i.lock === "activity" ? lockActivity : undefined,
+    })),
+  }));
 
   const isActive = (href: string) => (EXACT.has(href) ? pathname === href : pathname === href || pathname.startsWith(`${href}/`));
   const activeModule = modules.find((m) => m.items.some((i) => isActive(i.href)))?.id;
@@ -87,7 +62,6 @@ export default function Sidebar(props: Props) {
   );
 
   useEffect(() => {
-    setDrawer(false);
     setFlyout(null);
     if (activeModule) setOpen((ids) => (ids.includes(activeModule) ? ids : [...ids, activeModule]));
   }, [pathname, activeModule]);
@@ -147,10 +121,8 @@ export default function Sidebar(props: Props) {
 
   return (
     <>
+      {/* Phones: the top bar. The pages are in the bottom tabs (TabBar.tsx) and the More page, not in a drawer */}
       <header className="ap-mobilebar">
-        <button type="button" className="ap-iconbtn" aria-label="Open menu" onClick={() => setDrawer(true)}>
-          <Icon name="menu" size={22} />
-        </button>
         <div className="ap-mobilebar-brand">
           <Lotus size={28} />
           <strong>Annapurna</strong>
@@ -160,15 +132,12 @@ export default function Sidebar(props: Props) {
             </span>
           )}
         </div>
-        <span className="ap-avatar ap-avatar-sm">{user.initials}</span>
+        <Link href="/admin/account" className="ap-avatar ap-avatar-sm" aria-label={`${user.name}: my account`}>
+          {user.initials}
+        </Link>
       </header>
 
-      <div className={`ap-scrim ${drawer ? "is-open" : ""}`} onClick={() => setDrawer(false)} aria-hidden="true" />
-
-      <aside
-        className={`ap-side ${drawer ? "is-open" : ""} ${collapsed ? "is-collapsed" : ""}`}
-        aria-label="Dashboard navigation"
-      >
+      <aside className={`ap-side ${collapsed ? "is-collapsed" : ""}`} aria-label="Dashboard navigation">
         <div className="ap-side-brand">
           <Lotus size={38} />
           <div className="ap-side-brandtext">
@@ -184,9 +153,6 @@ export default function Sidebar(props: Props) {
             onClick={toggleCollapsed}
           >
             <Icon name="collapse" size={19} />
-          </button>
-          <button type="button" className="ap-iconbtn ap-side-close" aria-label="Close menu" onClick={() => setDrawer(false)}>
-            <Icon name="close" size={20} />
           </button>
         </div>
 

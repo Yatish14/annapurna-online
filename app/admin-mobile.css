@@ -1,0 +1,86 @@
+/* The admin on phones and tablets: an app look (docs/mobile-app-plan.md, designs in docs/mobile-design/).
+   Everything that changes an existing page is inside @media (max-width: 1000px), so the desktop stays as it is. */
+
+/* ---------- Bottom tab bar (components/admin/TabBar.tsx): phones and tablets only ---------- */
+.ap-tabbar { display: none; }
+
+/* ---------- More page (app/admin/more): only phones link to it, but it reads fine on any screen ---------- */
+.mo-page { max-width: 640px; }
+.mo-me {
+  display: flex; align-items: center; gap: 14px; margin: 0 0 8px; padding: 14px 16px; border-radius: 20px;
+  text-decoration: none; color: #fff; background: linear-gradient(150deg, var(--navy-900), var(--navy-800));
+  box-shadow: var(--shadow);
+}
+.mo-me .ap-avatar { width: 50px; height: 50px; font-size: .95rem; }
+.mo-me-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.mo-me-text strong { font-size: 1.02rem; }
+.mo-me-text span { font-size: .8rem; color: rgba(255,255,255,.68); }
+.mo-me > svg, .mo-me .ap-link-spinner { color: rgba(255,255,255,.55); }
+
+.mo-group { margin-top: 20px; }
+.mo-label { margin: 0 6px 8px; font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.mo-list { overflow: hidden; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.mo-list > * + * { border-top: 1px solid var(--line); }
+.mo-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 14px;
+  border: 0; background: none; font: inherit; text-align: left; color: var(--ink); text-decoration: none; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: background .15s;
+}
+.mo-row:active, .mo-row:hover { background: var(--ivory); }
+.mo-tile { width: 38px; height: 38px; flex: none; border-radius: 12px; display: grid; place-items: center; background: var(--ivory-2); color: var(--gold-600); }
+.mo-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.mo-text strong { font-size: .95rem; font-weight: 700; }
+.mo-text span { font-size: .78rem; color: var(--ink-soft); }
+.mo-chev { color: #b4b9c6; }
+.mo-signout { color: var(--err); }
+.mo-signout .mo-tile { background: var(--err-bg); color: var(--err); }
+
+@media (max-width: 1000px) {
+  /* Height of the tab bar, not counting the phone's home indicator strip (safe-area-inset-bottom) */
+  :root { --tabbar-h: 64px; --tabbar-space: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); }
+
+  .ap-tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 34;
+    display: grid; grid-template-columns: repeat(5, 1fr); align-items: stretch;
+    height: var(--tabbar-space); padding: 0 4px env(safe-area-inset-bottom);
+    background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -10px 30px -20px rgba(10,24,56,.35);
+  }
+  .ap-tab {
+    position: relative; display: grid; justify-items: center; align-content: center; gap: 3px;
+    font-size: .66rem; font-weight: 700; color: #8a91a5; text-decoration: none; -webkit-tap-highlight-color: transparent;
+  }
+  .ap-tab.is-active { color: var(--navy-900); }
+  /* The lit tab: a short gold line along the top edge, like the gold bar beside the active link in the sidebar */
+  .ap-tab.is-active::before {
+    content: ""; position: absolute; top: 0; left: 50%; width: 22px; height: 3px; margin-left: -11px;
+    border-radius: 0 0 3px 3px; background: var(--gold-500);
+  }
+  .ap-tab-icon { position: relative; display: grid; place-items: center; }
+  .ap-tab-badge {
+    position: absolute; top: -6px; left: 14px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    display: grid; place-items: center; font-size: .64rem; font-weight: 800; color: #fff; background: var(--err); border: 2px solid #fff;
+  }
+  /* Annapurna Assist: a raised gold circle in the middle */
+  .ap-tab-assist { color: var(--gold-600); }
+  .ap-tab-assist.is-active { color: var(--gold-600); }
+  .ap-tab-assist.is-active::before { display: none; }
+  .ap-tab-assist .ap-tab-icon {
+    width: 54px; height: 54px; margin-top: -24px; border-radius: 50%; color: var(--navy-950);
+    background: linear-gradient(135deg, var(--gold-300), var(--gold-500));
+    box-shadow: 0 0 0 5px #fff, 0 12px 24px -8px rgba(168,130,47,.75);
+  }
+
+  /* Room for the tab bar under every page, and things that stick to the bottom sit above it */
+  .ap-content { padding-bottom: var(--tabbar-space); }
+  .xp-formbar { bottom: var(--tabbar-space); }
+  /* The chat page fills the screen between the top bar (60px) and the tab bar */
+  .as-page { height: calc(100vh - 60px - var(--tabbar-space)); height: calc(100dvh - 60px - var(--tabbar-space)); }
+  /* The tab bar already leaves room for the home indicator; the extra space is for the raised Assist button */
+  .as-composer { padding-bottom: 30px; }
+
+  /* The middle tab opens Annapurna Assist, so no floating "Ask Assist" button */
+  .as-fab { display: none; }
+
+  /* The avatar in the top bar opens My account */
+  .ap-mobilebar .ap-avatar { text-decoration: none; }
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Sidebar from "@/components/admin/Sidebar";
+import TabBar from "@/components/admin/TabBar";
 import ViewOnlyGuard from "@/components/admin/ViewOnlyGuard";
 import { MODULES_COOKIE, parseOpenModules, SIDEBAR_COOKIE } from "@/components/admin/sidebarCookie";
 import AssistPanel from "@/components/assistant/AssistPanel";
@@ -14,6 +15,7 @@ import { initials } from "@/lib/format";
 import { LOCKED } from "@/lib/viewOnly";
 import { printStats } from "@/lib/print/orders";
 import "../admin.css";
+import "../admin-mobile.css";
 
 export const metadata: Metadata = {
   title: { default: "Admin · Annapurna", template: "%s · Annapurna Admin" },
@@ -57,6 +59,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         />
         <div className="ap-content">{children}</div>
         <AssistPanel />
+        <TabBar printCount={prints.new} />
       </div>
     </AssistProvider>
   );

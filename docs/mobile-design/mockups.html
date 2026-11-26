@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Annapurna Admin: mobile app concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Same tokens as app/admin.css */
+:root {
+  --navy-950: #050d22; --navy-900: #0a1838; --navy-800: #102552;
+  --gold-200: #f6e7bf; --gold-300: #f1d99a; --gold-500: #c9a24a; --gold-600: #a8822f;
+  --bg: #f5f2ea; --surface: #fff; --ivory: #fbf8f1; --ivory-2: #f2ede1;
+  --ink: #101a33; --ink-soft: #566079; --line: rgba(16,26,51,.09);
+  --ok: #0f7a52; --ok-bg: #e5f4ec; --warn: #8a5a00; --warn-bg: #fcf1d8; --err: #b42318; --err-bg: #fdecea;
+  --info: #2f5bd3; --info-bg: #e8eefc; --plum: #5b2a86; --plum-bg: #efe6f8;
+  --shadow: 0 1px 2px rgba(10,24,56,.04), 0 12px 32px -18px rgba(10,24,56,.25);
+  --serif: "Fraunces", Georgia, serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Manrope", system-ui, sans-serif; color: var(--ink); background: #e9e3d4; -webkit-font-smoothing: antialiased; }
+svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ---------- Boards ---------- */
+.board { width: 1440px; padding: 56px 64px 72px; background: radial-gradient(1200px 500px at 20% -10%, #f7f2e6, transparent), #ebe4d4; }
+.board-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 44px; }
+.eyebrow { font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-600); }
+.board h1 { font-family: var(--serif); font-weight: 600; font-size: 44px; line-height: 1.1; margin: 8px 0 8px; color: var(--navy-900); }
+.board-head p { margin: 0; color: var(--ink-soft); font-size: 16px; max-width: 720px; }
+.legend { display: flex; gap: 10px; }
+.legend span { white-space: nowrap; padding: 8px 14px; border-radius: 999px; background: #fff; font-size: 13px; font-weight: 700; color: var(--ink-soft); box-shadow: var(--shadow); }
+.row { display: flex; gap: 56px; justify-content: center; }
+.col { width: 400px; }
+.col-label { display: flex; gap: 12px; align-items: baseline; margin: 0 0 18px 6px; }
+.col-label b { font-family: var(--serif); font-size: 15px; color: var(--gold-600); }
+.col-label strong { font-size: 18px; font-weight: 800; color: var(--navy-900); }
+.notes { margin: 30px 6px 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.notes li { position: relative; padding-left: 18px; font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); }
+.notes li::before { content: ""; position: absolute; left: 2px; top: 7px; width: 7px; height: 7px; border-radius: 2px; background: var(--gold-500); transform: rotate(45deg); }
+
+/* ---------- Phone ---------- */
+.phone { position: relative; width: 390px; height: 844px; margin: 0 5px; border-radius: 50px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column;
+  box-shadow: 0 0 0 9px #0b1430, 0 0 0 10px #39456a, 0 50px 90px -40px rgba(10,24,56,.6); }
+.status { height: 50px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 30px 0 34px; color: #fff; font-weight: 700; font-size: 15px; }
+.status .island { position: absolute; left: 50%; top: 11px; width: 120px; height: 34px; margin-left: -60px; border-radius: 20px; background: #000; }
+.status .sig { display: flex; gap: 6px; align-items: center; }
+.status .sig i { display: block; width: 26px; height: 12px; border: 1.6px solid rgba(255,255,255,.85); border-radius: 4px; position: relative; }
+.status .sig i::after { content: ""; position: absolute; inset: 1.5px; right: 6px; background: #fff; border-radius: 2px; }
+.homebar { position: absolute; left: 50%; bottom: 8px; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--ink); opacity: .85; z-index: 9; }
+
+/* App header: the navy of the desktop sidebar */
+.top { flex: none; z-index: 1; background: linear-gradient(165deg, var(--navy-950) 0%, var(--navy-900) 55%, var(--navy-800) 100%); color: #fff; position: relative; }
+.top::after { content: ""; position: absolute; inset: 0; background: radial-gradient(260px 120px at 90% 0%, rgba(201,162,74,.18), transparent); pointer-events: none; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 18px 0; position: relative; z-index: 1; }
+.hb { width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: #fff; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: var(--navy-950); background: linear-gradient(135deg, var(--gold-300), var(--gold-500)); }
+.top .eb { font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-300); }
+.top h2 { font-family: var(--serif); font-weight: 600; font-size: 30px; line-height: 1.1; margin: 4px 0 0; }
+.top .sub { color: rgba(255,255,255,.66); font-size: 13px; margin-top: 4px; }
+.brand { display: flex; align-items: center; gap: 8px; font-family: var(--serif); font-weight: 600; font-size: 17px; }
+.brand svg { width: 26px; height: 26px; }
+.pad { padding: 14px 18px 0; position: relative; z-index: 1; }
+
+.monthpill { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; padding: 5px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); font-weight: 700; font-size: 14.5px; }
+.monthpill span.b { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.1); }
+.monthpill svg { width: 16px; height: 16px; }
+
+.search { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 11px 14px; border-radius: 14px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.6); font-size: 14px; }
+.search svg { width: 18px; height: 18px; }
+
+/* Body */
+.body { flex: 1; overflow: visible; position: relative; min-height: 0; }
+.lift { margin-top: -30px; position: relative; z-index: 2; }
+.inner { padding: 0 16px; }
+.card { background: var(--surface); border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+.sec { display: flex; align-items: baseline; justify-content: space-between; margin: 20px 4px 10px; }
+.sec h3 { margin: 0; font-family: var(--serif); font-weight: 600; font-size: 19px; color: var(--navy-900); }
+.sec a { font-size: 13px; font-weight: 700; color: var(--gold-600); text-decoration: none; }
+.caps { font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.money { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; }
+.red { color: var(--err); } .green { color: var(--ok); }
+
+.pill { font-family: "Manrope", sans-serif; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.p-info { background: var(--info-bg); color: var(--info); } .p-warn { background: var(--warn-bg); color: var(--warn); }
+.p-err { background: var(--err-bg); color: var(--err); } .p-ok { background: var(--ok-bg); color: var(--ok); }
+.p-grey { background: #eef0f4; color: var(--ink-soft); }
+.p-dark { background: rgba(255,255,255,.12); color: #fff; } .p-gold { background: rgba(241,217,154,.18); color: var(--gold-300); }
+
+.chips { display: flex; gap: 8px; padding: 14px 16px 2px; overflow: hidden; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-weight: 700; font-size: 13.5px; color: var(--ink); flex: none; }
+.chip em { font-style: normal; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--ivory-2); color: var(--ink-soft); }
+.chip.on { background: var(--navy-900); color: #fff; border-color: var(--navy-900); }
+.chip.on em { background: rgba(255,255,255,.16); color: #fff; }
+
+/* Tab bar */
+.tabs { flex: none; height: 88px; padding: 8px 6px 26px; display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; background: #fff; border-top: 1px solid var(--line); position: relative; z-index: 5; box-shadow: 0 -10px 30px -20px rgba(10,24,56,.35); }
+.tab { display: grid; justify-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: #8a91a5; position: relative; padding-top: 6px; }
+.tab svg { width: 23px; height: 23px; }
+.tab.on { color: var(--navy-900); }
+.tab.on::before { content: ""; position: absolute; top: -9px; width: 22px; height: 3px; border-radius: 0 0 3px 3px; background: var(--gold-500); }
+.tab .badge { position: absolute; top: 0; left: 50%; margin-left: 6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--err); color: #fff; font-size: 10.5px; font-weight: 800; display: grid; place-items: center; border: 2px solid #fff; }
+.tab.assist { margin-top: -26px; }
+.tab.assist .orb { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; color: var(--navy-950); background: linear-gradient(135deg, var(--gold-300), var(--gold-500)); box-shadow: 0 0 0 5px #fff, 0 12px 24px -8px rgba(168,130,47,.75); }
+.tab.assist .orb svg { width: 26px; height: 26px; }
+.tab.assist { color: var(--gold-600); }
+
+.fab { position: absolute; right: 16px; bottom: 104px; z-index: 6; display: flex; align-items: center; gap: 8px; padding: 15px 20px; border-radius: 18px; font-weight: 800; font-size: 15px; color: var(--navy-950); background: linear-gradient(135deg, var(--gold-300), var(--gold-500)); box-shadow: 0 14px 28px -10px rgba(168,130,47,.85), inset 0 1px 0 rgba(255,255,255,.5); }
+
+/* Bottom action bar (pushed screens) */
+.actionbar { flex: none; display: flex; gap: 10px; padding: 12px 16px 34px; background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -10px 30px -20px rgba(10,24,56,.35); position: relative; z-index: 5; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 15px 18px; border-radius: 16px; font-weight: 800; font-size: 15px; }
+.btn-gold { flex: 1; color: var(--navy-950); background: linear-gradient(135deg, var(--gold-300), var(--gold-500)); box-shadow: 0 10px 22px -10px rgba(168,130,47,.8), inset 0 1px 0 rgba(255,255,255,.5); }
+.btn-ghost { background: #fff; border: 1px solid rgba(16,26,51,.16); color: var(--ink); }
+.btn-sm { padding: 10px 14px; font-size: 13.5px; border-radius: 13px; }
+
+/* ---------- Screen 1: Overview ---------- */
+.hero { padding: 18px 18px 16px; }
+.hero .net { font-size: 38px; line-height: 1.05; margin: 4px 0 14px; }
+.split { display: flex; height: 10px; border-radius: 6px; overflow: hidden; gap: 3px; }
+.split i { display: block; border-radius: 6px; }
+.inout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.inout div { display: grid; gap: 2px; }
+.inout .lab { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.inout .lab i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+.inout .money { font-size: 21px; }
+.hero-foot { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+.hero-foot b { color: var(--ink); }
+.owe { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.owe > div { border-radius: 18px; padding: 14px; color: #fff; position: relative; }
+.owe .navy { background: linear-gradient(150deg, var(--navy-900), var(--navy-800)); }
+.owe .plum { background: linear-gradient(150deg, #3d1f6b, #5b2a86); }
+.owe .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,.12); margin-bottom: 10px; }
+.owe .ic svg { width: 17px; height: 17px; }
+.owe small { display: block; font-size: 11.5px; font-weight: 700; opacity: .8; }
+.owe .money { font-size: 22px; margin: 2px 0; }
+.owe .go { position: absolute; right: 12px; top: 14px; opacity: .7; } .owe .go svg { width: 16px; height: 16px; }
+.list { overflow: hidden; }
+.li { display: flex; align-items: center; gap: 12px; padding: 13px 14px; }
+.li + .li { border-top: 1px solid var(--line); }
+.tile { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+.tile svg { width: 19px; height: 19px; }
+.li .t { flex: 1; min-width: 0; }
+.li .t b { display: block; font-size: 14.5px; }
+.li .t span { display: block; font-size: 12.5px; color: var(--ink-soft); margin-top: 1px; }
+.chev { color: #b4b9c6; } .chev svg { width: 18px; height: 18px; }
+
+/* ---------- Screen 2: Bookings ---------- */
+.group { margin: 16px 6px 8px; display: flex; justify-content: space-between; }
+.bk { display: flex; gap: 12px; padding: 12px; margin-bottom: 10px; position: relative; overflow: hidden; }
+.bk::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--edge, var(--info)); }
+.date { width: 54px; flex: none; border-radius: 14px; background: var(--ivory-2); display: grid; justify-items: center; align-content: center; padding: 8px 0; }
+.date b { font-family: var(--serif); font-size: 22px; line-height: 1; color: var(--navy-900); }
+.date span { font-size: 10px; font-weight: 800; letter-spacing: .1em; color: var(--gold-600); margin-top: 3px; }
+.date small { font-size: 10px; font-weight: 700; color: var(--ink-soft); margin-top: 3px; }
+.bk .t { flex: 1; min-width: 0; }
+.bk .no { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 800; color: var(--gold-600); letter-spacing: .04em; }
+.bk .name { font-size: 15.5px; font-weight: 800; margin: 3px 0 1px; }
+.bk .rt { font-size: 12.5px; color: var(--ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk .vd { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+.bk .amt { text-align: right; flex: none; display: grid; align-content: space-between; justify-items: end; }
+.bk .amt .money { font-size: 17px; }
+.bk .amt small { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+
+/* ---------- Screen 3: Booking detail ---------- */
+.sum { padding: 16px 18px; }
+.sum .money.big { font-size: 36px; line-height: 1.05; margin: 2px 0 10px; }
+.prog { height: 8px; border-radius: 5px; background: var(--ivory-2); overflow: hidden; }
+.prog i { display: block; height: 100%; width: 26%; border-radius: 5px; background: linear-gradient(90deg, var(--ok), #2fa877); }
+.sum .of { margin-top: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+.sum .of b { color: var(--ok); }
+.mini { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.mini div { display: grid; gap: 2px; } .mini div + div { padding-left: 12px; border-left: 1px solid var(--line); }
+.mini .money { font-size: 16px; }
+.quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 16px 0 4px; }
+.quick div { display: grid; justify-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--ink); }
+.quick span { width: 54px; height: 54px; border-radius: 18px; display: grid; place-items: center; background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--gold-600); }
+.quick span.wa { color: #128c4b; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); padding: 4px; border-radius: 14px; background: var(--ivory-2); margin: 16px 0 12px; }
+.seg span { text-align: center; padding: 8px 0; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.seg span.on { background: #fff; color: var(--navy-900); box-shadow: 0 1px 3px rgba(10,24,56,.12); }
+.kv .li { padding: 11px 14px; }
+.kv .t span:first-child { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+.kv .t b { font-size: 14.5px; margin-top: 1px; }
+.callbtn { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--ok-bg); color: var(--ok); }
+.callbtn svg { width: 17px; height: 17px; }
+
+/* ---------- Screen 4: New booking ---------- */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 18px; }
+.steps i { display: block; height: 4px; border-radius: 3px; background: rgba(255,255,255,.16); }
+.steps i.done { background: var(--gold-500); }
+.steps i.now { background: linear-gradient(90deg, var(--gold-300), var(--gold-500)); }
+.stepnames { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5); }
+.stepnames .now { color: var(--gold-300); } .stepnames .done { color: rgba(255,255,255,.85); }
+.done-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.done-card .ok { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--ok-bg); color: var(--ok); }
+.done-card .ok svg { width: 16px; height: 16px; }
+.flab { display: flex; justify-content: space-between; align-items: baseline; margin: 18px 4px 8px; font-size: 13.5px; font-weight: 800; color: var(--navy-900); }
+.flab a { font-size: 12.5px; color: var(--gold-600); text-decoration: none; }
+.opt { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 8px; border-radius: 16px; background: #fff; border: 1.5px solid var(--line); }
+.opt.sel { border-color: var(--gold-500); box-shadow: 0 0 0 3px rgba(201,162,74,.18); background: #fffdf7; }
+.opt.dim { opacity: .55; }
+.opt .t { flex: 1; } .opt .t b { display: block; font-size: 14.5px; } .opt .t span { font-size: 12px; color: var(--ink-soft); }
+.radio { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #c8ccd6; flex: none; }
+.opt.sel .radio { border: 7px solid var(--gold-500); }
+.dchips { display: flex; gap: 8px; flex-wrap: wrap; }
+.dates { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+.dt { padding: 11px 13px; border-radius: 16px; background: #fff; border: 1.5px solid var(--line); }
+.dt small { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--ink-soft); text-transform: uppercase; }
+.dt b { display: block; font-family: var(--serif); font-size: 19px; margin-top: 2px; color: var(--navy-900); }
+.dt span { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
+.days { padding: 6px 10px; border-radius: 999px; background: var(--navy-900); color: #fff; font-size: 11.5px; font-weight: 800; }
+
+/* ---------- Screen 5: Print orders ---------- */
+.toggle { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); font-size: 12.5px; font-weight: 700; }
+.sw { width: 40px; height: 24px; border-radius: 12px; background: #1f9d6a; position: relative; }
+.sw::after { content: ""; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+.order { padding: 14px; margin-bottom: 12px; }
+.order.new { border: 1.5px solid rgba(201,162,74,.55); box-shadow: 0 0 0 4px rgba(201,162,74,.12), var(--shadow); }
+.oh { display: flex; align-items: flex-start; justify-content: space-between; }
+.oh .no { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--navy-900); }
+.oh .who { font-size: 13.5px; font-weight: 700; margin-top: 1px; } .oh .who em { font-style: normal; color: var(--ok); margin-left: 6px; }
+.oh .ago { font-size: 12px; font-weight: 700; color: var(--ink-soft); text-align: right; }
+.files { display: grid; gap: 8px; margin: 12px 0; }
+.file { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 14px; background: var(--ivory); border: 1px solid var(--line); }
+.file .th { width: 38px; height: 46px; border-radius: 8px; display: grid; place-items: center; font-size: 9.5px; font-weight: 800; flex: none; }
+.th.pdf { background: #fdecea; color: var(--err); } .th.img { background: var(--info-bg); color: var(--info); }
+.file .t { flex: 1; min-width: 0; } .file .t b { display: block; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file .t span { font-size: 11.5px; color: var(--ink-soft); font-weight: 600; }
+.oa { display: flex; gap: 8px; } .oa .btn { flex: 1; }
+
+/* ---------- Screen 6: More ---------- */
+.me { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); }
+.me .avatar { width: 50px; height: 50px; font-size: 16px; }
+.me b { display: block; font-size: 16px; } .me span { font-size: 12.5px; color: rgba(255,255,255,.65); }
+.glabel { margin: 18px 6px 8px; }
+.signout { color: var(--err); }
+</style>
+</head>
+<body>
+
+<!-- ================= Board 1 ================= -->
+<section class="board" id="board1">
+  <div class="board-head">
+    <div>
+      <div class="eyebrow">Annapurna Admin · mobile app concept · 1 of 2</div>
+      <h1>Money and bookings, sized for one hand</h1>
+      <p>Same navy, gold and cream as the desktop console. The sidebar becomes a bottom tab bar, page headers become the app's navy top bar, and the main action is always within reach of your thumb.</p>
+    </div>
+    <div class="legend"><span>Fraunces + Manrope</span><span>Navy · Gold · Cream</span><span>390 × 844</span></div>
+  </div>
+  <div class="row">
+
+    <!-- Screen 1: Overview -->
+    <div class="col">
+      <div class="col-label"><b>01</b><strong>Overview (home)</strong></div>
+      <div class="phone" id="s1">
+        <div class="top">
+          <div class="status"><span>9:41</span><div class="island"></div><div class="sig"><i></i></div></div>
+          <div class="bar">
+            <div class="brand"><svg viewBox="0 0 48 48"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e3ad"/><stop offset=".55" stop-color="#e2bd67"/><stop offset="1" stop-color="#b08834"/></linearGradient></defs><path d="M24 8c4 4.5 6 9 6 13.5 0 4-2.2 7.6-6 10.5-3.8-2.9-6-6.5-6-10.5C18 17 20 12.5 24 8z" fill="url(#g1)"/><path d="M10 17c5 .3 9 2.2 11.5 5.6 2 2.8 2.6 6 2.5 9.4-3.6.3-7-.5-9.6-2.8C11.7 26.6 10.4 22.4 10 17zM38 17c-5 .3-9 2.2-11.5 5.6-2 2.8-2.6 6-2.5 9.4 3.6.3 7-.5 9.6-2.8 2.7-2.6 4-6.8 4.4-12.2z" fill="url(#g1)" opacity=".85"/><path d="M4 27c4.5-.8 9 0 13 2.6 2.6 1.7 4.8 3.8 7 6.4-4.6 1.4-9.3 1.2-13.2-.8C7.6 33.6 5.4 30.8 4 27zM44 27c-4.5-.8-9 0-13 2.6-2.6 1.7-4.8 3.8-7 6.4 4.6 1.4 9.3 1.2 13.2-.8 3.2-1.6 5.4-4.4 6.8-8.2z" fill="url(#g1)" opacity=".6"/></svg>Annapurna</div>
+            <div class="avatar">KA</div>
+          </div>
+          <div class="pad" style="padding-bottom:46px">
+            <div class="eb">Expense Tracker</div>
+            <h2>Overview</h2>
+            <div class="monthpill"><span class="b"><i data-i="chevl"></i></span>November 2026<span class="b"><i data-i="chevron"></i></span></div>
+          </div>
+        </div>
+        <div class="body">
+          <div class="inner lift">
+            <div class="card hero">
+              <div class="caps">Net this month</div>
+              <div class="money net red">−₹7,863</div>
+              <div class="split"><i style="flex:57.2;background:var(--ok)"></i><i style="flex:65.1;background:var(--navy-800)"></i></div>
+              <div class="inout">
+                <div><span class="lab"><i style="background:var(--ok)"></i>Money in</span><span class="money green">₹57,200</span></div>
+                <div><span class="lab"><i style="background:var(--navy-800)"></i>Money out</span><span class="money">₹65,063</span></div>
+              </div>
+              <div class="hero-foot"><span><b>9</b> bookings</span><span><b>3,016</b> km</span><span>billed <b>₹1,05,600</b></span></div>
+            </div>
+            <div class="owe">
+              <div class="navy"><span class="go"><i data-i="chevron"></i></span><div class="ic"><i data-i="rupee"></i></div><small>To collect</small><div class="money">₹71,300</div><small>9 bookings</small></div>
+              <div class="plum"><span class="go"><i data-i="chevron"></i></span><div class="ic"><i data-i="steering"></i></div><small>To pay drivers</small><div class="money">₹17,850</div><small>10 bookings</small></div>
+            </div>
+            <div class="sec"><h3>Reminders</h3><a>EMIs &amp; insurance</a></div>
+            <div class="card list">
+              <div class="li"><div class="tile" style="background:var(--err-bg);color:var(--err)"><i data-i="wallet"></i></div><div class="t"><b>Kia Carens · EMI ₹15,200</b><span>Was due 10 Nov · Kotak Mahindra Prime</span></div><span class="pill p-err">Overdue</span></div>
+              <div class="li"><div class="tile" style="background:var(--warn-bg);color:var(--warn)"><i data-i="shield"></i></div><div class="t"><b>Kia Carens · Insurance</b><span>Expires 7 Dec 2026</span></div><span class="pill p-warn">11 days</span></div>
+            </div>
+            <div class="sec"><h3>Vehicles</h3><a>See all</a></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><i data-i="printer"></i>Prints</div>
+          <div class="tab"><i data-i="bookings"></i>Bookings</div>
+          <div class="tab assist"><span class="orb"><i data-i="sparkle"></i></span>Assist</div>
+          <div class="tab on"><i data-i="overview"></i>Overview</div>
+          <div class="tab"><i data-i="grid"></i>More</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+      <ul class="notes">
+        <li>The four desktop tiles become one summary card: net, with a money in / money out bar</li>
+        <li>"To collect" and "To pay drivers" sit side by side and open their lists in one tap</li>
+        <li>The wide vehicle table becomes swipeable vehicle cards</li>
+      </ul>
+    </div>
+
+    <!-- Screen 2: Bookings -->
+    <div class="col">
+      <div class="col-label"><b>02</b><strong>Bookings list</strong></div>
+      <div class="phone" id="s2">
+        <div class="top">
+          <div class="status"><span>9:41</span><div class="island"></div><div class="sig"><i></i></div></div>
+          <div class="pad" style="padding-top:8px;padding-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div><div class="eb">Expense Tracker</div><h2>Bookings</h2></div>
+              <div class="hb"><i data-i="filter"></i></div>
+            </div>
+            <div class="search"><i data-i="search"></i>Booking no., name or mobile</div>
+          </div>
+        </div>
+        <div class="body">
+          <div class="chips">
+            <span class="chip on">All <em>25</em></span><span class="chip">Upcoming <em>3</em></span><span class="chip">Payment due <em>9</em></span><span class="chip">Completed <em>21</em></span>
+          </div>
+          <div class="inner">
+            <div class="group caps"><span>Upcoming</span><span>3</span></div>
+            <div class="card bk">
+              <div class="date"><b>08</b><span>DEC</span><small>2 days</small></div>
+              <div class="t"><div class="no">VB-0025 <span class="pill p-info">Upcoming</span></div><div class="name">Jyothi</div><div class="rt">Hyderabad → Vijayawada</div><div class="vd">Maruti Ertiga · Venkat Rao</div></div>
+              <div class="amt"><span class="pill p-grey">No total</span><small>Driver ₹1,400</small></div>
+            </div>
+            <div class="card bk">
+              <div class="date"><b>03</b><span>DEC</span><small>4 days</small></div>
+              <div class="t"><div class="no">VB-0024 <span class="pill p-warn">Part paid</span></div><div class="name">Vamsi Krishna</div><div class="rt">Vijayawada → Chennai</div><div class="vd">Innova Crysta · Suresh Babu</div></div>
+              <div class="amt"><span class="money red">₹12,900</span><small>due of ₹17,400</small></div>
+            </div>
+            <div class="card bk">
+              <div class="date"><b>28</b><span>NOV</span><small>3 days</small></div>
+              <div class="t"><div class="no">VB-0023 <span class="pill p-err">Payment due</span></div><div class="name">Usha Rani</div><div class="rt">Vijayawada → Araku Valley → Vijayawada</div><div class="vd">Kia Carens · Ramesh Naidu</div></div>
+              <div class="amt"><span class="money red">₹14,000</span><small>due</small></div>
+            </div>
+            <div class="group caps"><span>Completed</span><span>21</span></div>
+            <div class="card bk" style="--edge:var(--ok)">
+              <div class="date"><b>21</b><span>NOV</span><small>1 day</small></div>
+              <div class="t"><div class="no">VB-0022 <span class="pill p-ok">Paid</span></div><div class="name">Ravi Teja</div><div class="rt">Vijayawada → Guntur → Vijayawada</div><div class="vd">Innova Crysta · Suresh Babu</div></div>
+              <div class="amt"><span class="money">₹6,200</span><small>settled</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="fab"><i data-i="plus"></i>New booking</div>
+        <div class="tabs">
+          <div class="tab"><i data-i="printer"></i>Prints</div>
+          <div class="tab on"><i data-i="bookings"></i>Bookings</div>
+          <div class="tab assist"><span class="orb"><i data-i="sparkle"></i></span>Assist</div>
+          <div class="tab"><i data-i="overview"></i>Overview</div>
+          <div class="tab"><i data-i="grid"></i>More</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+      <ul class="notes">
+        <li>Each booking is a short row (about 1/7 of the screen) instead of half a screen, so 4 or 5 fit at once</li>
+        <li>The date tile and the amount due come first: what admins look for. Filters fit on one swipeable line</li>
+        <li>The gold "New booking" button floats above the tab bar, always in reach</li>
+      </ul>
+    </div>
+
+    <!-- Screen 3: Booking detail -->
+    <div class="col">
+      <div class="col-label"><b>03</b><strong>One booking</strong></div>
+      <div class="phone" id="s3">
+        <div class="top">
+          <div class="status"><span>9:41</span><div class="island"></div><div class="sig"><i></i></div></div>
+          <div class="bar"><div class="hb"><i data-i="chevl"></i></div><span style="font-weight:800;font-size:14px;letter-spacing:.06em;color:var(--gold-300)">VB-0024</span><div class="hb"><i data-i="dots"></i></div></div>
+          <div class="pad" style="padding-bottom:46px">
+            <h2 style="font-size:28px">Vamsi Krishna</h2>
+            <div class="sub">Vijayawada → Chennai · 3–6 Dec · 4 days</div>
+            <div style="display:flex;gap:6px;margin-top:10px"><span class="pill p-dark">Upcoming</span><span class="pill p-gold">Partly paid</span></div>
+          </div>
+        </div>
+        <div class="body">
+          <div class="inner lift">
+            <div class="card sum">
+              <div class="caps">Balance due</div>
+              <div class="money big red">₹12,900</div>
+              <div class="prog"><i></i></div>
+              <div class="of"><b>₹4,500 received</b> of ₹17,400</div>
+              <div class="mini">
+                <div><span class="caps">Driver</span><span class="money red">₹2,800</span></div>
+                <div><span class="caps">Costs</span><span class="money">₹0</span></div>
+                <div><span class="caps">Profit</span><span class="money green">₹1,700</span></div>
+              </div>
+            </div>
+            <div class="quick">
+              <div><span><i data-i="phone"></i></span>Call</div>
+              <div><span class="wa"><i data-i="whatsapp"></i></span>Send balance</div>
+              <div><span><i data-i="rupee"></i></span>Payment</div>
+              <div><span><i data-i="fuel"></i></span>Fuel</div>
+            </div>
+            <div class="seg"><span class="on">Details</span><span>Money</span><span>Costs</span><span>History</span></div>
+            <div class="card list kv">
+              <div class="li"><div class="t"><span>Customer</span><b>Vamsi Krishna · 90523 54556</b></div><span class="callbtn"><i data-i="phone"></i></span></div>
+              <div class="li"><div class="t"><span>Vehicle · driver</span><b>Innova Crysta · Suresh Babu</b></div><span class="callbtn"><i data-i="phone"></i></span></div>
+              <div class="li"><div class="t"><span>Pickup → drop</span><b>Vijayawada, AP → Chennai, TN</b></div></div>
+              <div class="li"><div class="t"><span>Distance</span><b style="color:var(--gold-600)">+ Add km</b></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="actionbar"><span class="btn btn-ghost"><i data-i="download"></i>PDF</span><span class="btn btn-gold"><i data-i="plus"></i>Record payment</span></div>
+        <div class="homebar"></div>
+      </div>
+      <ul class="notes">
+        <li>The answer first: balance due, with a bar showing how much has been paid</li>
+        <li>One-tap actions: call the customer, send the balance on WhatsApp, add a payment or fuel</li>
+        <li>The long desktop page is split into four tabs, and "Record payment" stays fixed at the bottom</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================= Board 2 ================= -->
+<section class="board" id="board2">
+  <div class="board-head">
+    <div>
+      <div class="eyebrow">Annapurna Admin · mobile app concept · 2 of 2</div>
+      <h1>Forms, prints and everything else</h1>
+      <p>Long forms become short steps with big tap targets. Print orders get one-tap actions at the counter. Every other page lives under "More", grouped the same way as the desktop sidebar.</p>
+    </div>
+    <div class="legend"><span>Bottom tabs</span><span>Steps, not scrolling</span><span>Thumb-zone actions</span></div>
+  </div>
+  <div class="row">
+
+    <!-- Screen 4: New booking -->
+    <div class="col">
+      <div class="col-label"><b>04</b><strong>New booking, in steps</strong></div>
+      <div class="phone" id="s4">
+        <div class="top">
+          <div class="status"><span>9:41</span><div class="island"></div><div class="sig"><i></i></div></div>
+          <div class="bar"><div class="hb"><i data-i="close"></i></div><span style="font-size:12.5px;font-weight:700;color:rgba(255,255,255,.7)">Step 2 of 4</span></div>
+          <div class="pad" style="padding-bottom:18px">
+            <h2 style="font-size:26px">New booking</h2>
+            <div class="steps"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+            <div class="stepnames"><span class="done">Customer</span><span class="now">Vehicle &amp; dates</span><span>Route</span><span>Amounts</span></div>
+          </div>
+        </div>
+        <div class="body">
+          <div class="inner" style="padding-top:14px">
+            <div class="card done-card"><span class="ok"><i data-i="tick"></i></span><div class="t" style="flex:1"><b style="font-size:14.5px;display:block">Vamsi Krishna</b><span style="font-size:12.5px;color:var(--ink-soft)">90523 54556 · 2 earlier bookings</span></div><a style="font-size:12.5px;font-weight:700;color:var(--gold-600)">Change</a></div>
+            <div class="flab">Vehicle <a>+ New vehicle</a></div>
+            <div class="opt sel"><span class="radio"></span><div class="t"><b>Innova Crysta</b><span>Free on these dates</span></div><i data-i="car" style="color:var(--gold-600)"></i></div>
+            <div class="opt"><span class="radio"></span><div class="t"><b>Maruti Ertiga</b><span>Free on these dates</span></div><i data-i="car" style="color:#b4b9c6"></i></div>
+            <div class="opt dim"><span class="radio"></span><div class="t"><b>Kia Carens</b><span style="color:var(--warn)">Booked 4–5 Dec (VB-0021)</span></div><i data-i="car" style="color:#b4b9c6"></i></div>
+            <div class="flab">Driver <a>+ New driver</a></div>
+            <div class="dchips"><span class="chip on">Suresh Babu</span><span class="chip">Ramesh Naidu</span><span class="chip">Venkat Rao</span></div>
+            <div class="flab">Dates</div>
+            <div class="dates"><div class="dt"><small>Start</small><b>3 Dec</b><span>Thursday</span></div><span class="days">4 days</span><div class="dt"><small>End</small><b>6 Dec</b><span>Sunday</span></div></div>
+          </div>
+        </div>
+        <div class="actionbar"><span class="btn btn-ghost">Back</span><span class="btn btn-gold">Next: Route<i data-i="arrow"></i></span></div>
+        <div class="homebar"></div>
+      </div>
+      <ul class="notes">
+        <li>The one long form becomes 4 short steps with a gold progress bar. Finished steps fold into a summary card</li>
+        <li>Vehicles and drivers are big tap cards and chips, not dropdowns, and a vehicle that's already booked says so</li>
+        <li>Back and Next sit in the thumb zone, above the keyboard</li>
+      </ul>
+    </div>
+
+    <!-- Screen 5: Print orders -->
+    <div class="col">
+      <div class="col-label"><b>05</b><strong>Print orders at the counter</strong></div>
+      <div class="phone" id="s5">
+        <div class="top">
+          <div class="status"><span>9:41</span><div class="island"></div><div class="sig"><i></i></div></div>
+          <div class="pad" style="padding-top:8px;padding-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div><div class="eb">Printout</div><h2>Print orders</h2></div>
+              <div class="toggle" style="margin-top:6px">Uploads on<span class="sw"></span></div>
+            </div>
+            <div class="sub">2 new · files are deleted 3 days after upload</div>
+          </div>
+        </div>
+        <div class="body">
+          <div class="chips"><span class="chip on">New <em>2</em></span><span class="chip">Printed <em>5</em></span><span class="chip">Collected <em>12</em></span><span class="chip">All <em>19</em></span></div>
+          <div class="inner" style="padding-top:12px">
+            <div class="card order new">
+              <div class="oh"><div><div class="no">P-142 <span class="pill p-warn" style="vertical-align:3px">New</span></div><div class="who">Lakshmi<em>98480 22334</em></div></div><div class="ago">4 min ago<br><span style="font-weight:600">2 files</span></div></div>
+              <div class="files">
+                <div class="file"><span class="th pdf">PDF</span><div class="t"><b>Aadhaar_front_back.pdf</b><span>B&amp;W · both sides · 2 copies</span></div><span class="hb" style="width:36px;height:36px;border-radius:11px;background:#fff;border-color:var(--line);color:var(--gold-600)"><i data-i="printer"></i></span></div>
+                <div class="file"><span class="th img">JPG</span><div class="t"><b>passport_photo.jpg</b><span>Colour · 1 side · 4 copies</span></div><span class="hb" style="width:36px;height:36px;border-radius:11px;background:#fff;border-color:var(--line);color:var(--gold-600)"><i data-i="printer"></i></span></div>
+              </div>
+              <div class="oa"><span class="btn btn-gold btn-sm"><i data-i="tick"></i>Mark printed</span><span class="btn btn-ghost btn-sm"><i data-i="whatsapp"></i>Message</span></div>
+            </div>
+            <div class="card order new">
+              <div class="oh"><div><div class="no">P-141 <span class="pill p-warn" style="vertical-align:3px">New</span></div><div class="who">Prasad<em>99121 45678</em></div></div><div class="ago">12 min ago<br><span style="font-weight:600">1 file</span></div></div>
+              <div class="files">
+                <div class="file"><span class="th pdf">PDF</span><div class="t"><b>Bus_ticket_APSRTC.pdf</b><span>B&amp;W · 1 side · 1 copy · pages 1–2</span></div><span class="hb" style="width:36px;height:36px;border-radius:11px;background:#fff;border-color:var(--line);color:var(--gold-600)"><i data-i="printer"></i></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab on"><i data-i="printer"></i>Prints<span class="badge">2</span></div>
+          <div class="tab"><i data-i="bookings"></i>Bookings</div>
+          <div class="tab assist"><span class="orb"><i data-i="sparkle"></i></span>Assist</div>
+          <div class="tab"><i data-i="overview"></i>Overview</div>
+          <div class="tab"><i data-i="grid"></i>More</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+      <ul class="notes">
+        <li>The "Prints" tab shows a red badge with the number of new orders, like a messaging app</li>
+        <li>Each file shows its print settings (colour, sides, copies, pages) and has its own print button</li>
+        <li>"Pause uploads" becomes a simple switch in the header</li>
+      </ul>
+    </div>
+
+    <!-- Screen 6: More -->
+    <div class="col">
+      <div class="col-label"><b>06</b><strong>More: everything else</strong></div>
+      <div class="phone" id="s6">
+        <div class="top">
+          <div class="status"><span>9:41</span><div class="island"></div><div class="sig"><i></i></div></div>
+          <div class="pad" style="padding-top:8px;padding-bottom:18px">
+            <h2>More</h2>
+            <div class="me"><div class="avatar">KA</div><div style="flex:1"><b>Kiran Admin</b><span>Admin · 98765 00011</span></div><span style="color:rgba(255,255,255,.5)"><i data-i="chevron"></i></span></div>
+          </div>
+        </div>
+        <div class="body">
+          <div class="inner">
+            <div class="glabel caps">Expense Tracker</div>
+            <div class="card list">
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="car"></i></div><div class="t"><b>Vehicles &amp; drivers</b></div><span class="chev"><i data-i="chevron"></i></span></div>
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="wrench"></i></div><div class="t"><b>Repairs</b></div><span class="chev"><i data-i="chevron"></i></span></div>
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="tag"></i></div><div class="t"><b>FASTag</b></div><span class="chev"><i data-i="chevron"></i></span></div>
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="shield"></i></div><div class="t"><b>EMI &amp; insurance</b></div><span class="pill p-err">1 overdue</span><span class="chev"><i data-i="chevron"></i></span></div>
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="download"></i></div><div class="t"><b>Reports</b></div><span class="chev"><i data-i="chevron"></i></span></div>
+            </div>
+            <div class="glabel caps">Printout</div>
+            <div class="card list">
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="qr"></i></div><div class="t"><b>QR poster</b></div><span class="chev"><i data-i="chevron"></i></span></div>
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="activity"></i></div><div class="t"><b>Activity</b><span>Prints and expenses, newest first</span></div><span class="chev"><i data-i="chevron"></i></span></div>
+            </div>
+            <div class="glabel caps">Settings</div>
+            <div class="card list">
+              <div class="li"><div class="tile" style="background:var(--ivory-2);color:var(--gold-600)"><i data-i="users"></i></div><div class="t"><b>Users &amp; roles</b></div><span class="chev"><i data-i="chevron"></i></span></div>
+              <div class="li signout"><div class="tile" style="background:var(--err-bg);color:var(--err)"><i data-i="logout"></i></div><div class="t"><b>Sign out</b></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><i data-i="printer"></i>Prints</div>
+          <div class="tab"><i data-i="bookings"></i>Bookings</div>
+          <div class="tab assist"><span class="orb"><i data-i="sparkle"></i></span>Assist</div>
+          <div class="tab"><i data-i="overview"></i>Overview</div>
+          <div class="tab on"><i data-i="grid"></i>More</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+      <ul class="notes">
+        <li>Replaces the ☰ drawer: the same groups as the desktop sidebar, as large rows that are easy to tap</li>
+        <li>Badges bring alerts up to this level, such as an overdue EMI</li>
+        <li>Your profile, password and sign out are in one place at the top and bottom</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<script>
+// Icons: the same line icons as components/admin/Icon.tsx (plus a few new ones)
+const P = {
+  overview: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  bookings: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6M9 16h4"/>',
+  printer: '<path d="M6 9V3h12v6"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/>',
+  grid: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  dots: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+  sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  chevron: '<path d="m9 6 6 6-6 6"/>',
+  chevl: '<path d="m15 6-6 6 6 6"/>',
+  rupee: '<path d="M6 4h12M6 9h12M14.5 20 7 13h2.5a4.5 4.5 0 0 0 0-9"/>',
+  steering: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 14v7M10 12H3M14 12h7"/>',
+  wallet: '<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M3 5a2 2 0 0 0 2 2h15a1 1 0 0 1 1 1v3h-4a2.5 2.5 0 0 0 0 5h4"/>',
+  shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.1 9.9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  whatsapp: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5"/>',
+  fuel: '<path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16M3 21h13M4 10h11"/><path d="M15 8h2a2 2 0 0 1 2 2v6.5a1.5 1.5 0 0 0 3 0V8l-3-3"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  tick: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  car: '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  qr: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+};
+document.querySelectorAll("i[data-i]").forEach((el) => {
+  el.outerHTML = `<svg class="i" viewBox="0 0 24 24" style="${el.getAttribute("style") || ""}">${P[el.dataset.i] || ""}</svg>`;
+});
+</script>
+</body>
+</html>
