@@ -119,9 +119,16 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
             ›<LinkPending />
           </Link>
         </nav>
-        {/* Viewers see it too, greyed out (pressing it says why) */}
-        <Link href="/admin/expenses/bookings/new" className="ap-btn ap-btn-gold" {...lock(!can(user, "manageExpenses") && LOCKED.expenses)}>
-          <Icon name="plus" size={16} /> New booking
+        {/* Viewers see it too, greyed out (pressing it says why). xp-newfab: on phones a round "+" floating above the
+            tab bar, as on the Bookings page (the words are hidden there; aria-label still names it) */}
+        <Link
+          href="/admin/expenses/bookings/new"
+          className="ap-btn ap-btn-gold xp-newfab"
+          aria-label="New booking"
+          title="New booking"
+          {...lock(!can(user, "manageExpenses") && LOCKED.expenses)}
+        >
+          <Icon name="plus" size={16} /> <span className="xp-newfab-text">New booking</span>
         </Link>
       </PageHeader>
       {/* Phones and tablets: the four tiles below as one card, net first, with a money in / money out bar
