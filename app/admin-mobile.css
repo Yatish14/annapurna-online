@@ -157,6 +157,24 @@
   /* Activity: the ring around each timeline icon matches the page, not a white panel */
   .ap-panel:has(> .ap-toolbar) .ap-act-icon { box-shadow: 0 0 0 4px var(--bg); }
 
+  /* ---------- Vehicles & drivers (app/admin/expenses/fleet/page.tsx): the same, no white box ----------
+     "Vehicles · 3 in use" and "Drivers · 3 in use" are headings on the cream; each vehicle or driver is its own white
+     card (icon, name and figures, its status under them, the arrow); the "add" form is a card of its own after the list. */
+  .xp-fleet > .ap-panel { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+  .ap-page > .ap-pagehead:has(+ .xp-fleet) { padding-bottom: 18px; }
+  .ap-page > .ap-pagehead + .xp-fleet { margin-top: 16px; }
+  .xp-fleet > .ap-panel > .ap-panel-head { margin: 0 4px 10px; }
+  .xp-fleet .xp-fleetlist { display: grid; gap: 10px; }
+  .xp-fleet .xp-fleetlist li.xp-rowlink {
+    grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-areas: "icon main chev" "icon state chev";
+    gap: 4px 12px; margin: 0; padding: 12px 12px 12px 14px;
+    border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow);
+  }
+  .xp-fleet .xp-fleeticon { width: 42px; height: 42px; }
+  .xp-fleet .xp-state { justify-self: start; margin-top: 2px; }
+  .xp-fleet .xp-rowchevron { align-self: center; }
+  .xp-fleet .xp-addrow { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+
   /* ---------- M10: Annapurna Assist, the full page (components/assistant/Assistant.tsx) ----------
      Its header joins the navy app header, like every other page's title. The side panel (.is-panel) keeps its own look. */
   .as-page:not(.is-panel) .as-main .as-head { background: var(--head-bg); border-bottom: 0; color: #fff; }
@@ -426,7 +444,7 @@
   /* Vehicles & drivers: the list first, the "add a new one" form under it (on a phone you mostly look things up) */
   .xp-fleet > .ap-panel { display: flex; flex-direction: column; }
   .xp-fleet > .ap-panel > :not(.ap-panel-head, .xp-addrow) { order: 1; }
-  .xp-fleet > .ap-panel > .xp-addrow { order: 2; margin: 14px 0 0; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .xp-fleet > .ap-panel > .xp-addrow { order: 2; margin: 12px 0 0; }
   .xp-fleetmain .ap-muted { font-size: .78rem; }
 
   /* ---------- M9: activity (Printout, Expense Tracker, a booking's History) and the QR poster ---------- */
