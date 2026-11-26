@@ -86,15 +86,16 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
   const soon = addDays(todayIST(), 14);
   const nextTrips = upcoming.trips.filter((t) => t.start_date <= soon);
 
+  const net = summary.received - moneyOut;
   const tiles = [
     { label: "Money in", value: formatRupees(summary.received), sub: "Received from customers", icon: "rupee" as const, tone: "green" },
     { label: "Money out", value: formatRupees(moneyOut), sub: "Drivers, fuel, tolls & other, repairs, FASTag, EMI, insurance", icon: "wallet" as const, tone: "plum" },
     {
       label: "Net",
-      value: formatRupees(summary.received - moneyOut),
+      value: formatRupees(net),
       sub: "Money in − money out",
       icon: "chart" as const,
-      tone: summary.received - moneyOut < 0 ? "red" : "navy",
+      tone: net < 0 ? "red" : "navy",
     },
     {
       label: "Bookings",
@@ -123,6 +124,41 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
           <Icon name="plus" size={16} /> New booking
         </Link>
       </PageHeader>
+      {/* Phones and tablets: the four tiles below as one card, net first, with a money in / money out bar
+          (admin-mobile.css shows this and hides the tiles; on desktop it's hidden) */}
+      <section className="xp-mobsum" aria-label={`${monthName(month)} in short`}>
+        <span className="xp-mobsum-label">Net · {monthName(month)}</span>
+        <strong className={`xp-mobsum-net ${net < 0 ? "is-neg" : ""}`}>{formatRupees(net)}</strong>
+        <div className="xp-mobsum-bar" aria-hidden="true">
+          <i className="is-in" style={{ flexGrow: summary.received }} />
+          <i className="is-out" style={{ flexGrow: moneyOut }} />
+        </div>
+        <div className="xp-mobsum-io">
+          <div>
+            <span>
+              <i className="is-in" aria-hidden="true" /> Money in
+            </span>
+            <strong className="is-in">{formatRupees(summary.received)}</strong>
+          </div>
+          <div>
+            <span>
+              <i className="is-out" aria-hidden="true" /> Money out
+            </span>
+            <strong>{formatRupees(moneyOut)}</strong>
+          </div>
+        </div>
+        <div className="xp-mobsum-foot">
+          <span>
+            <b>{summary.bookings}</b> booking{summary.bookings === 1 ? "" : "s"}
+          </span>
+          <span>
+            <b>{formatNumber(summary.km)}</b> km
+          </span>
+          <span>
+            billed <b>{formatRupees(summary.billed)}</b>
+          </span>
+        </div>
+      </section>
       <Flash params={params} />
       {month !== thisMonth && (
         <p className="ap-note ap-note-warn xp-monthnote">
@@ -209,7 +245,8 @@ export default async function ExpensesOverview({ searchParams }: { searchParams:
           </p>
         ) : (
           <div className="xp-tablewrap">
-            <table className="xp-table">
+            {/* xp-vehtable: on phones each vehicle is a card in a row you swipe sideways (admin-mobile.css) */}
+            <table className="xp-table xp-vehtable">
               <thead>
                 <tr>
                   <th>Vehicle</th>

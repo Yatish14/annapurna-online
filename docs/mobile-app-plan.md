@@ -70,8 +70,10 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   icon; its settings chips, then Open and Print (side by side), use the full width. "Delete files now" and "Mark collected"
   share one row. For every page on phones (560px and narrower): filter chips (All · New · Printed…) on one swipeable line,
   less padding inside white panels. CSS only. (The uploads pill stays as it is: it already fits on one line.)
-- [ ] **M4 Overview** (`/admin/expenses`): one summary card (net + in/out bar), "To collect" / "To pay drivers" side by side,
-  reminder rows, vehicle table → vehicle cards.
+- [x] **M4 Overview** (`/admin/expenses`, 26 Nov 2026): one summary card in place of the four tiles (net, a money in /
+  money out bar, bookings · km · billed). That card is the only new markup (`.xp-mobsum` in the page), hidden on desktop.
+  "To collect" / "To pay drivers" side by side, moved above Reminders (CSS `order`). Vehicles: one card each, in a row
+  you swipe sideways (`.xp-vehtable`).
 - [ ] **M5 Bookings list** (`/admin/expenses/bookings`): short rows with a date tile and the amount due, filters on one
   swipeable line, gold "New booking" button above the tab bar.
 - [ ] **M6 One booking** (`/admin/expenses/bookings/[tripNo]`): balance-due card with a paid bar, Call / WhatsApp /

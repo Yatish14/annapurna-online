@@ -1,8 +1,11 @@
 /* The admin on phones and tablets: an app look (docs/mobile-app-plan.md, designs in docs/mobile-design/).
    Everything that changes an existing page is inside @media (max-width: 1000px), so the desktop stays as it is. */
 
-/* ---------- Bottom tab bar (components/admin/TabBar.tsx): phones and tablets only ---------- */
+/* ---------- Phone-only parts, hidden on desktop ---------- */
+/* Bottom tab bar (components/admin/TabBar.tsx) */
 .ap-tabbar { display: none; }
+/* Overview's summary card (app/admin/expenses/page.tsx): desktop shows the four tiles instead */
+.xp-mobsum { display: none; }
 
 /* ---------- More page (app/admin/more): only phones link to it, but it reads fine on any screen ---------- */
 .mo-page { max-width: 640px; }
@@ -130,6 +133,40 @@
 
   /* White pills on the navy keep dark text (they'd inherit the header's white otherwise) */
   .ap-pagehead .ap-uploads { color: var(--ink); }
+
+  /* ---------- M4: Overview (app/admin/expenses/page.tsx) ---------- */
+  /* One summary card in place of the four tiles */
+  .ap-page:has(> .xp-mobsum) > .ap-tiles { display: none; }
+  .xp-mobsum {
+    display: block; margin-bottom: 12px; padding: 18px 18px 14px; border-radius: 20px;
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .xp-mobsum-label { font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+  .xp-mobsum-net { display: block; margin: 2px 0 12px; font-family: var(--serif); font-weight: 600; font-size: 2.3rem; line-height: 1.05; }
+  .xp-mobsum-net.is-neg { color: var(--err); }
+  /* The bar: green for money in, navy for money out, each as long as its share */
+  .xp-mobsum-bar { display: flex; gap: 3px; height: 10px; border-radius: 6px; overflow: hidden; background: var(--ivory-2); }
+  .xp-mobsum-bar i { display: block; min-width: 0; border-radius: 6px; }
+  .xp-mobsum .is-in { background: var(--ok); }
+  .xp-mobsum .is-out { background: var(--navy-800); }
+  .xp-mobsum-io { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .xp-mobsum-io > div { display: grid; gap: 2px; }
+  .xp-mobsum-io span { display: flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 700; color: var(--ink-soft); }
+  .xp-mobsum-io i { width: 8px; height: 8px; border-radius: 50%; }
+  .xp-mobsum-io strong { font-family: var(--serif); font-weight: 600; font-size: 1.35rem; }
+  .xp-mobsum-io strong.is-in { background: none; color: var(--ok); }
+  .xp-mobsum-foot {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-top: 12px; padding-top: 10px;
+    border-top: 1px dashed var(--line); font-size: .78rem; font-weight: 600; color: var(--ink-soft);
+  }
+  .xp-mobsum-foot b { color: var(--ink); }
+
+  /* What's owed comes right after the summary, before the reminders (as in the designs) */
+  .ap-page:has(> .xp-mobsum) { display: flex; flex-direction: column; }
+  .ap-page:has(> .xp-mobsum) > .xp-owedrow { order: 1; }
+  .ap-page:has(> .xp-mobsum) > :is(.xp-reminders, .xp-owedrow ~ *) { order: 2; }
+  /* "To collect" and "To pay drivers" side by side */
+  .xp-owedrow { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 }
 
 /* ---------- Phones (560px and narrower) ---------- */
@@ -170,4 +207,29 @@
   .ap-porder .ap-card-foot { gap: 8px; }
   .ap-porder .ap-card-foot .ap-actions { width: 100%; margin-left: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
   .ap-porder .ap-card-foot .ap-actions .ap-btn { width: 100%; padding: 10px 8px; }
+
+  /* ---------- M4: Overview ---------- */
+  /* The owed cards, narrow: icon on top, the amount under its label, the arrow in the corner */
+  .xp-owedcard { position: relative; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px; border-radius: 18px; }
+  .xp-owedcard > svg:first-child { width: 34px; height: 34px; padding: 8px; border-radius: 10px; }
+  .xp-owedcard > svg:last-child { position: absolute; top: 16px; right: 14px; opacity: .7; }
+  .xp-owedcard > div { width: 100%; }
+  .xp-owedcard span { font-size: .72rem; }
+  .xp-owedcard strong { font-size: 1.4rem; }
+  .xp-owedcard small { font-size: .7rem; }
+
+  /* Vehicles: each one a card, in a row you swipe sideways (the table already turns into cards at 700px) */
+  .xp-tablewrap:has(> .xp-vehtable) { overflow: visible; margin: 0; padding: 0; }
+  .xp-vehtable tbody {
+    display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+    margin-inline: -14px; padding: 2px 14px 8px; scroll-padding-inline: 14px;
+  }
+  .xp-vehtable tbody::-webkit-scrollbar { display: none; }
+  .xp-table.xp-vehtable tbody tr {
+    flex: 0 0 84%; scroll-snap-align: start; padding: 12px 14px;
+    border: 1px solid var(--line); border-radius: 16px; background: var(--ivory);
+  }
+  .xp-vehtable td { font-size: .84rem; }
+  /* The note under them on how profit is worked out: smaller, it's for reference */
+  .xp-tablewrap:has(> .xp-vehtable) + .ap-hint { font-size: .74rem; line-height: 1.45; }
 }
