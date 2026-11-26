@@ -131,3 +131,43 @@
   /* White pills on the navy keep dark text (they'd inherit the header's white otherwise) */
   .ap-pagehead .ap-uploads { color: var(--ink); }
 }
+
+/* ---------- Phones (560px and narrower) ---------- */
+@media (max-width: 560px) {
+  /* White panels: less padding, so what's inside gets the width */
+  .ap-panel { padding: 14px; border-radius: 20px; }
+  .ap-toolbar { gap: 10px; margin-bottom: 14px; }
+
+  /* Filter chips (New · Printed · Collected · All, and the like): one line you can swipe sideways, out to the panel's
+     edges; a chip cut off at the edge shows there are more */
+  .ap-tabs, .ap-pills {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    margin-inline: -14px; padding-inline: 14px; scroll-padding-inline: 14px;
+  }
+  .ap-tabs::-webkit-scrollbar, .ap-pills::-webkit-scrollbar { display: none; }
+  .ap-tabs a, .ap-pills a { flex: none; }
+
+  /* ---------- M3: print orders (components/admin/PrintOrderCard.tsx) ---------- */
+  .ap-porder { padding: 14px; }
+  .ap-porder .ap-card-head { margin-bottom: 10px; }
+  .ap-porder-no { font-size: 1.35rem; }
+  .ap-porder .ap-customer { font-size: .86rem; }
+
+  /* A file: the icon beside its name and size; under both, at full width, its print settings, then Open and Print.
+     display: contents lets the name, size and chips line up on the file's own grid instead of in a column of their own. */
+  .ap-pfile { gap: 2px 10px; padding: 10px; }
+  .ap-pfile-main { display: contents; }
+  .ap-pfile-icon { grid-row: span 2; width: 38px; height: 42px; }
+  .ap-pfile-main > strong { align-self: end; font-size: .9rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; overflow-wrap: normal; }
+  .ap-pfile-main > .ap-muted { align-self: start; }
+  .ap-pfile-main > .ap-chips, .ap-pfile-main > .ap-by { grid-column: 1 / -1; }
+  .ap-chips { gap: 4px; margin-top: 6px; }
+  .ap-chip { padding: 2px 7px; font-size: .7rem; }
+  .ap-pfile-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+  .ap-pfile-buttons .ap-btn { padding: 9px 10px; }
+
+  /* The order's buttons ("Delete files now", "Mark collected"): side by side, sharing the width */
+  .ap-porder .ap-card-foot { gap: 8px; }
+  .ap-porder .ap-card-foot .ap-actions { width: 100%; margin-left: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+  .ap-porder .ap-card-foot .ap-actions .ap-btn { width: 100%; padding: 10px 8px; }
+}

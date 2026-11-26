@@ -66,7 +66,10 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   is see-through with white text, as in the designs. CSS only, in `app/admin-mobile.css`. (Save bars above the tab bar: done in M1.)
 
 ### Pages
-- [ ] **M3 Print orders** (`/admin/print`): compact order cards, each file's settings and its own print button, uploads switch in the header.
+- [x] **M3 Print orders** (`/admin/print`, 26 Nov 2026): order cards about half as tall. A file's name and size sit beside its
+  icon; its settings chips, then Open and Print (side by side), use the full width. "Delete files now" and "Mark collected"
+  share one row. For every page on phones (560px and narrower): filter chips (All · New · Printed…) on one swipeable line,
+  less padding inside white panels. CSS only. (The uploads pill stays as it is: it already fits on one line.)
 - [ ] **M4 Overview** (`/admin/expenses`): one summary card (net + in/out bar), "To collect" / "To pay drivers" side by side,
   reminder rows, vehicle table → vehicle cards.
 - [ ] **M5 Bookings list** (`/admin/expenses/bookings`): short rows with a date tile and the amount due, filters on one
