@@ -39,7 +39,7 @@ async function firstLink(page: Page, list: string, pattern: RegExp): Promise<str
 test.describe("on a phone", () => {
   test.use({ viewport: PHONE, isMobile: true, hasTouch: true });
 
-  test("every admin page fits the screen, with the tab bar and no sidebar", async ({ page }) => {
+  test("every admin page fits the screen, with the tab bar (or its own screen) and no sidebar", async ({ page }) => {
     await signIn(page, "owner");
     const booking = await firstLink(page, "/admin/expenses/bookings", /^\/admin\/expenses\/bookings\/VB-\d+$/);
     const vehicle = await firstLink(page, "/admin/expenses/fleet", /^\/admin\/expenses\/fleet\/\d+$/);
@@ -48,7 +48,10 @@ test.describe("on a phone", () => {
 
     for (const url of [...PAGES, ...extra, "/admin/assistant/usage"]) {
       await page.goto(url);
-      await expect(page.locator(".ap-tabbar"), url).toBeVisible();
+      // The booking form (its own Back / Next bar) and Annapurna Assist (a full-screen chat) have no tab bar
+      const ownScreen = /\/bookings\/(new|VB-\d+\/edit)$/.test(url) || url === "/admin/assistant";
+      if (ownScreen) await expect(page.locator(".ap-tabbar"), url).toBeHidden();
+      else await expect(page.locator(".ap-tabbar"), url).toBeVisible();
       await expect(page.locator(".ap-side"), url).toBeHidden();
       // Nothing sticks out sideways: the page never scrolls left and right
       const wider = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

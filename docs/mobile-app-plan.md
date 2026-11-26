@@ -129,6 +129,9 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
 
 ### Still to do
 - [x] Type check (`npx tsc --noEmit`): passes (26 Nov 2026, after M13).
-- [ ] Run the tests (`npm run test:e2e`, including the new `tests/mobile.spec.ts`): from M7 on, the code was written without running them, as asked.
+- [x] Run the tests (26 Nov 2026): type check passes; 71 of 79 pass in the full run. `tests/mobile.spec.ts` needed one
+  update (the booking form and Assist have no tab bar now, by design), then all 6 pass. Still failing:
+  `discounts.spec.ts:63`, which fails the same way on the code from before this work (an order-dependent clash in the
+  shared test database: `users_mobile_key`); the 6 that "did not run" come after it.
 - [ ] Push, then try it on a phone: the installed app picks up the new `/launch` start page when Android refreshes it
   (or reinstall).
