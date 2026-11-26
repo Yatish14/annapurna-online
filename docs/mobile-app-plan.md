@@ -119,7 +119,13 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
 - [x] List pages (Print orders, Bookings, Activity, Reports: a panel with filter chips) lose their white box on phones and
   tablets. The chips (white), search and cards sit straight on the cream under the navy header, as in designs 02 and 05,
   and nothing overlaps the header there. Content cards (Reminders, Booking details, payments…) stay cards.
-- [x] The floating "New booking" is a round gold "+" (the words are hidden on phones; `aria-label` keeps the name).
+- [x] The floating "New booking" is a round gold "+" (the words are hidden on phones; `aria-label` keeps the name),
+  on Bookings and on the Overview.
+- [x] Every list without a white box on phones: Vehicles & drivers (each vehicle and driver a card), and any panel that
+  is a list of rows, people or a table shown as cards (Repairs/FASTag by vehicle, the Overview's lists and vehicles,
+  EMI & insurance, a vehicle's or driver's bookings, Users & roles, Assist usage). Reminders stays one card.
+- [x] Reports on phones: only the month arrows in the header, each report's title with its month under it, each table
+  row a white card (text like a route at full width) and the total as a navy card.
 
 ### Still to do
 - [x] Type check (`npx tsc --noEmit`): passes (26 Nov 2026, after M13).

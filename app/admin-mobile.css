@@ -119,6 +119,10 @@
   .ap-page > .xp-editablehead { margin-top: 0; margin-bottom: 0; padding-top: 14px; padding-bottom: calc(var(--head-overlap) + 18px); }
   .ap-page > .xp-back + .ap-pagehead,
   .ap-page > .xp-back + .xp-editablehead { padding-top: 6px; }
+  /* No hairline between the navy blocks: at fractional heights the browser can leave a sub-pixel gap where the cream
+     shows through (under the top bar, between "← All bookings" and the title). Each block reaches 1px under the one above */
+  .ap-page > :is(.xp-back, .ap-pagehead, .xp-editablehead):first-child { margin-top: -1px; padding-top: 15px; }
+  .ap-page > .xp-back + :is(.ap-pagehead, .xp-editablehead) { margin-top: -1px; padding-top: 7px; }
   .ap-pagehead h1, .xp-editablehead h1 { color: #fff; font-size: 1.95rem; font-weight: 600; }
   .ap-pagehead .ap-eyebrow, .xp-editablehead .ap-eyebrow { color: var(--gold-300); }
   .ap-pagehead p, .xp-editablehead .xp-headsub { color: rgba(255,255,255,.68); font-size: .86rem; }
@@ -174,6 +178,9 @@
   .xp-fleet .xp-state { justify-self: start; margin-top: 2px; }
   .xp-fleet .xp-rowchevron { align-self: center; }
   .xp-fleet .xp-addrow { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+  /* The figures under a name: an amount like "₹5,250 to pay" stays in one piece */
+  .xp-fleet .xp-fleetmain .ap-muted { line-height: 1.45; }
+  .xp-fleet .xp-fleetmain .xp-owed { white-space: nowrap; }
 
   /* ---------- M10: Annapurna Assist, the full page (components/assistant/Assistant.tsx) ----------
      Its header joins the navy app header, like every other page's title. The side panel (.is-panel) keeps its own look. */
@@ -432,6 +439,58 @@
   .xp-formbar:has(.xp-stepback) .xp-formcancel { display: none; }
   .xp-formbar:has(.xp-stepnext) .xp-formsave { display: none; }
   .xp-formbar .xp-stepnext, .xp-formbar .xp-formsave { flex: 1; }
+
+  /* ---------- Lists without a white box, every page ----------
+     A panel that is a list (simple rows, the people on Users & roles, a table shown as cards) loses its white box on
+     phones: the heading sits on the cream and each row is its own white card. That covers Repairs and FASTag "By
+     vehicle", the Overview's owed / drivers / on a trip / coming up lists and its vehicles, EMI & insurance, the
+     bookings on a vehicle's or driver's page, Users & roles and Assist usage. Reminders stays one highlighted card. */
+  .ap-panel:is(:has(> .ap-rows), :has(> .ap-users), :has(> .xp-tablewrap)):not(.xp-reminders) {
+    padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  }
+  .ap-panel:is(:has(> .ap-rows), :has(> .ap-users), :has(> .xp-tablewrap)):not(.xp-reminders) > .ap-panel-head { margin: 0 4px 10px; }
+  .ap-panel:is(:has(> .ap-rows), :has(> .ap-users), :has(> .xp-tablewrap)):not(.xp-reminders) .ap-search { background: var(--surface); border-color: var(--line); }
+  .ap-panel:is(:has(> .ap-rows), :has(> .ap-users), :has(> .xp-tablewrap)):not(.xp-reminders) > .ap-hint { margin-inline: 4px; }
+
+  /* The rows themselves: white cards with a gap between them */
+  .ap-panel:not(.xp-reminders) > :is(.ap-rows, .ap-users) { display: grid; gap: 10px; }
+  .ap-panel:not(.xp-reminders) > .ap-rows > .ap-row,
+  .ap-panel > .ap-users > .ap-user {
+    margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px;
+    background: var(--surface); box-shadow: var(--shadow);
+  }
+  /* Tables as cards: each row a white card (the Overview's vehicles stay a row you swipe sideways) */
+  .ap-panel > .xp-tablewrap > .xp-table tbody { display: grid; gap: 10px; }
+  .ap-panel > .xp-tablewrap > .xp-table.xp-vehtable tbody { display: flex; }
+  .ap-panel > .xp-tablewrap > .xp-table tbody tr,
+  .ap-panel > .xp-tablewrap > .xp-table tbody tr:first-child {
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
+  }
+
+  /* ---------- Reports (app/admin/expenses/reports/page.tsx) ---------- */
+  /* The header: just the month arrows (the month box beside them was a second way to do the same, on a second row) */
+  .ap-pagehead .xp-monthpick { display: none; }
+  /* Each report's title smaller, its month under it */
+  .xp-reporttitle { margin: 18px 4px 12px; font-size: 1.3rem; line-height: 1.2; }
+  .xp-reporttitle span { display: block; font-family: "Manrope", sans-serif; font-size: .78rem; font-weight: 700; }
+  .xp-reportbody + .xp-reportbody { margin-top: 28px; padding-top: 6px; }
+  .xp-rsection { margin-top: 18px; }
+  .xp-rsection h3 { margin: 0 4px 8px; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  /* Each row a white card, its first cell (the booking, customer, driver, vehicle) as the title */
+  .xp-rtable tbody { display: grid; gap: 10px; }
+  .xp-rtable tbody tr, .xp-rtable tbody tr:first-child {
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
+  }
+  /* Text like a route or a name gets the card's full width and may wrap (amounts stay on one line) */
+  .xp-rtable td.is-text { grid-column: 1 / -1; }
+  .xp-rtable td.is-text .xp-nowrap { white-space: normal; }
+  /* The total: a navy card under the rows */
+  .xp-rtable tfoot { margin-top: 10px; }
+  .xp-rtable tfoot tr { padding: 12px 14px; border: 0; border-radius: 16px; background: linear-gradient(150deg, var(--navy-900), var(--navy-800)); color: #fff; }
+  .xp-rtable tfoot th { grid-column: 1 / -1; font-size: .95rem; }
+  .xp-rtable tfoot td::before { color: rgba(255,255,255,.65); }
+  .xp-rtable tfoot :is(.is-neg, .is-pos) { color: inherit; }
+  .xp-reportnotes { margin: 16px 4px 0; font-size: .74rem; }
 
   /* ---------- M8: fleet and cost pages ---------- */
   /* Summary tiles (Repairs, FASTag, EMI & insurance, one vehicle, one driver): smaller, always two to a row */
