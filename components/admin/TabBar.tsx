@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import Icon from "./Icon";
 import { TABS } from "./nav";
 
@@ -11,6 +12,17 @@ import { TABS } from "./nav";
  */
 export default function TabBar({ printCount }: { printCount: number }) {
   const pathname = usePathname();
+  const search = useSearchParams();
+
+  // Phones: filter chips (All · Upcoming · … · Cancelled) are one line you swipe. Bring the chosen one into view, so
+  // "Cancelled" isn't left off the edge after choosing it. Rows that fit (every row on desktop) are left alone.
+  useEffect(() => {
+    document.querySelectorAll<HTMLElement>(".ap-tabs, .ap-pills").forEach((row) => {
+      if (row.scrollWidth <= row.clientWidth) return;
+      const chip = row.querySelector<HTMLElement>("a.is-active");
+      if (chip) row.scrollLeft += chip.getBoundingClientRect().left - row.getBoundingClientRect().left - 14;
+    });
+  }, [pathname, search]);
   // The first tab that claims this page; if none does, the page is one of More's
   const active = TABS.find((t) => t.match(pathname))?.href ?? "/admin/more";
 

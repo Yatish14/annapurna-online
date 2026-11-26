@@ -109,5 +109,13 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   every page on phones and tablets: text boxes are 16px, so iPhones don't zoom the page in when one is tapped. Not tested.
 
 ### Finish
-- [ ] **M13 Tests**: a Playwright test that opens every URL above at phone size (no sideways scrolling, tab bar
-  visible, nothing hidden under it) and at desktop size (no tab bar).
+- [x] **M13 Tests** (26 Nov 2026, written, not run yet): `tests/mobile.spec.ts`. On a phone: every admin URL fits (no
+  sideways scrolling), with the tab bar and no sidebar; the right tab is lit; More lists the pages; the Overview,
+  bookings and booking phone layouts show; the booking form's steps (Next refused on an empty step, Create going back
+  to the missing field); /launch goes on to the dashboard. On a desktop: no phone parts, the whole form, Create as before.
+  Also done here, the M5 leftover: the chosen filter chip is scrolled into view on phones (`TabBar.tsx`).
+
+### Still to do
+- [ ] Type check (`npx tsc --noEmit`) and run the tests: from M7 on, the code was written without them, as asked.
+- [ ] Push, then try it on a phone: the installed app picks up the new `/launch` start page when Android refreshes it
+  (or reinstall).
