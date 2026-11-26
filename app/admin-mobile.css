@@ -82,8 +82,9 @@
   /* Room for the tab bar under every page, and things that stick to the bottom sit above it */
   .ap-content { padding-bottom: var(--tabbar-space); }
   .xp-formbar { bottom: var(--tabbar-space); }
-  /* The chat page fills the screen between the top bar (60px) and the tab bar */
-  .as-page { height: calc(100vh - 60px - var(--tabbar-space)); height: calc(100dvh - 60px - var(--tabbar-space)); }
+  /* The chat page fills the screen between the top bar (--bar-h, 54px) and the tab bar */
+  :root { --bar-h: 54px; }
+  .as-page { height: calc(100vh - var(--bar-h) - var(--tabbar-space)); height: calc(100dvh - var(--bar-h) - var(--tabbar-space)); }
   /* The tab bar already leaves room for the home indicator; the extra space is for the raised Assist button */
   .as-composer { padding-bottom: 30px; }
 
@@ -139,6 +140,16 @@
 
   /* White pills on the navy keep dark text (they'd inherit the header's white otherwise) */
   .ap-pagehead .ap-uploads { color: var(--ink); }
+
+  /* ---------- M10: Annapurna Assist, the full page (components/assistant/Assistant.tsx) ----------
+     Its header joins the navy app header, like every other page's title. The side panel (.is-panel) keeps its own look. */
+  .as-page:not(.is-panel) .as-main .as-head { background: var(--head-bg); border-bottom: 0; color: #fff; }
+  .as-page:not(.is-panel) .as-main .as-head h1 { color: #fff; }
+  .as-page:not(.is-panel) .as-main .as-head .as-head-sub { color: rgba(255,255,255,.65); }
+  .as-page:not(.is-panel) .as-main .as-head :is(.as-iconbtn, .as-tool) {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: #fff;
+  }
+  .as-page:not(.is-panel) .as-main .as-head .as-head-new { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); color: #fff; }
 
   /* ---------- M4: Overview (app/admin/expenses/page.tsx) ---------- */
   /* One summary card in place of the four tiles */
@@ -215,8 +226,7 @@
   .xp-quick span.is-wa { color: #128c4b; }
   .xp-quick a:active span { background: var(--ivory); }
 
-  /* Details · Money · Costs · History: sticks under the top bar (54px) while you scroll */
-  :root { --bar-h: 54px; }
+  /* Details · Money · Costs · History: sticks under the top bar (--bar-h) while you scroll */
   .xp-jump {
     position: sticky; top: var(--bar-h); z-index: 20; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
     margin: 14px 0 12px; padding: 4px; border-radius: 14px; background: var(--ivory-2);

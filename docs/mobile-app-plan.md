@@ -98,7 +98,9 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
 - [x] **M9 Activity pages and QR poster** (26 Nov 2026): an activity entry's time moves under its text, so the text gets
   the full width (all activity lists, a booking's History too). The QR poster's Download and Print share the width (the
   poster already had phone rules). CSS only. Not tested.
-- [ ] **M10 Annapurna Assist** (`/admin/assistant…`): full screen above the tab bar, chat list as a sheet.
+- [x] **M10 Annapurna Assist** (`/admin/assistant…`, 26 Nov 2026): the full page's header is navy like the other pages
+  (the side panel keeps its look), and the page fits exactly between the top bar (54px, `--bar-h`) and the tab bar.
+  The chat list already slides in from the left on phones; the usage page got the navy header in M2. CSS only. Not tested.
 - [ ] **M11 Users and account** (`/admin/users`, `/admin/account`).
 - [ ] **M12 Sign in** (`/login`): optional polish, same navy and gold.
 
