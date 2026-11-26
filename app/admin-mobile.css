@@ -14,6 +14,8 @@
 .xp-steps, .xp-stepback, .xp-stepnext { display: none; }
 /* A vehicle's or driver's figures as labelled columns (fleet/page.tsx): desktop shows them as one line */
 .xp-fleetfacts { display: none; }
+/* The Assist page's back button (components/assistant/Assistant.tsx): desktop has the sidebar instead */
+.as-backbtn { display: none; }
 
 /* ---------- More page (app/admin/more): only phones link to it, but it reads fine on any screen ---------- */
 .mo-page { max-width: 640px; }
@@ -220,6 +222,29 @@
     background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: #fff;
   }
   .as-page:not(.is-panel) .as-main .as-head .as-head-new { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); color: #fff; }
+
+  /* The full Assist page (/admin/assistant…) is a chat app of its own: no top bar, no tab bar. Its navy header at the
+     top (with ← back, your chats, new chat), the messages scrolling in the middle, the message box fixed at the bottom */
+  .ap-shell:has(.ap-content > .as-page) :is(.ap-mobilebar, .ap-tabbar) { display: none; }
+  .ap-shell:has(.ap-content > .as-page) .ap-content { padding-bottom: 0; }
+  .ap-content > .as-page { height: 100vh; height: 100dvh; }
+  /* Room for the phone's clock and camera at the top, and its home indicator under the message box */
+  .ap-content > .as-page .as-head { padding-top: calc(10px + env(safe-area-inset-top)); gap: 10px; }
+  /* The message box docked at the bottom edge, like ChatGPT or Gemini: no band or line around it, a small margin
+     (more where the phone has a home indicator); the messages fade out just above it */
+  .ap-content > .as-page .as-composer {
+    position: relative; padding: 4px 10px max(8px, env(safe-area-inset-bottom));
+    background: var(--bg); border-top: 0;
+  }
+  .ap-content > .as-page .as-composer::before {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 18px; pointer-events: none;
+    background: linear-gradient(rgba(245,242,234,0), var(--bg));
+  }
+  .ap-content > .as-page .as-inputbox { border-radius: 26px; }
+  .ap-content > .as-page .as-scroll { padding-bottom: 12px; }
+  /* Nothing under the box: the "questions left · privacy mode" note stays on desktop */
+  .ap-content > .as-page .as-footnote { display: none; }
+  .as-backbtn { display: grid; }
 
   /* A note straight under the title (e.g. Assist usage's "← Back to Annapurna Assist · Answers by…") sits below the
      navy header: grey text overlapping the navy would be hard to read */

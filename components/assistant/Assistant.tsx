@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/admin/Icon";
 import { DAILY_LIMIT } from "@/lib/assistant/limits";
@@ -32,6 +33,9 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
   /** Side panel: showing the chat, or the list of chats in its place */
   const [view, setView] = useState<"chat" | "list">("chat");
   const scroller = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  /** Phones: the full page has no top bar or tab bar, so its header has a back button. Back to where you came from, or the dashboard */
+  const goBack = () => (window.history.length > 1 ? router.back() : router.push("/admin"));
   /** Follow new text to the bottom, unless you scrolled up to read */
   const stick = useRef(true);
 
@@ -139,6 +143,12 @@ export default function Assistant({ variant = "page", onClose, initialChat }: Pr
     </header>
   ) : (
     <header className="as-head">
+      {/* Full page on phones (admin-mobile.css shows it; hidden on desktop): the way out, since that page has no tab bar */}
+      {!panel && (
+        <button type="button" className="as-iconbtn as-backbtn" onClick={goBack} aria-label="Back">
+          <Icon name="chevron" size={18} className="xp-flip" />
+        </button>
+      )}
       {/* Full page on phones: opens the chat list drawer (the panel has its own button on the right) */}
       {!panel && (
         <button type="button" className="as-iconbtn as-history-open" onClick={() => setHistoryOpen(true)} aria-label="Your chats">
