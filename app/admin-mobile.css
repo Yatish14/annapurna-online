@@ -12,6 +12,8 @@
 .xp-mobbal, .xp-quick, .xp-jump { display: none; }
 /* The booking form's steps and Back / Next (components/expenses/TripForm.tsx): desktop shows the whole form */
 .xp-steps, .xp-stepback, .xp-stepnext { display: none; }
+/* A vehicle's or driver's figures as labelled columns (fleet/page.tsx): desktop shows them as one line */
+.xp-fleetfacts { display: none; }
 
 /* ---------- More page (app/admin/more): only phones link to it, but it reads fine on any screen ---------- */
 .mo-page { max-width: 640px; }
@@ -183,18 +185,31 @@
   .ap-page > .ap-pagehead + .xp-fleet { margin-top: 16px; }
   .xp-fleet > .ap-panel > .ap-panel-head { margin: 0 4px 10px; }
   .xp-fleet .xp-fleetlist { display: grid; gap: 10px; }
+  /* A card: the icon, the name and the status pill on top; under them, the figures as labelled columns
+     (Bookings · Km · Fuel · Repairs, or Mobile · Bookings · To pay). The whole card opens it, so no arrow.
+     display: contents lets the name and the figures take places on the card's own grid */
   .xp-fleet .xp-fleetlist li.xp-rowlink {
-    grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-areas: "icon main chev" "icon state chev";
-    gap: 4px 12px; margin: 0; padding: 12px 12px 12px 14px;
+    grid-template-columns: 42px minmax(0, 1fr) auto; grid-template-areas: "icon name state" "facts facts facts";
+    align-items: center; gap: 12px; margin: 0; padding: 12px 14px;
     border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow);
   }
-  .xp-fleet .xp-fleeticon { width: 42px; height: 42px; }
-  .xp-fleet .xp-state { justify-self: start; margin-top: 2px; }
-  .xp-fleet .xp-rowchevron { align-self: center; }
+  .xp-fleet .xp-fleeticon { width: 42px; height: 42px; align-self: center; }
+  .xp-fleet .xp-fleetmain { display: contents; }
+  .xp-fleet .xp-fleetmain > span:first-child { grid-area: name; min-width: 0; }
+  .xp-fleet .xp-fleetmain > .ap-muted, .xp-fleet .xp-rowchevron { display: none; }
+  .xp-fleet .xp-samplebadge { margin-left: 6px; }
+  .xp-fleet .xp-state { grid-area: state; justify-self: end; margin: 0; }
+  .xp-fleetfacts {
+    grid-area: facts; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px;
+    margin: 0; padding-top: 10px; border-top: 1px dashed var(--line);
+  }
+  .xp-fleetfacts dt { font-size: .6rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  .xp-fleetfacts dd { margin: 2px 0 0; font-size: .86rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .xp-fleetfacts dd.is-owed { color: var(--err); }
+  .xp-fleetfacts a { color: var(--emerald-700); text-decoration: none; }
+  /* A switched-off one is faded (the desktop fades its text block, which display: contents leaves out) */
+  .xp-fleet li.is-off :is(.xp-fleetmain > span:first-child, .xp-fleetfacts) { opacity: .6; }
   .xp-fleet .xp-addrow { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
-  /* The figures under a name: an amount like "₹5,250 to pay" stays in one piece */
-  .xp-fleet .xp-fleetmain .ap-muted { line-height: 1.45; }
-  .xp-fleet .xp-fleetmain .xp-owed { white-space: nowrap; }
 
   /* ---------- M10: Annapurna Assist, the full page (components/assistant/Assistant.tsx) ----------
      Its header joins the navy app header, like every other page's title. The side panel (.is-panel) keeps its own look. */
@@ -495,9 +510,11 @@
   .xp-rtable tbody tr, .xp-rtable tbody tr:first-child {
     padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow);
   }
-  /* Text like a route or a name gets the card's full width and may wrap (amounts stay on one line) */
-  .xp-rtable td.is-text { grid-column: 1 / -1; }
-  .xp-rtable td.is-text .xp-nowrap { white-space: normal; }
+  /* Three values to a row (Dates · Customer · To, Vehicle · Driver · Km, …), not one or two: a report row has many,
+     and each is short. Text like a name or a place may wrap inside its column; amounts stay on one line. */
+  .xp-rtable tbody tr, .xp-rtable tfoot tr { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; }
+  .xp-rtable td { font-size: .84rem; }
+  .xp-rtable td.is-text .xp-nowrap { white-space: normal; overflow-wrap: anywhere; }
   /* The total: a navy card under the rows */
   .xp-rtable tfoot { margin-top: 10px; }
   .xp-rtable tfoot tr { padding: 12px 14px; border: 0; border-radius: 16px; background: linear-gradient(150deg, var(--navy-900), var(--navy-800)); color: #fff; }

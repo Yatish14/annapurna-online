@@ -75,6 +75,25 @@ export default async function FleetPage({ searchParams }: { searchParams: Search
                       {v.trips} booking{v.trips === 1 ? "" : "s"} · {formatNumber(v.km)} km · Fuel {formatRupees(v.fuel)} · Repairs{" "}
                       {formatRupees(v.repairs)}
                     </span>
+                    {/* Phones only (admin-mobile.css): the same figures as labelled columns, in place of the line above */}
+                    <dl className="xp-fleetfacts">
+                      <div>
+                        <dt>Bookings</dt>
+                        <dd>{v.trips}</dd>
+                      </div>
+                      <div>
+                        <dt>Km</dt>
+                        <dd>{formatNumber(v.km)}</dd>
+                      </div>
+                      <div>
+                        <dt>Fuel</dt>
+                        <dd>{formatRupees(v.fuel)}</dd>
+                      </div>
+                      <div>
+                        <dt>Repairs</dt>
+                        <dd>{formatRupees(v.repairs)}</dd>
+                      </div>
+                    </dl>
                   </div>
                   <FleetStatus active={v.active} onTrip={v.on_trip} />
                   <Icon name="chevron" size={18} className="xp-rowchevron" />
@@ -124,6 +143,23 @@ export default async function FleetPage({ searchParams }: { searchParams: Search
                       <a href={`tel:+91${d.phone}`}>{formatPhone(d.phone)}</a> · {d.trips} booking{d.trips === 1 ? "" : "s"}
                       {d.owed > 0 && <b className="xp-owed"> · {formatRupees(d.owed)} to pay</b>}
                     </span>
+                    {/* Phones only: the same as labelled columns */}
+                    <dl className="xp-fleetfacts">
+                      <div>
+                        <dt>Mobile</dt>
+                        <dd>
+                          <a href={`tel:+91${d.phone}`}>{formatPhone(d.phone)}</a>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Bookings</dt>
+                        <dd>{d.trips}</dd>
+                      </div>
+                      <div>
+                        <dt>To pay</dt>
+                        <dd className={d.owed > 0 ? "is-owed" : ""}>{d.owed > 0 ? formatRupees(d.owed) : "Settled"}</dd>
+                      </div>
+                    </dl>
                   </div>
                   <FleetStatus active={d.active} onTrip={d.on_trip} />
                   <Icon name="chevron" size={18} className="xp-rowchevron" />
