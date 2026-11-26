@@ -374,6 +374,20 @@
   .xp-formbar:has(.xp-stepnext) .xp-formsave { display: none; }
   .xp-formbar .xp-stepnext, .xp-formbar .xp-formsave { flex: 1; }
 
+  /* ---------- M8: fleet and cost pages ---------- */
+  /* Summary tiles (Repairs, FASTag, EMI & insurance, one vehicle, one driver): smaller, always two to a row */
+  .xp-sumtiles, .xp-sumtiles-4 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .xp-sumtile { padding: 10px 12px; border-radius: 14px; }
+  .xp-sumtile span { font-size: .64rem; }
+  .xp-sumtile strong { font-size: 1.15rem; }
+  .xp-sumtile small { font-size: .68rem; }
+
+  /* Vehicles & drivers: the list first, the "add a new one" form under it (on a phone you mostly look things up) */
+  .xp-fleet > .ap-panel { display: flex; flex-direction: column; }
+  .xp-fleet > .ap-panel > :not(.ap-panel-head, .xp-addrow) { order: 1; }
+  .xp-fleet > .ap-panel > .xp-addrow { order: 2; margin: 14px 0 0; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .xp-fleetmain .ap-muted { font-size: .78rem; }
+
   /* ---------- M6: one booking ---------- */
   /* Booking details in two columns: the facts are short */
   .xp-facts { grid-template-columns: 1fr 1fr; gap: 12px 14px; }

@@ -93,7 +93,8 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   fields are right. Create with a wrong field on another step opens that step and shows the message there, and a
   server error about a field (e.g. driver busy) does the same. Desktop unchanged (every section shown; the step logic
   only acts on fields that are hidden). Left out: vehicles and drivers as tap cards (the searchable dropdowns stay).
-- [ ] **M8 Fleet and cost pages**: vehicles & drivers, one vehicle, one driver, repairs, FASTag, EMI & insurance, reports.
+- [x] **M8 Fleet and cost pages** (26 Nov 2026): these already stacked and showed tables as cards on phones. Now the summary
+  tiles are smaller and always two to a row, and on Vehicles & drivers the lists come before the "add" forms. CSS only. Not tested.
 - [ ] **M9 Activity pages and QR poster**: printout and expense activity as a timeline, QR poster sized for a phone.
 - [ ] **M10 Annapurna Assist** (`/admin/assistant…`): full screen above the tab bar, chat list as a sheet.
 - [ ] **M11 Users and account** (`/admin/users`, `/admin/account`).
