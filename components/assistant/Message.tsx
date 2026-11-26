@@ -83,8 +83,10 @@ export default function MessageView({ message, live, running, onConfirm, onCance
       <div className="as-msg-body">
         {(message.steps?.length || running) && (
           <ul className="as-steps" aria-label="What the assistant checked">
-            {message.steps?.map((s) => (
-              <li key={s.label}>
+            {/* Keyed by position too: one answer can use the same tool twice (two "Searching bookings"), and the
+                steps only ever grow at the end, so the position is stable */}
+            {message.steps?.map((s, i) => (
+              <li key={`${i}-${s.label}`}>
                 <Icon name={s.icon} size={13} /> {s.label}
                 <Icon name="check" size={12} className="as-step-done" />
               </li>

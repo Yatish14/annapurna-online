@@ -234,8 +234,9 @@ function SourcesCard({ card }: { card: CardOf<"sources"> }) {
   return (
     <div className="as-sources">
       <span>From the help guides</span>
-      {card.items.map((s) => (
-        <span key={s.title} className="ap-chip" title={s.section}>
+      {/* Keyed by position too: two parts of the same guide share its title */}
+      {card.items.map((s, i) => (
+        <span key={`${i}-${s.title}`} className="ap-chip" title={s.section}>
           <Icon name="file" size={13} /> {s.title}
         </span>
       ))}
