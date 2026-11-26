@@ -74,8 +74,12 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   money out bar, bookings · km · billed). That card is the only new markup (`.xp-mobsum` in the page), hidden on desktop.
   "To collect" / "To pay drivers" side by side, moved above Reminders (CSS `order`). Vehicles: one card each, in a row
   you swipe sideways (`.xp-vehtable`).
-- [ ] **M5 Bookings list** (`/admin/expenses/bookings`): short rows with a date tile and the amount due, filters on one
-  swipeable line, gold "New booking" button above the tab bar.
+- [x] **M5 Bookings list** (`/admin/expenses/bookings`, 26 Nov 2026): short rows (about 4 a screen instead of 1½). A date
+  tile on the left; the booking number, status, customer, route and vehicle · driver in the middle; on the right, what's
+  still due (red) or paid, and what the driver is still owed. New in `TripCard.tsx`: the date tile and the amount column
+  (hidden on desktop), and `monthShort()` in `lib/dates.ts`. On phones the list leaves out the mobile number, "Created by"
+  and the Open button (the whole card opens the booking). Gold "New booking" floats above the tab bar (`.xp-newfab`).
+  Still to do: when a filter chip past the screen's edge is the selected one (e.g. Cancelled), it isn't scrolled into view.
 - [ ] **M6 One booking** (`/admin/expenses/bookings/[tripNo]`): balance-due card with a paid bar, Call / WhatsApp /
   Payment / Fuel buttons, the page split into Details · Money · Costs · History tabs, "Record payment" fixed at the bottom.
 - [ ] **M7 Booking form, in steps** (`…/new`, `…/[tripNo]/edit`): Customer → Vehicle & dates → Route → Amounts, with a

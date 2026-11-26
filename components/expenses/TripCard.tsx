@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Icon from "@/components/admin/Icon";
-import { daysText, diffDays, fmtRange } from "@/lib/dates";
+import { daysText, diffDays, fmtRange, monthShort } from "@/lib/dates";
 import { formatNumber, formatRupees } from "@/lib/expenses/money";
 import {
   balanceOf,
@@ -33,8 +33,15 @@ export default function TripCard({ trip }: { trip: Trip }) {
   const km = kmOf(trip);
   const balance = balanceOf(trip);
   const owed = driverOwed(trip);
+  const payable = payableOf(trip);
   return (
     <article className={`ap-card xp-trip is-${trip.phase}`}>
+      {/* Phones only (admin-mobile.css): the start date as a tile, in place of the dates line below */}
+      <span className="xp-datetile">
+        <b>{trip.start_date.slice(8)}</b>
+        <span>{monthShort(trip.start_date)}</span>
+        <small>{daysText(diffDays(trip.start_date, trip.end_date) + 1)}</small>
+      </span>
       <div className="ap-card-head">
         <div className="ap-card-title">
           {/* Stretched over the whole card, so clicking anywhere on it opens the booking */}
@@ -62,7 +69,8 @@ export default function TripCard({ trip }: { trip: Trip }) {
           <dt>{trip.round_trip ? "Round trip" : "Route"}</dt>
           <dd>{routeText(trip)}</dd>
         </div>
-        <div>
+        {/* Phones hide this one and the driver's: the amount column on the right says it in short */}
+        <div className="xp-fact-paid">
           <dt>Customer paid</dt>
           <dd>
             {trip.total_amount === null ? (
@@ -77,7 +85,7 @@ export default function TripCard({ trip }: { trip: Trip }) {
             )}
           </dd>
         </div>
-        <div>
+        <div className="xp-fact-driver">
           {/* "km" only once the odometer readings give a distance */}
           <dt>{km !== null ? "Driver · km" : "Driver"}</dt>
           <dd>
@@ -94,6 +102,26 @@ export default function TripCard({ trip }: { trip: Trip }) {
           Open booking <Icon name="arrow" size={14} />
         </Link>
       </div>
+      {/* Phones only: the money in short, on the right. What the customer still owes (or that it's paid),
+          and what the driver is still owed */}
+      {trip.status === "booked" && (
+        <span className="xp-tripamt">
+          {payable === null ? (
+            <span className="ap-badge xp-pay is-unset">No total</span>
+          ) : balance > 0 ? (
+            <>
+              <strong className="is-due">{formatRupees(balance)}</strong>
+              <small>due</small>
+            </>
+          ) : (
+            <>
+              <strong>{formatRupees(payable)}</strong>
+              <small>paid</small>
+            </>
+          )}
+          {owed > 0 && <small className="is-driver">driver {formatRupees(owed)}</small>}
+        </span>
+      )}
     </article>
   );
 }

@@ -73,6 +73,11 @@ export function fmtRangeCompact(start: string, end: string): string {
   return `${fmtDayMonth(start)}–${fmtDayMonth(end)}`;
 }
 
+/** "Dec" for "2026-12-08" (the date tile on a booking, on phones) */
+export function monthShort(iso: string): string {
+  return MONTHS[toUtc(iso).getUTCMonth()];
+}
+
 export function daysText(days: number): string {
   return `${days} day${days === 1 ? "" : "s"}`;
 }

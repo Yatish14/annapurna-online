@@ -6,6 +6,8 @@
 .ap-tabbar { display: none; }
 /* Overview's summary card (app/admin/expenses/page.tsx): desktop shows the four tiles instead */
 .xp-mobsum { display: none; }
+/* A booking's date tile and amount column (components/expenses/TripCard.tsx): desktop shows the full card */
+.xp-datetile, .xp-tripamt { display: none; }
 
 /* ---------- More page (app/admin/more): only phones link to it, but it reads fine on any screen ---------- */
 .mo-page { max-width: 640px; }
@@ -167,6 +169,15 @@
   .ap-page:has(> .xp-mobsum) > :is(.xp-reminders, .xp-owedrow ~ *) { order: 2; }
   /* "To collect" and "To pay drivers" side by side */
   .xp-owedrow { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+
+  /* ---------- M5: Bookings list ---------- */
+  /* "New booking" floats above the tab bar, always in reach of the thumb; the list leaves room for it at the end */
+  .xp-newfab {
+    position: fixed; right: 16px; bottom: calc(var(--tabbar-space) + 14px); z-index: 33;
+    padding: 14px 20px; border-radius: 18px; font-size: .95rem;
+    box-shadow: 0 14px 28px -10px rgba(168,130,47,.85), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .ap-page:has(.xp-newfab) { padding-bottom: 96px; }
 }
 
 /* ---------- Phones (560px and narrower) ---------- */
@@ -232,4 +243,48 @@
   .xp-vehtable td { font-size: .84rem; }
   /* The note under them on how profit is worked out: smaller, it's for reference */
   .xp-tablewrap:has(> .xp-vehtable) + .ap-hint { font-size: .74rem; line-height: 1.45; }
+
+  /* ---------- M5: a booking in the list (components/expenses/TripCard.tsx) ----------
+     A short row: the date tile on the left; the booking number and status, the customer, the route and the
+     vehicle in the middle; what's still owed on the right. The whole card still opens the booking. */
+  .ap-list:has(> .xp-trip) { gap: 10px; }
+  .xp-trip {
+    display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 2px 12px; padding: 12px;
+    grid-template-areas: "date head amt" "date cust amt" "date facts facts";
+  }
+  .xp-datetile {
+    grid-area: date; align-self: start; display: grid; justify-items: center; padding: 8px 0 7px;
+    border-radius: 14px; background: var(--ivory-2); line-height: 1;
+  }
+  .xp-datetile b { font-family: var(--serif); font-size: 1.35rem; font-weight: 600; color: var(--navy-900); }
+  .xp-datetile span { margin-top: 4px; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-600); }
+  .xp-datetile small { margin-top: 4px; font-size: .6rem; font-weight: 700; color: var(--ink-soft); }
+
+  .xp-trip .ap-card-head { grid-area: head; margin: 0; }
+  .xp-trip .ap-card-title { gap: 6px; flex-wrap: wrap; }
+  .xp-trip .xp-tripno { font-family: inherit; font-size: .78rem; font-weight: 800; letter-spacing: .04em; color: var(--phase-ink); }
+  .xp-trip .ap-badge { padding: 2px 7px; font-size: .6rem; }
+  /* The dates line (the tile shows them) and the paid badge (the amount column says it) */
+  .xp-trip .xp-dates, .xp-trip .ap-card-head .xp-pay { display: none; }
+
+  .xp-trip .ap-customer { grid-area: cust; margin: 0; gap: 0 8px; font-size: .95rem; }
+  .xp-trip .ap-customer strong { font-weight: 800; }
+  /* The mobile number: on the booking's own page (with a Call button), to keep the row short */
+  .xp-trip .ap-customer a { display: none; }
+
+  /* Only the route and the vehicle · driver, no labels, route first */
+  .xp-trip .xp-cardfacts { grid-area: facts; display: flex; flex-direction: column; gap: 0; margin: 2px 0 0; }
+  .xp-trip .xp-cardfacts > div:nth-child(2) { order: -1; }
+  .xp-trip .xp-cardfacts dt, .xp-trip .xp-fact-paid, .xp-trip .xp-fact-driver { display: none; }
+  .xp-trip .xp-cardfacts dd { margin: 0; font-size: .8rem; font-weight: 500; color: var(--ink-soft); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .xp-trip .xp-cardfacts > div:nth-child(2) dd { font-weight: 600; color: var(--ink); }
+
+  /* "Created by" and the "Open booking" button: the whole card opens it */
+  .xp-trip .ap-card-foot { display: none; }
+
+  .xp-tripamt { grid-area: amt; display: grid; align-content: start; justify-items: end; gap: 1px; text-align: right; }
+  .xp-tripamt strong { font-family: var(--serif); font-size: 1.05rem; font-weight: 600; }
+  .xp-tripamt strong.is-due { color: var(--err); }
+  .xp-tripamt small { font-size: .66rem; font-weight: 700; color: var(--ink-soft); }
+  .xp-tripamt small.is-driver { margin-top: 4px; color: #6b3fa0; }
 }
