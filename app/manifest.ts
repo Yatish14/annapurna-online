@@ -7,8 +7,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Annapurna Online Services",
     short_name: "Annapurna",
     description: "Bookings, expenses, print orders and Annapurna Assist for the Annapurna team.",
-    // The app is for staff: it opens on the dashboard (signed-out staff land on /login)
-    start_url: "/admin",
+    // The app is for staff: it opens on the loading splash (app/launch), which goes on to the print orders,
+    // the dashboard's first page (signed-out staff land on /login)
+    start_url: "/launch",
     scope: "/",
     display: "standalone",
     background_color: "#0a1838",

@@ -1,0 +1,57 @@
+/* The installed app's loading screen (components/admin/LaunchSplash.tsx, shown by app/launch) */
+.sp-splash {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: 6px;
+  /* Same navy as the phone's own splash (manifest background_color), so one flows into the other */
+  background:
+    radial-gradient(60vmax 50vmax at 50% 38%, rgba(201,162,74,.14), transparent 60%),
+    linear-gradient(180deg, #0a1838, #050d22);
+  color: #fff;
+  /* This page doesn't load admin.css, where the body font is set */
+  font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sp-lotus { width: 132px; height: 132px; margin-bottom: 18px; overflow: visible; animation: sp-glow 2.4s ease-in-out infinite; }
+.sp-outline { fill: none; stroke: rgba(241,217,154,.55); stroke-width: .5; }
+.sp-base { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 28; animation: sp-draw 2.4s ease-in-out infinite; }
+
+/* Rise: from below the petals (y 44) to above them (y 2), stay full for a moment, then start again */
+.sp-rise { animation: sp-rise 2.4s cubic-bezier(.45, .05, .35, 1) infinite; }
+/* The surface: two waves wide, moved one wave (48) to the left, so the loop has no seam */
+.sp-wave { animation: sp-wave 1.1s linear infinite; }
+
+.sp-name { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 1.7rem; letter-spacing: .01em; }
+.sp-tag { font-size: .72rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: #f1d99a; opacity: .85; }
+
+@keyframes sp-rise {
+  0% { transform: translateY(44px); }
+  70%, 100% { transform: translateY(2px); }
+}
+/* Full for a moment, then the gold fades so the next fill starts from empty */
+.sp-fill { animation: sp-fade 2.4s ease-in-out infinite; }
+@keyframes sp-fade {
+  0%, 86% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes sp-wave {
+  from { transform: translateX(0); }
+  to { transform: translateX(-48px); }
+}
+@keyframes sp-draw {
+  0% { stroke-dashoffset: 28; }
+  40%, 100% { stroke-dashoffset: 0; }
+}
+@keyframes sp-glow {
+  0%, 55% { filter: drop-shadow(0 0 0 rgba(241,217,154,0)); }
+  75% { filter: drop-shadow(0 0 14px rgba(241,217,154,.55)); }
+  100% { filter: drop-shadow(0 0 0 rgba(241,217,154,0)); }
+}
+
+/* Reduced motion: a full gold lotus that gently pulses, no rising liquid */
+@media (prefers-reduced-motion: reduce) {
+  .sp-rise, .sp-wave, .sp-base, .sp-fill { animation: none; }
+  .sp-rise { transform: none; }
+  .sp-base { stroke-dashoffset: 0; }
+  .sp-lotus { animation: sp-pulse 1.6s ease-in-out infinite; }
+}
+@keyframes sp-pulse { 50% { opacity: .6; } }
