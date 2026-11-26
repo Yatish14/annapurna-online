@@ -10,6 +10,8 @@
 .xp-datetile, .xp-tripamt { display: none; }
 /* One booking's money card, quick buttons and section bar (bookings/[tripNo]/page.tsx): desktop shows the tiles */
 .xp-mobbal, .xp-quick, .xp-jump { display: none; }
+/* The booking form's steps and Back / Next (components/expenses/TripForm.tsx): desktop shows the whole form */
+.xp-steps, .xp-stepback, .xp-stepnext { display: none; }
 
 /* ---------- More page (app/admin/more): only phones link to it, but it reads fine on any screen ---------- */
 .mo-page { max-width: 640px; }
@@ -339,6 +341,38 @@
 
   /* "Created by" and the "Open booking" button: the whole card opens it */
   .xp-trip .ap-card-foot { display: none; }
+
+  /* ---------- M7: the booking form, one step at a time (components/expenses/TripForm.tsx) ---------- */
+  /* Where you are: "Step 2 of 4: Vehicle & dates", and a bar per step (gold up to this one) */
+  .xp-steps {
+    display: block; margin-bottom: 12px; padding: 14px 14px 12px; border-radius: 20px;
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .xp-steps p { margin: 0 0 10px; font-size: .8rem; font-weight: 600; color: var(--ink-soft); }
+  .xp-steps p strong { color: var(--navy-900); font-weight: 800; }
+  .xp-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .xp-steps button {
+    width: 100%; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+    font: inherit; font-size: .64rem; font-weight: 700; color: var(--ink-soft); -webkit-tap-highlight-color: transparent;
+  }
+  .xp-steps button::before { content: ""; display: block; height: 4px; margin-bottom: 6px; border-radius: 3px; background: var(--ivory-2); }
+  .xp-steps .is-done button { color: var(--ink); }
+  .xp-steps .is-done button::before { background: var(--gold-500); }
+  .xp-steps .is-now button { color: var(--gold-600); font-weight: 800; }
+  .xp-steps .is-now button::before { background: linear-gradient(90deg, var(--gold-300), var(--gold-500)); }
+
+  /* Only the sections of this step (each section says its step in data-step) */
+  .xp-form > section[data-step] { display: none; }
+  .xp-form[data-step="1"] > [data-step="1"],
+  .xp-form[data-step="2"] > [data-step="2"],
+  .xp-form[data-step="3"] > [data-step="3"],
+  .xp-form[data-step="4"] > [data-step="4"] { display: block; }
+
+  /* The bar at the bottom: Back in place of Cancel after the first step, Next in place of Save before the last */
+  .xp-formbar .xp-stepback, .xp-formbar .xp-stepnext { display: inline-flex; }
+  .xp-formbar:has(.xp-stepback) .xp-formcancel { display: none; }
+  .xp-formbar:has(.xp-stepnext) .xp-formsave { display: none; }
+  .xp-formbar .xp-stepnext, .xp-formbar .xp-formsave { flex: 1; }
 
   /* ---------- M6: one booking ---------- */
   /* Booking details in two columns: the facts are short */

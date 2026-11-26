@@ -86,8 +86,13 @@ one on phones, following the designs in [mobile-design/](mobile-design/) (open `
   not hidden panels: no JavaScript, and nothing is out of reach. Phone order: details, payments, fuel and other expenses, readings.
   Details in two columns. New markup (hidden on desktop): `.xp-mobbal`, `.xp-quick`, `.xp-jump`, and `id="details"`.
   Left out: a "Record payment" bar fixed at the bottom. The Payment button and the tab bar already cover it, and a third bar would crowd the screen.
-- [ ] **M7 Booking form, in steps** (`…/new`, `…/[tripNo]/edit`): Customer → Vehicle & dates → Route → Amounts, with a
-  progress bar and Back / Next; vehicles and drivers as tap cards.
+- [x] **M7 Booking form, in steps** (`…/new`, `…/[tripNo]/edit`, 26 Nov 2026): on phones, 1 Customer (+ Referred by) →
+  2 Vehicle & dates → 3 Route → 4 Money & notes, with a step card ("Step 2 of 4", a gold bar per step, each name opens
+  its step) and Back / Next in the bottom bar. All in `TripForm.tsx` (sections carry `data-step`, the form the current
+  step) and `admin-mobile.css`. Still one form, so everything is saved together. Next only moves on when the step's
+  fields are right. Create with a wrong field on another step opens that step and shows the message there, and a
+  server error about a field (e.g. driver busy) does the same. Desktop unchanged (every section shown; the step logic
+  only acts on fields that are hidden). Left out: vehicles and drivers as tap cards (the searchable dropdowns stay).
 - [ ] **M8 Fleet and cost pages**: vehicles & drivers, one vehicle, one driver, repairs, FASTag, EMI & insurance, reports.
 - [ ] **M9 Activity pages and QR poster**: printout and expense activity as a timeline, QR poster sized for a phone.
 - [ ] **M10 Annapurna Assist** (`/admin/assistant…`): full screen above the tab bar, chat list as a sheet.

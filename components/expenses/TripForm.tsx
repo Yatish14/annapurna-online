@@ -46,9 +46,22 @@ function tripKm(v: Pick<TripFormValues, "odometer_start" | "odometer_end">): num
 const dayCount = (start: string, end: string) =>
   start && end && end >= start ? Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1 : 0;
 
+/**
+ * Phones (admin-mobile.css) show the form one step at a time; each section says which step it's in (data-step).
+ * The desktop shows every section, as always: there the step changes nothing that's seen.
+ */
+const STEPS = ["Customer", "Vehicle & dates", "Route", "Money & notes"];
+/** Which step a field is in (the data-step of its section), or null if it's outside the steps */
+const stepOf = (el: Element | null | undefined) => Number(el?.closest("[data-step]")?.getAttribute("data-step")) || null;
+/** Shown? A field on a step that's hidden has no boxes on the screen */
+const isShown = (el: Element) => el.getClientRects().length > 0;
+
 export default function TripForm({ tripId, initial, vehicles: serverVehicles, drivers: serverDrivers, customers, cancelHref, soFar, fromDraft }: Props) {
   const isNew = tripId === undefined;
   const [v, setV] = useState<TripFormValues>(initial);
+  const [step, setStep] = useState(1);
+  /** A field to show once its step is on the screen: "report" shows the browser's message, "focus" just puts the cursor in */
+  const after = useRef<{ el: HTMLElement; how: "report" | "focus" } | null>(null);
   const [state, formAction, pending] = useActionState<TripFormState, FormData>(saveTrip, {});
   const form = useRef<HTMLFormElement>(null);
   const alert = useRef<HTMLDivElement>(null);
@@ -83,17 +96,66 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
   const fieldEl = (name: string) =>
     form.current?.querySelector<HTMLElement>(`[data-for="${name}"]`) ?? (form.current?.elements.namedItem(name) as HTMLElement | null);
 
+  /** Puts the cursor in a field (and scrolls to it); on a phone, first opens the step it's on */
+  function focusField(field: HTMLElement, scroll = true) {
+    if (!isShown(field) && stepOf(field)) return goTo(stepOf(field)!, { el: field, how: "focus" });
+    field.focus();
+    if (scroll) field.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
   // After a server error: show it and put the cursor in the field it's about
   useEffect(() => {
     if (!state.error && !state.driverClash) return;
     const field = state.field && fieldEl(state.field);
     if (field instanceof HTMLElement) {
-      field.focus();
-      field.scrollIntoView({ block: "center", behavior: "smooth" });
+      focusField(field);
     } else {
       alert.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     }
   }, [state]);
+
+  /** Opens a step, then shows the field waiting for it, or starts the step at the top of the screen */
+  function goTo(next: number, field: { el: HTMLElement; how: "report" | "focus" } | null = null) {
+    after.current = field;
+    setStep(next);
+  }
+  // Only when the step really changed (not when the page first opens: that would undo a link to #money)
+  const shownStep = useRef(step);
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    const field = after.current;
+    after.current = null;
+    // (Not "return window.scrollTo(…)": newer browsers return a Promise from it, and React would take it for a clean-up)
+    if (!field) {
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    // Only form fields have reportValidity; anything else just gets the cursor
+    if (field.how === "report" && field.el instanceof HTMLInputElement) field.el.reportValidity();
+    else field.el.focus();
+    field.el.scrollIntoView({ block: "center" });
+  }, [step]);
+
+  /** Next: only when this step's fields are filled in right; otherwise the first wrong one says why */
+  function nextStep() {
+    const fields = Array.from(form.current?.elements ?? []) as HTMLInputElement[];
+    const wrong = fields.find((el) => stepOf(el) === step && el.willValidate && !el.validity.valid);
+    if (wrong) wrong.reportValidity();
+    else goTo(step + 1);
+  }
+
+  /**
+   * Saving with a wrong field on a step that's hidden: the browser can't show its message there (nor put the cursor
+   * in it), so open that step first. Each wrong field sends an "invalid" event; the first in the form is the one to show.
+   */
+  function onInvalid() {
+    if (after.current) return;
+    const fields = Array.from(form.current?.elements ?? []) as HTMLInputElement[];
+    const first = fields.find((el) => el.willValidate && !el.validity.valid);
+    const where = stepOf(first);
+    if (first && where && !isShown(first)) goTo(where, { el: first, how: "report" });
+  }
 
   function submit(allowDriverClash = false) {
     if (!form.current) return;
@@ -107,6 +169,8 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
       <form
         ref={form}
         className="xp-form"
+        data-step={step}
+        onInvalidCapture={onInvalid}
         onSubmit={(e) => {
           e.preventDefault();
           submit();
@@ -126,7 +190,10 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
                 <button
                   type="button"
                   className="ap-btn ap-btn-ghost ap-btn-sm"
-                  onClick={() => fieldEl("driver_id")?.focus()}
+                  onClick={() => {
+                    const driver = fieldEl("driver_id");
+                    if (driver) focusField(driver, false);
+                  }}
                 >
                   Change driver
                 </button>
@@ -138,7 +205,23 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
           )}
         </div>
 
-        <section className="ap-panel xp-section">
+        {/* Phones only: where you are. Each step's name opens it (a wrong field is still caught on saving) */}
+        <nav className="xp-steps" aria-label="Steps">
+          <p>
+            Step {step} of {STEPS.length}: <strong>{STEPS[step - 1]}</strong>
+          </p>
+          <ol>
+            {STEPS.map((name, i) => (
+              <li key={name} className={i + 1 < step ? "is-done" : i + 1 === step ? "is-now" : ""}>
+                <button type="button" onClick={() => goTo(i + 1)} aria-current={i + 1 === step ? "step" : undefined}>
+                  {name}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
+        <section className="ap-panel xp-section" data-step="1">
           <h2>
             <Icon name="users" size={18} /> Customer
           </h2>
@@ -175,7 +258,7 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
           </div>
         </section>
 
-        <section className="ap-panel xp-section">
+        <section className="ap-panel xp-section" data-step="2">
           <h2>
             <Icon name="car" size={18} /> Vehicle, driver and dates
           </h2>
@@ -248,7 +331,7 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
           </div>
         </section>
 
-        <section className="ap-panel xp-section">
+        <section className="ap-panel xp-section" data-step="3">
           <h2>
             <Icon name="route" size={18} /> Route
           </h2>
@@ -307,7 +390,8 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
           )}
         </section>
 
-        <section className="ap-panel xp-section">
+        {/* Who sent the customer: on phones it goes with the customer, in step 1 */}
+        <section className="ap-panel xp-section" data-step="1">
           <h2>
             <Icon name="userplus" size={18} /> Referred by <small>optional</small>
           </h2>
@@ -337,7 +421,7 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
           </div>
         </section>
 
-        <section className="ap-panel xp-section" id="money">
+        <section className="ap-panel xp-section" id="money" data-step="4">
           <h2>
             <Icon name="rupee" size={18} /> Money, fuel and km <small>optional, can be filled in later</small>
           </h2>
@@ -511,7 +595,7 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
           </div>
         </section>
 
-        <section className="ap-panel xp-section">
+        <section className="ap-panel xp-section" data-step="4">
           <h2>
             <Icon name="file" size={18} /> Notes <small>optional</small>
           </h2>
@@ -528,11 +612,23 @@ export default function TripForm({ tripId, initial, vehicles: serverVehicles, dr
           </label>
         </section>
 
+        {/* Desktop: Cancel and Save. Phones: Back (after step 1) in place of Cancel, and Next (before the last
+            step) in place of Save; admin-mobile.css shows the right ones */}
         <div className="xp-formbar">
-          <Link href={cancelHref} className="ap-btn ap-btn-ghost">
+          {step > 1 && (
+            <button type="button" className="ap-btn ap-btn-ghost xp-stepback" onClick={() => goTo(step - 1)}>
+              Back
+            </button>
+          )}
+          <Link href={cancelHref} className="ap-btn ap-btn-ghost xp-formcancel">
             Cancel
           </Link>
-          <button type="submit" className="ap-btn ap-btn-gold" disabled={pending}>
+          {step < STEPS.length && (
+            <button type="button" className="ap-btn ap-btn-gold xp-stepnext" onClick={nextStep} aria-label={`Next: ${STEPS[step]}`}>
+              Next <Icon name="arrow" size={16} />
+            </button>
+          )}
+          <button type="submit" className="ap-btn ap-btn-gold xp-formsave" disabled={pending}>
             {pending ? "Saving…" : isNew ? (
               <>
                 <Icon name="check" size={16} /> Create booking
